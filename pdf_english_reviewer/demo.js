@@ -1,67 +1,75 @@
-// Preview-mode shim for TW/pdf_english_reviewer.
-// The real app posts uploads to a FastAPI backend; this file replaces that
-// path with client-side PDF.js rendering so the demo actually shows something.
+// Client-side preview shim for TW/pdf_english_reviewer.
+// The real app POSTs uploads to a FastAPI backend. On GitHub Pages the
+// backend isn't available, so this file intercepts the upload form and
+// renders the selected PDF locally with PDF.js.
 
 (function () {
   const PDFJS_VERSION = "4.0.379";
   const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
 
-  // Fetch stubbing is done inline in index.html <head> so app_v3.js's initial
-  // requests are intercepted. This file only handles PDF.js rendering.
+  let pdfjsReady = null;
+
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       const s = document.createElement("script");
       s.src = src;
-      s.onload = resolve;
+      s.onload = () => resolve();
       s.onerror = () => reject(new Error("Failed to load " + src));
       document.head.appendChild(s);
     });
   }
 
-  async function boot() {
-    try {
-      await loadScript(`${PDFJS_BASE}/pdf.min.js`);
+  function ensurePdfjs() {
+    if (pdfjsReady) return pdfjsReady;
+    pdfjsReady = loadScript(`${PDFJS_BASE}/pdf.min.js`).then(() => {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/pdf.worker.min.js`;
-    } catch (err) {
-      console.warn("[demo] PDF.js load failed:", err);
-      return;
-    }
-    rebindUpload();
+    });
+    return pdfjsReady;
   }
 
-  function rebindUpload() {
-    const form = document.getElementById("upload-form");
-    if (!form) return;
-    const clone = form.cloneNode(true);
-    form.parentNode.replaceChild(clone, form);
-    clone.addEventListener("submit", handleSubmit);
-  }
+  // Kick off PDF.js download immediately so it's ready by the time the
+  // user picks a file.
+  ensurePdfjs().catch((err) => console.warn("[demo] PDF.js preload failed:", err));
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const fileInput = form.querySelector('input[type="file"]');
-    const file = fileInput && fileInput.files && fileInput.files[0];
-    const btn = form.querySelector('button[type="submit"]');
-    if (!file) return;
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      alert("Please choose a PDF file.");
-      return;
-    }
-    btn.disabled = true;
-    btn.textContent = "Rendering preview…";
-    try {
-      const buffer = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
-      await renderViewer(pdf, file.name);
-    } catch (err) {
-      console.error(err);
-      alert("PDF render failed: " + err.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Open review workspace";
-    }
-  }
+  // Capture-phase submit interception: runs before the form's own submit
+  // handler (added by app_v3.js), so we can preventDefault + stopImmediatePropagation
+  // and route to the local renderer instead of the missing backend.
+  document.addEventListener(
+    "submit",
+    async (event) => {
+      const form = event.target;
+      if (!form || form.id !== "upload-form") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const fileInput = document.getElementById("pdf-file");
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      const btn = form.querySelector('button[type="submit"]');
+      if (!file) {
+        alert("Please choose a PDF file first.");
+        return;
+      }
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Rendering preview…";
+      }
+      try {
+        await ensurePdfjs();
+        const buffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+        await renderViewer(pdf, file.name);
+      } catch (err) {
+        console.error("[demo] PDF render failed:", err);
+        alert("PDF render failed: " + (err && err.message ? err.message : err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Open review workspace";
+        }
+      }
+    },
+    true // capture phase
+  );
 
   async function renderViewer(pdf, name) {
     const upload = document.getElementById("upload-panel");
@@ -75,8 +83,7 @@
       <div style="padding:24px;max-width:1000px;margin:0 auto;">
         <div style="background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:14px 18px;border-radius:10px;margin-bottom:20px;font-size:13px;line-height:1.5;">
           <strong>${escapeHtml(name)}</strong> &middot; ${pdf.numPages} pages<br/>
-          Preview mode: showing the first ${maxPages} pages rendered in your browser via PDF.js.
-          Review suggestions, glossary, Team Manual Standard, and CSV/PDF exports require the local FastAPI backend.
+          Rendered locally in your browser via PDF.js. Review suggestions, glossary, and CSV/PDF exports require running the local FastAPI backend.
         </div>
         <div style="display:flex;gap:12px;margin-bottom:20px;">
           <button id="demo-back-btn" style="padding:8px 16px;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer;font-size:13px;">&larr; Upload another PDF</button>
@@ -118,11 +125,5 @@
     return String(str).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
   }
 })();
