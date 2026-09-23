@@ -19,7 +19,7 @@
   const JSPDF_URL = "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
 
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
-  const RULES_STORAGE_KEY = "tw-demo-rules-v2";
+  const RULES_STORAGE_KEY = "tw-demo-rules-v3";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -27,8 +27,10 @@
   const MARGIN_CM = 2.5;
   const MARGIN_PT = MARGIN_CM * 72 / 2.54; // ≈ 70.87 pt
 
-  // Default rules — simple typo + spacing only.
-  const DEFAULT_RULES = [
+  // Chicago rules declared later; forward reference resolved by defining
+  // DEFAULT_RULES via a function call after CHICAGO_RULES.
+  let DEFAULT_RULES; // filled after CHICAGO_RULES declaration
+  const _BASE_RULES = [
     // Common English typos.
     { id: "typo-teh",     category: "typo", name: "teh → the",           pattern: "\\bteh\\b",        flags: "gi", replacement: "the",     severity: "minor", enabled: true },
     { id: "typo-adress",  category: "typo", name: "adress → address",    pattern: "\\badress\\b",     flags: "gi", replacement: "address", severity: "minor", enabled: true },
@@ -51,7 +53,57 @@
   };
   const CATEGORY_COLORS = {
     typo: "#f59e0b", spacing: "#3b82f6", custom: "#8b5cf6",
+    punctuation: "#0ea5e9", grammar: "#a855f7", capitalization: "#14b8a6",
+    numbers_abbreviations: "#f43f5e", hyphenation_terminology: "#eab308",
   };
+
+  // 20 representative Chicago Manual of Style rules (pilot).
+  // Regex-implementable rules are enabled by default; NLP/parser/context-only
+  // rules are added as disabled with a placeholder pattern so users see them
+  // in the editor and can enable or refine.
+  const CHICAGO_RULES = [
+    { id: "chicago-01-double-space",   category: "punctuation", name: "Chicago 6.7 — One space after sentence-ending punctuation",
+      pattern: "([.!?])  +", flags: "g", replacement: "$1 ", severity: "minor", enabled: true },
+    { id: "chicago-02-serial-comma",   category: "punctuation", name: "Chicago 6.19 — Serial (Oxford) comma",
+      pattern: "(\\w+),\\s+(\\w+)\\s+(and|or)\\s+(\\w+)", flags: "g", replacement: "$1, $2, $3 $4", severity: "minor", enabled: false },
+    { id: "chicago-03-intro-clause",   category: "grammar", name: "Chicago 6.26 — Comma after introductory dependent clause",
+      pattern: "^(After|Before|When|If|Although|While|Because|Since|Unless)\\s+[\\w\\s]{5,60}\\s+([A-Z]\\w+)", flags: "gm", replacement: "$1, $2", severity: "major", enabled: false },
+    { id: "chicago-04-comma-splice",   category: "grammar", name: "Chicago 6.23 — Avoid comma splice between independent clauses",
+      pattern: ".^", flags: "g", replacement: "", severity: "major", enabled: false },
+    { id: "chicago-05-cap-after-colon",category: "capitalization", name: "Chicago 6.63 — Capitalize a complete sentence after a colon",
+      pattern: ":\\s+([a-z])", flags: "g", replacement: ": (capitalize)", severity: "minor", enabled: false },
+    { id: "chicago-06-no-numeral-start",category: "numbers_abbreviations", name: "Chicago 9.5 — Do not begin a sentence with a numeral",
+      pattern: "(^|\\.\\s+)(\\d+)\\s", flags: "gm", replacement: "$1(spell out $2) ", severity: "minor", enabled: true },
+    { id: "chicago-07-leading-zero",   category: "numbers_abbreviations", name: "Chicago 9.19 — Leading zero before a decimal fraction",
+      pattern: "(?<![\\d.])\\.(\\d)", flags: "g", replacement: "0.$1", severity: "minor", enabled: true },
+    { id: "chicago-08-define-abbrev",  category: "numbers_abbreviations", name: "Chicago 10.3 — Define an unfamiliar abbreviation at first use",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-09-punct-in-quotes",category: "punctuation", name: "Chicago 6.9 — Periods and commas inside closing quotation marks",
+      pattern: "\"([.,])", flags: "g", replacement: "$1\"", severity: "minor", enabled: true },
+    { id: "chicago-10-list-punct",     category: "punctuation", name: "Chicago 6.130 — Consistent punctuation in a vertical list",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-11-hyphen-modifier",category: "hyphenation_terminology", name: "Chicago 7.85 — Hyphenate compound modifier before a noun",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-12-no-hyphen-ly",   category: "hyphenation_terminology", name: "Chicago 7.86 — Do not hyphenate an -ly adverb compound",
+      pattern: "\\b(\\w+ly)-(\\w+)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+    { id: "chicago-13-suspended-hyphen",category:"hyphenation_terminology", name: "Chicago 7.88 — Suspended hyphens in shared compounds",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-14-consistent-compound",category: "hyphenation_terminology", name: "Chicago 7.89 — Consistent compound form across the document",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-15-ui-capitalization",category: "hyphenation_terminology", name: "Chicago 8.155 — Approved capitalization for UI terms",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-16-subject-verb",   category: "grammar", name: "Chicago 5.140 — Subject-verb agreement",
+      pattern: ".^", flags: "g", replacement: "", severity: "major", enabled: false },
+    { id: "chicago-17-pronoun-agree",  category: "grammar", name: "Chicago 5.30 — Pronoun-antecedent agreement",
+      pattern: ".^", flags: "g", replacement: "", severity: "major", enabled: false },
+    { id: "chicago-18-dangling",       category: "grammar", name: "Chicago 5.115 — Avoid dangling participial phrase",
+      pattern: ".^", flags: "g", replacement: "", severity: "major", enabled: false },
+    { id: "chicago-19-tense",          category: "grammar", name: "Chicago 5.132 — Maintain consistent verb tense",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+    { id: "chicago-20-parallel-lists", category: "grammar", name: "Chicago 6.130 — Parallel verb forms in procedural lists",
+      pattern: ".^", flags: "g", replacement: "", severity: "minor", enabled: false },
+  ];
+  DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES];
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -304,6 +356,8 @@
     const dictList = document.getElementById("dictionary-list");
     if (dictList) dictList.innerHTML = `<span class="hint">Preview mode — glossary requires backend.</span>`;
 
+    hideUnusedSidebarSections();
+    wireDocumentDataButtons();
     wireViewerToolbar();
     wireIssuesFilters();
     wireIssueActions();
@@ -468,6 +522,79 @@
   }
 
   //
+  // ─── Left sidebar cleanup ──────────────────────────────────────────────
+  // Hide everything except the Document data card (per user request).
+  //
+  function hideUnusedSidebarSections() {
+    const sidebar = document.querySelector(".left-sidebar");
+    if (!sidebar) return;
+    const hide = (sel) => sidebar.querySelectorAll(sel).forEach((el) => (el.style.display = "none"));
+    hide(".doc-info");
+    hide(".run-review-card");
+    // Only hide the Applied Glossary dictionary card, keep the Document Data one.
+    sidebar.querySelectorAll(".dictionary-card").forEach((el) => {
+      if (!el.classList.contains("document-data-card")) el.style.display = "none";
+    });
+    // Add a compact document header at the top of the sidebar.
+    const dataCard = sidebar.querySelector(".document-data-card");
+    if (dataCard && !document.getElementById("demo-doc-header")) {
+      const header = document.createElement("div");
+      header.id = "demo-doc-header";
+      header.style.cssText = "padding:12px 14px;margin-bottom:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;";
+      header.innerHTML = `
+        <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;margin:0 0 4px;">Current document</p>
+        <h3 id="demo-doc-name" style="font-size:14px;font-weight:600;color:#111827;margin:0 0 4px;word-break:break-all;"></h3>
+        <p id="demo-doc-meta" style="font-size:12px;color:#6b7280;margin:0;"></p>`;
+      dataCard.parentNode.insertBefore(header, dataCard);
+    }
+    setText("demo-doc-name", viewerState.filename);
+    setText("demo-doc-meta", `${viewerState.pdf.numPages} pages · header/footer 2.5 cm excluded`);
+  }
+
+  let docDataWired = false;
+  function wireDocumentDataButtons() {
+    if (docDataWired) return;
+    docDataWired = true;
+    const card = document.querySelector(".document-data-card");
+    if (!card) return;
+    card.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-delete-document]");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const target = btn.dataset.deleteDocument;
+      if (target === "review-results") {
+        if (!confirm("Clear all review results for this session?")) return;
+        viewerState.findings = [];
+        setText("issue-total", "0");
+        setText("review-status", "Review results cleared");
+        renderIssuesPanel();
+        renderCurrentPages();
+        return;
+      }
+      if (target === "generated-files") {
+        alert("No generated files in preview mode (annotated PDF/CSV export are backend features). Use Export PDF Report from the top bar for a suggestion summary.");
+        return;
+      }
+      if (target === "original" || target === "all") {
+        if (!confirm("Delete this workspace and return to upload?")) return;
+        const wsList = readWorkspaces();
+        const meta = wsList.find((w) => w.filename === viewerState.filename);
+        if (meta) {
+          try { await idbDelete(meta.id); } catch {}
+          removeWorkspaceMeta(meta.id);
+        }
+        viewerState.pdf = null;
+        viewerState.findings = [];
+        const upload = document.getElementById("upload-panel");
+        const workspace = document.getElementById("workspace");
+        if (workspace) workspace.classList.add("hidden");
+        if (upload) upload.classList.remove("hidden");
+      }
+    }, true); // capture: bypass app_v3.js handlers
+  }
+
+  //
   // ─── Toolbar wiring ────────────────────────────────────────────────────
   //
   let viewerWired = false;
@@ -518,6 +645,11 @@
         <option value="all">All categories</option>
         <option value="typo">Typo</option>
         <option value="spacing">Spacing</option>
+        <option value="punctuation">Punctuation</option>
+        <option value="grammar">Grammar</option>
+        <option value="capitalization">Capitalization</option>
+        <option value="numbers_abbreviations">Numbers &amp; abbreviations</option>
+        <option value="hyphenation_terminology">Hyphenation &amp; terminology</option>
         <option value="custom">Custom</option>`;
     }
     on("category-filter", "change", () => { renderIssuesPanel(); renderCurrentPages(); });
@@ -812,6 +944,11 @@
             <select name="category" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
               <option value="typo" ${r.category === "typo" ? "selected" : ""}>Typo</option>
               <option value="spacing" ${r.category === "spacing" ? "selected" : ""}>Spacing</option>
+              <option value="punctuation" ${r.category === "punctuation" ? "selected" : ""}>Punctuation</option>
+              <option value="grammar" ${r.category === "grammar" ? "selected" : ""}>Grammar</option>
+              <option value="capitalization" ${r.category === "capitalization" ? "selected" : ""}>Capitalization</option>
+              <option value="numbers_abbreviations" ${r.category === "numbers_abbreviations" ? "selected" : ""}>Numbers &amp; abbreviations</option>
+              <option value="hyphenation_terminology" ${r.category === "hyphenation_terminology" ? "selected" : ""}>Hyphenation &amp; terminology</option>
               <option value="custom" ${r.category === "custom" ? "selected" : ""}>Custom</option>
             </select>
           </label>
