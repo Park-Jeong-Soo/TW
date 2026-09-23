@@ -1,76 +1,47 @@
 // Client-side preview shim for TW/pdf_english_reviewer.
-// Real app POSTs uploads to a FastAPI backend. On GitHub Pages the backend
-// isn't available, so this file:
-//   1. Intercepts the upload form and renders selected PDF via PDF.js.
-//   2. Saves each uploaded PDF into IndexedDB (blob) + localStorage (metadata)
-//      so Workspaces tab lists them and lets the user reopen.
-//   3. Shows backend-required messages inside the Team Manual Standard and
-//      Review Engines views.
+// - Intercepts PDF upload and renders via PDF.js
+// - Saves PDFs to IndexedDB (blob) + localStorage (metadata) → Workspaces tab
+// - Runs simple rule matching (typo, spacing) against PDF text layer
+// - Excludes text within 2.5cm top/bottom margin (header/footer)
+// - Team Manual Standard tab becomes a rule editor (add/edit/delete/toggle)
+// - Export PDF report of suggestions via jsPDF
 
 (function () {
+  //
+  // ─── Config ─────────────────────────────────────────────────────────────
+  //
   const PDFJS_VERSION = "3.11.174";
   const PDFJS_SOURCES = [
     `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build`,
     `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build`,
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`,
   ];
+  const JSPDF_URL = "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
 
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
+  const RULES_STORAGE_KEY = "tw-demo-rules-v2";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
-  // Subset of the Chicago Manual of Style pilot rules from
-  // config/team_standard/chicago_pilot_rules.yaml — enough variety for a
-  // realistic-looking mock of the Suggestions panel.
-  const CHICAGO_RULES = [
-    { key: "one_space_after_sentence", name: "Use one space after sentence-ending punctuation",
-      category: "punctuation", severity: "minor",
-      message: "Use one space after sentence-ending punctuation.",
-      suggestion: "Replace multiple spaces with one space.",
-      bad_example: "Close the cover.  Restart the system.",
-      good_example: "Close the cover. Restart the system." },
-    { key: "serial_comma", name: "Use a serial comma in a simple series",
-      category: "punctuation", severity: "minor",
-      message: "Consider adding a serial comma before the final item.",
-      suggestion: "Add a comma before 'and' or 'or' in a simple series.",
-      bad_example: "a controller, a cable and a probe",
-      good_example: "a controller, a cable, and a probe" },
-    { key: "intro_dependent_clause_comma", name: "Add a comma after an introductory dependent clause",
-      category: "grammar", severity: "major",
-      message: "The introductory dependent clause may require a comma.",
-      suggestion: "Insert a comma at the end of the introductory clause.",
-      bad_example: "After the scan is complete select Save.",
-      good_example: "After the scan is complete, select Save." },
-    { key: "comma_splice", name: "Avoid a comma splice between independent clauses",
-      category: "grammar", severity: "major",
-      message: "Two independent clauses may not be joined by only a comma.",
-      suggestion: "Use a period, semicolon, or a coordinating conjunction.",
-      bad_example: "The scan is complete, the result appears.",
-      good_example: "The scan is complete, and the result appears." },
-    { key: "capitalize_after_colon", name: "Capitalize a complete sentence after a colon",
-      category: "capitalization", severity: "minor",
-      message: "Capitalize the first word after the colon if it begins a complete sentence.",
-      suggestion: "Capitalize the first word after the colon.",
-      bad_example: "Note: the stage moves automatically.",
-      good_example: "Note: The stage moves automatically." },
-    { key: "no_numeral_at_start", name: "Do not begin a sentence with a numeral",
-      category: "numbers_abbreviations", severity: "minor",
-      message: "Do not begin a sentence with a numeral.",
-      suggestion: "Spell out the number or revise the sentence.",
-      bad_example: "3 modules are installed in the enclosure.",
-      good_example: "Three modules are installed in the enclosure." },
-    { key: "leading_zero_decimal", name: "Use a leading zero before a decimal fraction",
-      category: "numbers_abbreviations", severity: "minor",
-      message: "Add a leading zero before the decimal point.",
-      suggestion: "Change .5 to 0.5.",
-      bad_example: "Set the gain to .5.",
-      good_example: "Set the gain to 0.5." },
-    { key: "number_unit_space", name: "Space between number and unit",
-      category: "consistency", severity: "minor",
-      message: "Technical manuals use a space between numbers and units.",
-      suggestion: "Insert a space between the number and the unit.",
-      bad_example: "Set the distance to 10mm.",
-      good_example: "Set the distance to 10 mm." },
+  // 2.5 cm margin (top and bottom) excluded from review — headers/footers.
+  const MARGIN_CM = 2.5;
+  const MARGIN_PT = MARGIN_CM * 72 / 2.54; // ≈ 70.87 pt
+
+  // Default rules — simple typo + spacing only.
+  const DEFAULT_RULES = [
+    // Common English typos.
+    { id: "typo-teh",     category: "typo", name: "teh → the",           pattern: "\\bteh\\b",        flags: "gi", replacement: "the",     severity: "minor", enabled: true },
+    { id: "typo-adress",  category: "typo", name: "adress → address",    pattern: "\\badress\\b",     flags: "gi", replacement: "address", severity: "minor", enabled: true },
+    { id: "typo-recieve", category: "typo", name: "recieve → receive",   pattern: "\\brecieve\\b",    flags: "gi", replacement: "receive", severity: "minor", enabled: true },
+    { id: "typo-seperate",category: "typo", name: "seperate → separate", pattern: "\\bseperate\\b",   flags: "gi", replacement: "separate",severity: "minor", enabled: true },
+    { id: "typo-occured", category: "typo", name: "occured → occurred",  pattern: "\\boccured\\b",    flags: "gi", replacement: "occurred",severity: "minor", enabled: true },
+    { id: "typo-untill",  category: "typo", name: "untill → until",      pattern: "\\buntill\\b",     flags: "gi", replacement: "until",   severity: "minor", enabled: true },
+    { id: "typo-alot",    category: "typo", name: "alot → a lot",        pattern: "\\balot\\b",       flags: "gi", replacement: "a lot",   severity: "minor", enabled: true },
+    { id: "typo-thier",   category: "typo", name: "thier → their",       pattern: "\\bthier\\b",      flags: "gi", replacement: "their",   severity: "minor", enabled: true },
+    // Spacing.
+    { id: "space-unit",   category: "spacing", name: "Number-unit spacing", pattern: "\\b(\\d+(?:\\.\\d+)?)(mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+    { id: "space-double", category: "spacing", name: "Double space",        pattern: "  +",             flags: "g", replacement: " ", severity: "minor", enabled: true },
+    { id: "space-before-punct", category: "spacing", name: "Space before punctuation", pattern: " +([,\\.;:!?])", flags: "g", replacement: "$1", severity: "minor", enabled: true },
   ];
 
   const SEVERITY_STYLES = {
@@ -78,12 +49,14 @@
     major:    { fill: "rgba(249, 115, 22, 0.30)", border: "#f97316", label: "Major" },
     minor:    { fill: "rgba(234, 179, 8, 0.35)",  border: "#eab308", label: "Minor" },
   };
+  const CATEGORY_COLORS = {
+    typo: "#f59e0b", spacing: "#3b82f6", custom: "#8b5cf6",
+  };
 
+  //
+  // ─── PDF.js loader ─────────────────────────────────────────────────────
+  //
   let pdfjsReady = null;
-
-  //
-  // ─── PDF.js loader ──────────────────────────────────────────────────────
-  //
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       const s = document.createElement("script");
@@ -93,7 +66,6 @@
       document.head.appendChild(s);
     });
   }
-
   async function ensurePdfjs() {
     if (pdfjsReady) return pdfjsReady;
     pdfjsReady = (async () => {
@@ -103,20 +75,23 @@
           await loadScript(`${base}/pdf.min.js`);
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.js`;
           return;
-        } catch (err) {
-          lastErr = err;
-          console.warn("[demo] PDF.js load failed from", base, err);
-        }
+        } catch (err) { lastErr = err; console.warn("[demo] PDF.js load failed from", base, err); }
       }
       throw lastErr || new Error("All PDF.js CDNs failed");
     })();
     return pdfjsReady;
   }
-
   ensurePdfjs().catch((err) => console.warn("[demo] PDF.js preload failed:", err));
 
+  let jspdfReady = null;
+  async function ensureJsPdf() {
+    if (jspdfReady) return jspdfReady;
+    jspdfReady = loadScript(JSPDF_URL);
+    return jspdfReady;
+  }
+
   //
-  // ─── IndexedDB helpers (PDF blobs) ──────────────────────────────────────
+  // ─── IndexedDB (PDF blobs) ─────────────────────────────────────────────
   //
   function idbOpen() {
     return new Promise((resolve, reject) => {
@@ -126,7 +101,6 @@
       req.onerror = () => reject(req.error);
     });
   }
-
   async function idbPut(id, blob) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
@@ -136,7 +110,6 @@
       tx.onerror = () => reject(tx.error);
     });
   }
-
   async function idbGet(id) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
@@ -146,7 +119,6 @@
       req.onerror = () => reject(req.error);
     });
   }
-
   async function idbDelete(id) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
@@ -158,100 +130,84 @@
   }
 
   //
-  // ─── Workspace metadata (localStorage) ──────────────────────────────────
+  // ─── Workspace metadata (localStorage) ─────────────────────────────────
   //
   function readWorkspaces() {
-    try {
-      return JSON.parse(localStorage.getItem(WS_STORAGE_KEY) || "[]");
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem(WS_STORAGE_KEY) || "[]"); }
+    catch { return []; }
   }
-  function writeWorkspaces(list) {
-    localStorage.setItem(WS_STORAGE_KEY, JSON.stringify(list));
-  }
-  function addWorkspaceMeta(meta) {
-    const list = readWorkspaces();
-    list.unshift(meta);
-    writeWorkspaces(list);
-  }
-  function removeWorkspaceMeta(id) {
-    writeWorkspaces(readWorkspaces().filter((w) => w.id !== id));
-  }
+  function writeWorkspaces(list) { localStorage.setItem(WS_STORAGE_KEY, JSON.stringify(list)); }
+  function addWorkspaceMeta(meta) { const list = readWorkspaces(); list.unshift(meta); writeWorkspaces(list); }
+  function removeWorkspaceMeta(id) { writeWorkspaces(readWorkspaces().filter((w) => w.id !== id)); }
 
   function newId() {
     if (crypto && crypto.randomUUID) return crypto.randomUUID();
-    return "ws-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+    return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
   }
 
   //
-  // ─── Upload form intercept (capture phase) ──────────────────────────────
+  // ─── Rules storage (localStorage) ──────────────────────────────────────
   //
-  document.addEventListener(
-    "submit",
-    async (event) => {
-      const form = event.target;
-      if (!form || form.id !== "upload-form") return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
+  function getRules() {
+    try {
+      const raw = localStorage.getItem(RULES_STORAGE_KEY);
+      if (!raw) return DEFAULT_RULES.slice();
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_RULES.slice();
+    } catch { return DEFAULT_RULES.slice(); }
+  }
+  function saveRules(rules) { localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(rules)); }
+  function upsertRule(rule) {
+    const list = getRules();
+    const idx = list.findIndex((r) => r.id === rule.id);
+    if (idx >= 0) list[idx] = rule; else list.push(rule);
+    saveRules(list);
+  }
+  function deleteRuleId(id) { saveRules(getRules().filter((r) => r.id !== id)); }
+  function resetRules() { localStorage.removeItem(RULES_STORAGE_KEY); }
 
-      const fileInput = document.getElementById("pdf-file");
-      const projectInput = document.getElementById("project-name");
-      const reviewerInput = document.getElementById("reviewer");
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      const btn = form.querySelector('button[type="submit"]');
-      if (!file) {
-        alert("Please choose a PDF file first.");
-        return;
-      }
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Rendering preview…";
-      }
+  //
+  // ─── Upload form intercept (capture phase) ─────────────────────────────
+  //
+  document.addEventListener("submit", async (event) => {
+    const form = event.target;
+    if (!form || form.id !== "upload-form") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const fileInput = document.getElementById("pdf-file");
+    const projectInput = document.getElementById("project-name");
+    const reviewerInput = document.getElementById("reviewer");
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    const btn = form.querySelector('button[type="submit"]');
+    if (!file) { alert("Please choose a PDF file first."); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "Rendering preview…"; }
+    try {
+      await ensurePdfjs();
+      const buffer = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+      const id = newId();
       try {
-        await ensurePdfjs();
-        const buffer = await file.arrayBuffer();
-        const pdf = await window.pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
-
-        const id = newId();
-        const blob = new Blob([buffer], { type: "application/pdf" });
-        try {
-          await idbPut(id, blob);
-          addWorkspaceMeta({
-            id,
-            filename: file.name,
-            project_name: (projectInput && projectInput.value) || "",
-            reviewer: (reviewerInput && reviewerInput.value) || "",
-            page_count: pdf.numPages,
-            size_bytes: file.size,
-            created_at: new Date().toISOString(),
-          });
-        } catch (storeErr) {
-          console.warn("[demo] Workspace persist failed:", storeErr);
-        }
-        await renderViewer(pdf, file.name);
-      } catch (err) {
-        console.error("[demo] PDF render failed:", err);
-        alert("PDF render failed: " + (err && err.message ? err.message : err));
-      } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Open review workspace";
-        }
-      }
-    },
-    true
-  );
+        await idbPut(id, new Blob([buffer], { type: "application/pdf" }));
+        addWorkspaceMeta({
+          id, filename: file.name,
+          project_name: (projectInput && projectInput.value) || "",
+          reviewer: (reviewerInput && reviewerInput.value) || "",
+          page_count: pdf.numPages, size_bytes: file.size,
+          created_at: new Date().toISOString(),
+        });
+      } catch (storeErr) { console.warn("[demo] persist failed:", storeErr); }
+      await renderViewer(pdf, file.name);
+    } catch (err) {
+      console.error("[demo] PDF render failed:", err);
+      alert("PDF render failed: " + (err && err.message ? err.message : err));
+    } finally { if (btn) { btn.disabled = false; btn.textContent = "Open review workspace"; } }
+  }, true);
 
   //
-  // ─── Workspaces view: override loadWorkspaces ───────────────────────────
-  //
-  // app_v3.js declares `loadWorkspaces`, `renderWorkspaces`, `deleteWorkspace`
-  // in script scope so `window.loadWorkspaces = ...` overrides them for
-  // subsequent calls from the click handlers on the nav buttons.
+  // ─── Workspaces list ───────────────────────────────────────────────────
   //
   window.loadWorkspaces = renderSavedWorkspaces;
-
   function renderSavedWorkspaces() {
     const container = document.getElementById("workspace-list");
     if (!container) return;
@@ -259,9 +215,7 @@
     const query = (searchInput && searchInput.value.trim().toLowerCase()) || "";
     const list = readWorkspaces().filter((item) =>
       item.filename.toLowerCase().includes(query) ||
-      (item.project_name || "").toLowerCase().includes(query)
-    );
-
+      (item.project_name || "").toLowerCase().includes(query));
     if (!list.length) {
       container.innerHTML = `
         <div class="empty-issues" style="padding:24px;text-align:center;color:#6b7280;">
@@ -270,7 +224,6 @@
         </div>`;
       return;
     }
-
     container.innerHTML = list.map((item) => `
       <article class="workspace-card">
         <div class="workspace-card-main">
@@ -286,63 +239,39 @@
           <button class="primary" data-demo-open="${item.id}">Open Workspace</button>
           <button class="danger" data-demo-delete="${item.id}">Delete Workspace</button>
         </div>
-      </article>
-    `).join("");
-
+      </article>`).join("");
     container.querySelectorAll("[data-demo-open]").forEach((b) =>
-      b.addEventListener("click", () => openSavedWorkspace(b.dataset.demoOpen))
-    );
+      b.addEventListener("click", () => openSavedWorkspace(b.dataset.demoOpen)));
     container.querySelectorAll("[data-demo-delete]").forEach((b) =>
-      b.addEventListener("click", () => deleteSavedWorkspace(b.dataset.demoDelete))
-    );
+      b.addEventListener("click", () => deleteSavedWorkspace(b.dataset.demoDelete)));
   }
-
   async function openSavedWorkspace(id) {
     const meta = readWorkspaces().find((w) => w.id === id);
     if (!meta) return alert("Workspace metadata missing.");
     try {
       const blob = await idbGet(id);
-      if (!blob) return alert("Stored PDF blob not found. It may have been cleared by the browser.");
+      if (!blob) return alert("Stored PDF blob not found.");
       await ensurePdfjs();
       const buffer = await blob.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
       if (typeof window.showView === "function") window.showView("reviewer");
       await renderViewer(pdf, meta.filename);
-    } catch (err) {
-      console.error("[demo] Reopen failed:", err);
-      alert("Could not reopen workspace: " + (err && err.message ? err.message : err));
-    }
+    } catch (err) { alert("Could not reopen workspace: " + err.message); }
   }
-
   async function deleteSavedWorkspace(id) {
     const meta = readWorkspaces().find((w) => w.id === id);
     if (!meta) return;
     if (!confirm(`Delete this workspace?\n\n${meta.filename}`)) return;
-    try {
-      await idbDelete(id);
-    } catch (err) {
-      console.warn("[demo] IDB delete failed (proceeding):", err);
-    }
+    try { await idbDelete(id); } catch (err) { console.warn("[demo] IDB delete failed:", err); }
     removeWorkspaceMeta(id);
     renderSavedWorkspaces();
   }
-
-  // Also override workspace-search input so live typing filters our list.
-  document.addEventListener(
-    "input",
-    (event) => {
-      if (event.target && event.target.id === "workspace-search") {
-        renderSavedWorkspaces();
-      }
-    },
-    true
-  );
+  document.addEventListener("input", (event) => {
+    if (event.target && event.target.id === "workspace-search") renderSavedWorkspaces();
+  }, true);
 
   //
-  // ─── Reviewer viewer (preserves original layout) ────────────────────────
-  //
-  // Keeps the app's left sidebar, toolbar, and right issues panel intact;
-  // only populates the document info, page label, and PDF canvas area.
+  // ─── Reviewer state ────────────────────────────────────────────────────
   //
   const viewerState = { pdf: null, zoom: 1, viewMode: "one", currentPage: 1, filename: "", findings: [], activeFindingId: null };
 
@@ -361,18 +290,14 @@
     if (!workspace) return;
     workspace.classList.remove("hidden");
 
-    // Populate document header info.
     setText("document-name", name);
-    setText("document-meta", `${pdf.numPages} pages · Mock review (Chicago Manual pilot)`);
-    setText("review-status", `Generating mock findings…`);
+    setText("document-meta", `${pdf.numPages} pages · Preview mode (header/footer 2.5cm excluded)`);
+    setText("review-status", "Extracting text and matching rules…");
     setText("page-label", `/ ${pdf.numPages}`);
     setText("dictionary-count", "0 terms");
 
     const pageInput = document.getElementById("page-number-input");
-    if (pageInput) {
-      pageInput.value = 1;
-      pageInput.max = pdf.numPages;
-    }
+    if (pageInput) { pageInput.value = 1; pageInput.max = pdf.numPages; }
 
     const ollamaLog = document.getElementById("ollama-log-list");
     if (ollamaLog) ollamaLog.innerHTML = `<span class="hint">Preview mode — Ollama disabled.</span>`;
@@ -382,32 +307,113 @@
     wireViewerToolbar();
     wireIssuesFilters();
     wireIssueActions();
+    setupExportButton();
     await renderCurrentPages();
 
-    // Generate mock findings in the background so first page paints fast.
-    generateMockFindings(pdf).then((findings) => {
+    runRulesOnPdf(pdf).then((findings) => {
       viewerState.findings = findings;
       setText("issue-total", String(findings.length));
-      setText("review-status", `Mock review complete — ${findings.length} suggestions from Chicago Manual pilot rules`);
+      const cnt = findings.length;
+      setText("review-status", cnt
+        ? `Review complete — ${cnt} suggestion${cnt === 1 ? "" : "s"} from ${getRules().filter((r) => r.enabled).length} enabled rules`
+        : `Review complete — no matches found`);
       renderIssuesPanel();
-      renderCurrentPages(); // redraw with highlights
+      renderCurrentPages();
     }).catch((err) => {
-      console.warn("[demo] mock finding generation failed:", err);
-      setText("review-status", "Mock review skipped (text layer unavailable)");
+      console.warn("[demo] rule run failed:", err);
+      setText("review-status", "Rule matching failed (see console).");
     });
   }
 
+  //
+  // ─── Rule matching over PDF text ───────────────────────────────────────
+  //
+  async function runRulesOnPdf(pdf) {
+    const rules = getRules().filter((r) => r.enabled);
+    if (!rules.length) return [];
+    const compiled = rules.map((r) => {
+      try { return { rule: r, re: new RegExp(r.pattern, r.flags || "g") }; }
+      catch { return null; }
+    }).filter(Boolean);
+
+    const findings = [];
+    const maxPages = Math.min(pdf.numPages, 50);
+    for (let p = 1; p <= maxPages; p++) {
+      const page = await pdf.getPage(p);
+      const pageHeight = page.view[3]; // [x0, y0, x1, y1]
+      let content;
+      try { content = await page.getTextContent(); } catch { continue; }
+      for (const item of content.items) {
+        if (!item.str || !item.str.trim()) continue;
+        const bbox = itemBbox(item);
+        // Header/footer margin filter: PDF coord y from bottom.
+        // Skip if item's bottom is below MARGIN_PT (bottom margin)
+        // or item's top is above pageHeight - MARGIN_PT (top margin).
+        const yBottom = bbox[1];
+        const yTop = bbox[1] + bbox[3];
+        if (yBottom < MARGIN_PT) continue;                    // in bottom footer
+        if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
+
+        for (const { rule, re } of compiled) {
+          re.lastIndex = 0;
+          let m;
+          while ((m = re.exec(item.str)) !== null) {
+            const matchText = m[0];
+            const replacement = applyReplacement(rule.replacement, m);
+            findings.push({
+              id: newId(),
+              page: p,
+              ruleId: rule.id,
+              ruleName: rule.name,
+              category: rule.category,
+              severity: rule.severity,
+              text: matchText,
+              context: item.str,
+              suggestion: replacement,
+              bbox: bboxSlice(item, m.index, matchText.length, bbox),
+              status: "pending",
+            });
+            if (!re.global) break;
+          }
+        }
+      }
+    }
+    return findings;
+  }
+
+  function applyReplacement(template, match) {
+    if (!template) return "";
+    return template.replace(/\$(\d+)/g, (_, n) => match[Number(n)] || "");
+  }
+
+  function itemBbox(item) {
+    const tx = item.transform;
+    const fontHeight = Math.abs(tx[3] || tx[0] || 12);
+    const x = tx[4];
+    const y = tx[5];
+    const w = item.width || (item.str.length * fontHeight * 0.5);
+    return [x, y - fontHeight * 0.15, w, fontHeight * 1.1];
+  }
+  function bboxSlice(item, startIdx, len, fullBbox) {
+    if (!item.str.length) return fullBbox;
+    const charW = fullBbox[2] / item.str.length;
+    return [fullBbox[0] + startIdx * charW, fullBbox[1], Math.max(charW * len, charW), fullBbox[3]];
+  }
+
+  //
+  // ─── Page rendering with highlight overlay ─────────────────────────────
+  //
   async function renderCurrentPages() {
     const container = document.getElementById("pdf-document");
     if (!container || !viewerState.pdf) return;
     container.innerHTML = "";
     const pdf = viewerState.pdf;
     const total = pdf.numPages;
-    const pagesToRender = viewerState.viewMode === "two"
+    const pages = viewerState.viewMode === "two"
       ? [viewerState.currentPage, viewerState.currentPage + 1].filter((n) => n >= 1 && n <= total)
       : [viewerState.currentPage];
 
-    for (const pageNum of pagesToRender) {
+    for (const pageNum of pages) {
       const page = await pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.3 * viewerState.zoom });
       const wrap = document.createElement("div");
@@ -415,25 +421,19 @@
       wrap.dataset.page = pageNum;
       wrap.style.cssText = "display:inline-block;margin:12px auto;position:relative;";
       const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.display = "block";
-      canvas.style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)";
-      canvas.style.background = "#fff";
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      canvas.style.display = "block"; canvas.style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)"; canvas.style.background = "#fff";
       wrap.appendChild(canvas);
-
       const overlay = document.createElement("div");
       overlay.className = "findings-overlay";
       overlay.style.cssText = `position:absolute;left:0;top:0;width:${viewport.width}px;height:${viewport.height}px;pointer-events:none;`;
       wrap.appendChild(overlay);
-
       const label = document.createElement("div");
       label.textContent = `Page ${pageNum} / ${total}`;
       label.style.cssText = "font-size:11px;color:#6b7280;margin-top:6px;text-align:center;";
       wrap.appendChild(label);
       container.appendChild(wrap);
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-
       drawFindingsForPage(overlay, pageNum, viewport);
     }
     setText("zoom-label", Math.round(viewerState.zoom * 100) + "%");
@@ -447,119 +447,81 @@
       if (f.status === "rejected") continue;
       if (activeCat !== "all" && f.category !== activeCat) continue;
       const style = SEVERITY_STYLES[f.severity] || SEVERITY_STYLES.minor;
-      // f.bbox stored in unscaled PDF units. Scale to viewport.
       const [px, py, pw, ph] = f.bbox;
       const [vx1, vy1] = viewport.convertToViewportPoint(px, py + ph);
       const [vx2, vy2] = viewport.convertToViewportPoint(px + pw, py);
-      const x = Math.min(vx1, vx2);
-      const y = Math.min(vy1, vy2);
-      const w = Math.abs(vx2 - vx1);
-      const h = Math.abs(vy2 - vy1);
-      const mark = document.createElement("div");
-      mark.dataset.findingId = f.id;
+      const x = Math.min(vx1, vx2), y = Math.min(vy1, vy2);
+      const w = Math.abs(vx2 - vx1), h = Math.abs(vy2 - vy1);
       const isActive = f.id === viewerState.activeFindingId;
       const isAccepted = f.status === "accepted";
+      const mark = document.createElement("div");
+      mark.dataset.findingId = f.id;
       mark.style.cssText = `
         position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
         background:${isAccepted ? "transparent" : style.fill};
         border:${isActive ? `2px solid ${style.border}` : (isAccepted ? `1px dashed ${style.border}` : "none")};
-        border-radius:2px;pointer-events:auto;cursor:pointer;
-        transition:background 0.15s, border 0.15s;
-      `;
-      mark.title = `${style.label} · ${f.ruleName}\n${f.text}`;
+        border-radius:2px;pointer-events:auto;cursor:pointer;transition:all 0.15s;`;
+      mark.title = `${style.label} · ${f.ruleName}\n${f.text} → ${f.suggestion || "review"}`;
       mark.addEventListener("click", () => focusFinding(f.id));
       overlay.appendChild(mark);
     }
   }
 
   //
-  // ─── Mock finding generation ───────────────────────────────────────────
+  // ─── Toolbar wiring ────────────────────────────────────────────────────
   //
-  async function generateMockFindings(pdf) {
-    const findings = [];
-    const maxPages = Math.min(pdf.numPages, 20);
-    // Deterministic per-file: seed from filename
-    const seed = hashString(viewerState.filename);
-    const rand = mulberry32(seed);
-
-    for (let p = 1; p <= maxPages; p++) {
-      const page = await pdf.getPage(p);
-      let content;
-      try { content = await page.getTextContent(); } catch { continue; }
-      const items = content.items.filter((it) => it.str && it.str.trim().length >= 3);
-      if (!items.length) continue;
-      const numFindings = 2 + Math.floor(rand() * 3); // 2-4 per page
-      const picked = new Set();
-      for (let i = 0; i < numFindings && picked.size < items.length; i++) {
-        let idx;
-        do { idx = Math.floor(rand() * items.length); } while (picked.has(idx));
-        picked.add(idx);
-        const item = items[idx];
-        const rule = CHICAGO_RULES[Math.floor(rand() * CHICAGO_RULES.length)];
-        const bbox = itemBbox(item);
-        findings.push({
-          id: newId(),
-          page: p,
-          ruleKey: rule.key,
-          ruleName: rule.name,
-          category: rule.category,
-          severity: rule.severity,
-          text: item.str,
-          message: rule.message,
-          suggestion: rule.suggestion,
-          bad_example: rule.bad_example,
-          good_example: rule.good_example,
-          bbox,
-          status: "pending", // pending | accepted | rejected
-          comment: "",
-        });
-      }
-    }
-    return findings;
+  let viewerWired = false;
+  function wireViewerToolbar() {
+    if (viewerWired) return;
+    viewerWired = true;
+    on("previous-page-btn", "click", () => gotoPage(viewerState.currentPage - 1));
+    on("next-page-btn", "click", () => gotoPage(viewerState.currentPage + step()));
+    on("page-number-input", "change", (e) => gotoPage(parseInt(e.target.value, 10) || 1));
+    on("one-page-mode-btn", "click", () => setViewMode("one"));
+    on("two-page-mode-btn", "click", () => setViewMode("two"));
+    on("zoom-in-btn", "click", () => setZoom(viewerState.zoom * 1.15));
+    on("zoom-out-btn", "click", () => setZoom(viewerState.zoom / 1.15));
+    on("reset-zoom-btn", "click", () => setZoom(1));
+    on("fit-width-btn", "click", () => setZoom(1.5));
+    on("fit-page-btn", "click", () => setZoom(1));
   }
-
-  function itemBbox(item) {
-    const tx = item.transform;
-    const fontHeight = Math.abs(tx[3] || tx[0] || 12);
-    const x = tx[4];
-    const y = tx[5];
-    const w = item.width || (item.str.length * fontHeight * 0.5);
-    const h = fontHeight;
-    // PDF coord: y is baseline. Return [x, y_bottom, w, h] in PDF units.
-    return [x, y - h * 0.15, w, h * 1.1];
+  function step() { return viewerState.viewMode === "two" ? 2 : 1; }
+  function gotoPage(n) {
+    if (!viewerState.pdf) return;
+    const total = viewerState.pdf.numPages;
+    viewerState.currentPage = Math.max(1, Math.min(n, total));
+    const input = document.getElementById("page-number-input");
+    if (input) input.value = viewerState.currentPage;
+    renderCurrentPages();
   }
-
-  function hashString(s) {
-    let h = 2166136261 >>> 0;
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
+  function setViewMode(mode) {
+    viewerState.viewMode = mode;
+    const one = document.getElementById("one-page-mode-btn");
+    const two = document.getElementById("two-page-mode-btn");
+    if (one) one.classList.toggle("active", mode === "one");
+    if (two) two.classList.toggle("active", mode === "two");
+    renderCurrentPages();
   }
-  function mulberry32(seed) {
-    let a = seed;
-    return function () {
-      a |= 0; a = (a + 0x6D2B79F5) | 0;
-      let t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
+  function setZoom(z) { viewerState.zoom = Math.max(0.4, Math.min(z, 3)); renderCurrentPages(); }
 
   //
-  // ─── Suggestions panel ─────────────────────────────────────────────────
+  // ─── Suggestions panel ────────────────────────────────────────────────
   //
   let filtersWired = false;
   function wireIssuesFilters() {
     if (filtersWired) return;
     filtersWired = true;
-    on("category-filter", "change", renderIssuesPanel);
-    on("engine-filter", "change", renderIssuesPanel);
-    on("standard-filter", "change", renderIssuesPanel);
+    // Rebuild category filter to only expose our categories.
+    const catSel = document.getElementById("category-filter");
+    if (catSel) {
+      catSel.innerHTML = `
+        <option value="all">All categories</option>
+        <option value="typo">Typo</option>
+        <option value="spacing">Spacing</option>
+        <option value="custom">Custom</option>`;
+    }
+    on("category-filter", "change", () => { renderIssuesPanel(); renderCurrentPages(); });
   }
-
   let actionsWired = false;
   function wireIssueActions() {
     if (actionsWired) return;
@@ -570,9 +532,7 @@
       const btn = e.target.closest("[data-demo-action]");
       if (!btn) {
         const card = e.target.closest("[data-demo-finding-id]");
-        if (card && !e.target.matches("button, input")) {
-          focusFinding(card.dataset.demoFindingId);
-        }
+        if (card && !e.target.matches("button, input")) focusFinding(card.dataset.demoFindingId);
         return;
       }
       e.stopPropagation();
@@ -586,17 +546,11 @@
       renderCurrentPages();
     });
   }
-
-  function getFilterValue(id) {
-    const el = document.getElementById(id);
-    return (el && el.value) || "all";
-  }
-
+  function getFilterValue(id) { const el = document.getElementById(id); return (el && el.value) || "all"; }
   function visibleFindings() {
     const cat = getFilterValue("category-filter");
     return viewerState.findings.filter((f) => cat === "all" || f.category === cat);
   }
-
   function renderIssuesPanel() {
     const target = document.getElementById("issues-list");
     if (!target) return;
@@ -614,160 +568,343 @@
         : f.status === "rejected"
           ? `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">ignored</span>`
           : `<span style="background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">pending</span>`;
+      const catColor = CATEGORY_COLORS[f.category] || "#6b7280";
       return `
-        <article class="issue-card ${escapeHtml(f.category)}" data-demo-finding-id="${f.id}"
+        <article class="issue-card" data-demo-finding-id="${f.id}"
           style="border-left:4px solid ${style.border};${isActive ? "box-shadow:0 0 0 2px rgba(39,103,168,.25);" : ""}">
-          <div class="issue-meta" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
-            <span class="category" style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(f.category)} · p.${f.page}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:11px;color:${catColor};text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">${escapeHtml(f.category)} · p.${f.page}</span>
             ${statusBadge}
           </div>
-          <div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;">${escapeHtml(f.ruleName)}</div>
-          <div class="issue-change" style="display:flex;gap:6px;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;margin:8px 0;">
-            <code class="issue-source" style="background:${style.fill};padding:2px 6px;border-radius:3px;">${escapeHtml(f.text)}</code>
+          <div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:6px;">${escapeHtml(f.ruleName)}</div>
+          <div style="display:flex;gap:6px;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;margin:6px 0;flex-wrap:wrap;">
+            <code style="background:${style.fill};padding:2px 6px;border-radius:3px;">${escapeHtml(f.text)}</code>
             <span style="color:#9ca3af;">→</span>
-            <code class="issue-replacement" style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:3px;">${escapeHtml(shortSuggestion(f))}</code>
+            <code style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:3px;">${escapeHtml(f.suggestion || "review")}</code>
           </div>
-          <p class="issue-explanation" style="font-size:12px;color:#4b5563;margin:6px 0;">${escapeHtml(f.message)}</p>
-          <div style="font-size:11px;color:#6b7280;margin:6px 0;">
-            <div>Example: <span style="color:#dc2626;">${escapeHtml(f.bad_example)}</span> → <span style="color:#059669;">${escapeHtml(f.good_example)}</span></div>
-            <div style="margin-top:4px;">Severity: ${style.label} · Rule: Chicago Manual pilot · Key: ${escapeHtml(f.ruleKey)}</div>
-          </div>
-          <div class="issue-actions" style="display:flex;gap:6px;margin-top:10px;">
-            <button class="accept-btn" data-demo-action="accept" data-demo-finding-id="${f.id}"
+          <div style="font-size:11px;color:#6b7280;margin-top:6px;">Context: <em>…${escapeHtml(truncate(f.context, 80))}…</em></div>
+          <div style="display:flex;gap:6px;margin-top:10px;">
+            <button data-demo-action="accept" data-demo-finding-id="${f.id}"
               style="flex:1;padding:6px 10px;border:1px solid #10b981;background:${f.status === "accepted" ? "#10b981" : "#fff"};color:${f.status === "accepted" ? "#fff" : "#10b981"};border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">
               ${f.status === "accepted" ? "✓ Accepted" : "Accept"}
             </button>
-            <button class="reject-btn" data-demo-action="reject" data-demo-finding-id="${f.id}"
+            <button data-demo-action="reject" data-demo-finding-id="${f.id}"
               style="flex:1;padding:6px 10px;border:1px solid #ef4444;background:${f.status === "rejected" ? "#ef4444" : "#fff"};color:${f.status === "rejected" ? "#fff" : "#ef4444"};border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">
               ${f.status === "rejected" ? "✕ Ignored" : "Ignore"}
             </button>
           </div>
-        </article>
-      `;
+        </article>`;
     }).join("");
   }
-
-  function shortSuggestion(f) {
-    // Prefer good_example if short, else suggestion.
-    if (f.good_example && f.good_example.length <= 40) return f.good_example;
-    return f.suggestion.length <= 40 ? f.suggestion : f.suggestion.slice(0, 37) + "…";
-  }
-
+  function truncate(s, n) { return s.length <= n ? s : s.slice(0, n); }
   function focusFinding(id) {
     const f = viewerState.findings.find((x) => x.id === id);
     if (!f) return;
     viewerState.activeFindingId = id;
-    if (viewerState.currentPage !== f.page) {
-      gotoPage(f.page); // triggers rerender
-    } else {
-      renderCurrentPages();
-    }
+    if (viewerState.currentPage !== f.page) gotoPage(f.page);
+    else renderCurrentPages();
     renderIssuesPanel();
-    // Scroll the active card into view in the sidebar.
     setTimeout(() => {
       const card = document.querySelector(`[data-demo-finding-id="${id}"]`);
       if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, 50);
   }
 
-  let viewerWired = false;
-  function wireViewerToolbar() {
-    if (viewerWired) return;
-    viewerWired = true;
-
-    // Page navigation.
-    on("previous-page-btn", "click", () => gotoPage(viewerState.currentPage - 1));
-    on("next-page-btn", "click", () => gotoPage(viewerState.currentPage + step()));
-    on("page-number-input", "change", (e) => gotoPage(parseInt(e.target.value, 10) || 1));
-
-    // View mode.
-    on("one-page-mode-btn", "click", () => setViewMode("one"));
-    on("two-page-mode-btn", "click", () => setViewMode("two"));
-
-    // Zoom.
-    on("zoom-in-btn", "click", () => setZoom(viewerState.zoom * 1.15));
-    on("zoom-out-btn", "click", () => setZoom(viewerState.zoom / 1.15));
-    on("reset-zoom-btn", "click", () => setZoom(1));
-    on("fit-width-btn", "click", () => setZoom(1.5));
-    on("fit-page-btn", "click", () => setZoom(1));
-  }
-
-  function step() { return viewerState.viewMode === "two" ? 2 : 1; }
-
-  function gotoPage(n) {
-    if (!viewerState.pdf) return;
-    const total = viewerState.pdf.numPages;
-    viewerState.currentPage = Math.max(1, Math.min(n, total));
-    const input = document.getElementById("page-number-input");
-    if (input) input.value = viewerState.currentPage;
-    renderCurrentPages();
-  }
-
-  function setViewMode(mode) {
-    viewerState.viewMode = mode;
-    const one = document.getElementById("one-page-mode-btn");
-    const two = document.getElementById("two-page-mode-btn");
-    if (one) one.classList.toggle("active", mode === "one");
-    if (two) two.classList.toggle("active", mode === "two");
-    renderCurrentPages();
-  }
-
-  function setZoom(z) {
-    viewerState.zoom = Math.max(0.4, Math.min(z, 3));
-    renderCurrentPages();
-  }
-
-  function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  }
-  function on(id, ev, handler) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener(ev, handler);
-  }
-
   //
-  // ─── Team Manual Standard / Engines: backend-required messages ──────────
+  // ─── Export PDF report ────────────────────────────────────────────────
   //
-  window.loadTeamStandardRules = function () {
-    const tbody = document.getElementById("team-standard-table-body");
-    if (tbody) {
-      tbody.innerHTML = `
-        <tr><td colspan="99" style="padding:24px;text-align:center;color:#6b7280;font-size:13px;line-height:1.6;">
-          <strong>Backend required.</strong><br/>
-          Team Manual Standard rules are stored in the local SQLite database and managed by the FastAPI backend.<br/>
-          Run <code>run_local.bat</code> in the source folder to enable rule authoring, validation, and migration reports.
-        </td></tr>`;
+  function setupExportButton() {
+    const btn = document.getElementById("download-pdf-btn");
+    if (!btn) return;
+    btn.classList.remove("hidden");
+    btn.textContent = "Export PDF Report";
+    if (btn.dataset.demoWired) return;
+    btn.dataset.demoWired = "1";
+    btn.addEventListener("click", exportReport);
+  }
+
+  async function exportReport() {
+    if (!viewerState.findings.length) { alert("No suggestions to export."); return; }
+    try {
+      await ensureJsPdf();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const marginX = 40, marginTop = 50;
+      let y = marginTop;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+      doc.text("PDF English Reviewer — Suggestions Report", marginX, y); y += 22;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120);
+      doc.text(`File: ${viewerState.filename}`, marginX, y); y += 14;
+      doc.text(`Generated: ${new Date().toLocaleString()}`, marginX, y); y += 14;
+
+      const total = viewerState.findings.length;
+      const accepted = viewerState.findings.filter((f) => f.status === "accepted").length;
+      const rejected = viewerState.findings.filter((f) => f.status === "rejected").length;
+      const pending = total - accepted - rejected;
+      doc.text(`Total: ${total} · Accepted: ${accepted} · Ignored: ${rejected} · Pending: ${pending}`, marginX, y);
+      y += 22;
+
+      doc.setTextColor(0);
+      const findings = viewerState.findings.slice().sort((a, b) => a.page - b.page);
+      for (let i = 0; i < findings.length; i++) {
+        const f = findings[i];
+        if (y > pageHeight - 80) { doc.addPage(); y = marginTop; }
+        const style = SEVERITY_STYLES[f.severity] || SEVERITY_STYLES.minor;
+        // severity color bar
+        const [r, g, b] = hexToRgb(style.border);
+        doc.setFillColor(r, g, b);
+        doc.rect(marginX, y - 8, 3, 44, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(0);
+        doc.text(`${i + 1}. ${f.ruleName}`, marginX + 10, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100);
+        doc.text(`Page ${f.page} · ${f.category} · ${style.label} · ${f.status}`, marginX + 10, y + 12);
+        doc.setTextColor(0);
+        const before = `Before: "${f.text}"`;
+        const after = `Suggest: "${f.suggestion || "(review manually)"}"`;
+        doc.text(before, marginX + 10, y + 26, { maxWidth: pageWidth - marginX * 2 - 10 });
+        doc.text(after, marginX + 10, y + 38, { maxWidth: pageWidth - marginX * 2 - 10 });
+        y += 56;
+      }
+      const safeName = viewerState.filename.replace(/\.pdf$/i, "").replace(/[^\w.-]+/g, "_");
+      doc.save(`${safeName}_review_report.pdf`);
+    } catch (err) {
+      console.error("[demo] export failed:", err);
+      alert("Export failed: " + err.message);
     }
-  };
+  }
+  function hexToRgb(hex) {
+    const m = /^#?([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$/i.exec(hex);
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+  }
 
+  //
+  // ─── Team Manual Standard tab → Rule editor ───────────────────────────
+  //
+  window.loadTeamStandardRules = renderRuleEditor;
+
+  function renderRuleEditor() {
+    const view = document.getElementById("team-standard-view");
+    if (!view) return;
+    const rules = getRules();
+    view.innerHTML = `
+      <div class="page-shell" style="max-width:1100px;margin:0 auto;padding:24px;">
+        <div class="page-heading" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <p class="eyebrow">RULE EDITOR (DB)</p>
+            <h2>Team Manual Standard</h2>
+            <p style="color:#6b7280;font-size:13px;">Add, edit, or remove rules used by the reviewer. Stored in your browser's localStorage.</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="primary" id="rule-add-btn">+ Add Rule</button>
+            <button class="secondary" id="rule-export-btn">Export JSON</button>
+            <button class="secondary" id="rule-import-btn">Import JSON</button>
+            <button class="danger" id="rule-reset-btn">Reset Defaults</button>
+          </div>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:12px 16px;border-radius:8px;font-size:12px;margin-bottom:16px;line-height:1.5;">
+          <strong>How it works:</strong> Each rule uses a JavaScript regular expression tested against text extracted from the PDF (excluding the top and bottom ${MARGIN_CM} cm). Matches appear as highlighted findings. Use <code>$1</code>, <code>$2</code>… in the replacement to reference capture groups.
+        </div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px;">
+          <thead style="background:#f9fafb;">
+            <tr>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">On</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Category</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Name</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Pattern (regex)</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Replacement</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Severity</th>
+              <th style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rule-tbody">
+            ${rules.map(renderRuleRow).join("")}
+          </tbody>
+        </table>
+        <input type="file" id="rule-import-file" accept="application/json" style="display:none;" />
+      </div>
+      <div id="rule-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;padding:20px;"></div>
+    `;
+    wireRuleEditor();
+  }
+
+  function renderRuleRow(r) {
+    return `
+      <tr data-rule-id="${r.id}" style="border-bottom:1px solid #f3f4f6;">
+        <td style="padding:8px;"><input type="checkbox" data-rule-toggle ${r.enabled ? "checked" : ""} /></td>
+        <td style="padding:8px;"><span style="background:${CATEGORY_COLORS[r.category] || "#6b7280"};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${escapeHtml(r.category)}</span></td>
+        <td style="padding:8px;font-weight:500;">${escapeHtml(r.name)}</td>
+        <td style="padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#374151;">${escapeHtml(r.pattern)}</td>
+        <td style="padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#059669;">${escapeHtml(r.replacement || "—")}</td>
+        <td style="padding:8px;"><span style="color:${(SEVERITY_STYLES[r.severity] || SEVERITY_STYLES.minor).border};font-weight:600;font-size:12px;">${escapeHtml(r.severity)}</span></td>
+        <td style="padding:8px;text-align:right;">
+          <button data-rule-edit style="padding:4px 10px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px;">Edit</button>
+          <button data-rule-delete style="padding:4px 10px;border:1px solid #ef4444;background:#fff;color:#ef4444;border-radius:6px;cursor:pointer;font-size:12px;">Delete</button>
+        </td>
+      </tr>`;
+  }
+
+  function wireRuleEditor() {
+    document.getElementById("rule-add-btn").addEventListener("click", () => openRuleModal(null));
+    document.getElementById("rule-reset-btn").addEventListener("click", () => {
+      if (!confirm("Reset to default rules? Your custom rules will be removed.")) return;
+      resetRules();
+      renderRuleEditor();
+    });
+    document.getElementById("rule-export-btn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(getRules(), null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "review_rules.json"; a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById("rule-import-btn").addEventListener("click", () => {
+      document.getElementById("rule-import-file").click();
+    });
+    document.getElementById("rule-import-file").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) throw new Error("Expected an array of rules.");
+        saveRules(parsed);
+        renderRuleEditor();
+        alert(`Imported ${parsed.length} rules.`);
+      } catch (err) { alert("Import failed: " + err.message); }
+      e.target.value = "";
+    });
+
+    const tbody = document.getElementById("rule-tbody");
+    tbody.addEventListener("click", (e) => {
+      const row = e.target.closest("[data-rule-id]");
+      if (!row) return;
+      const id = row.dataset.ruleId;
+      if (e.target.matches("[data-rule-edit]")) openRuleModal(getRules().find((r) => r.id === id));
+      if (e.target.matches("[data-rule-delete]")) {
+        if (!confirm("Delete this rule?")) return;
+        deleteRuleId(id); renderRuleEditor();
+      }
+    });
+    tbody.addEventListener("change", (e) => {
+      if (!e.target.matches("[data-rule-toggle]")) return;
+      const row = e.target.closest("[data-rule-id]");
+      const id = row.dataset.ruleId;
+      const rule = getRules().find((r) => r.id === id);
+      if (rule) { rule.enabled = e.target.checked; upsertRule(rule); }
+    });
+  }
+
+  function openRuleModal(existing) {
+    const modal = document.getElementById("rule-modal");
+    const r = existing || { id: "custom-" + Date.now(), category: "custom", name: "", pattern: "", flags: "g", replacement: "", severity: "minor", enabled: true };
+    modal.style.display = "flex";
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:10px;padding:24px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+        <h3 style="margin:0 0 16px;font-size:18px;">${existing ? "Edit Rule" : "Add Rule"}</h3>
+        <form id="rule-form" style="display:flex;flex-direction:column;gap:12px;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Name
+            <input name="name" value="${escapeHtml(r.name)}" required style="padding:8px;border:1px solid #d1d5db;border-radius:6px;" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Category
+            <select name="category" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+              <option value="typo" ${r.category === "typo" ? "selected" : ""}>Typo</option>
+              <option value="spacing" ${r.category === "spacing" ? "selected" : ""}>Spacing</option>
+              <option value="custom" ${r.category === "custom" ? "selected" : ""}>Custom</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Pattern (JavaScript regex, without / /)
+            <input name="pattern" value="${escapeHtml(r.pattern)}" required style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Flags
+            <input name="flags" value="${escapeHtml(r.flags || "g")}" placeholder="g, gi, gm…" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Replacement (use $1, $2 for capture groups)
+            <input name="replacement" value="${escapeHtml(r.replacement || "")}" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Severity
+            <select name="severity" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+              <option value="minor" ${r.severity === "minor" ? "selected" : ""}>Minor (yellow)</option>
+              <option value="major" ${r.severity === "major" ? "selected" : ""}>Major (orange)</option>
+              <option value="critical" ${r.severity === "critical" ? "selected" : ""}>Critical (red)</option>
+            </select>
+          </label>
+          <div id="rule-preview" style="font-size:12px;color:#6b7280;padding:8px;background:#f9fafb;border-radius:6px;min-height:20px;"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+            <button type="button" id="rule-cancel" style="padding:8px 16px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;">Cancel</button>
+            <button type="submit" style="padding:8px 16px;border:none;background:#3b82f6;color:#fff;border-radius:6px;cursor:pointer;">Save</button>
+          </div>
+        </form>
+      </div>`;
+
+    const form = modal.querySelector("#rule-form");
+    const preview = modal.querySelector("#rule-preview");
+    function updatePreview() {
+      const fd = new FormData(form);
+      try {
+        const re = new RegExp(fd.get("pattern"), fd.get("flags") || "g");
+        preview.textContent = `Pattern OK · ${re}`;
+        preview.style.color = "#059669";
+      } catch (err) {
+        preview.textContent = `Invalid regex: ${err.message}`;
+        preview.style.color = "#dc2626";
+      }
+    }
+    form.addEventListener("input", updatePreview);
+    updatePreview();
+
+    modal.querySelector("#rule-cancel").addEventListener("click", () => modal.style.display = "none");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const rule = {
+        id: r.id,
+        name: fd.get("name").trim(),
+        category: fd.get("category"),
+        pattern: fd.get("pattern"),
+        flags: (fd.get("flags") || "g").trim() || "g",
+        replacement: fd.get("replacement") || "",
+        severity: fd.get("severity"),
+        enabled: r.enabled !== false,
+      };
+      try { new RegExp(rule.pattern, rule.flags); } catch (err) { alert("Invalid regex: " + err.message); return; }
+      upsertRule(rule);
+      modal.style.display = "none";
+      renderRuleEditor();
+    });
+  }
+
+  //
+  // ─── Engines tab ──────────────────────────────────────────────────────
+  //
   window.loadEngineStatus = function () {
     const overall = document.getElementById("engine-overall-card");
     const grid = document.getElementById("engine-check-grid");
     if (overall) {
       overall.innerHTML = `
         <div style="padding:16px 20px;text-align:center;color:#6b7280;font-size:13px;line-height:1.6;">
-          <strong>Backend required.</strong> Engine readiness (PyMuPDF, Ollama, Team Manual Standard DB, etc.)
-          is probed by the FastAPI backend. Start it with <code>run_local.bat</code> to see live status.
+          <strong>Backend required.</strong> Engine readiness (PyMuPDF, Ollama, Vale) is probed by the FastAPI backend.
+          Preview mode uses only the rule editor in <strong>Team Manual Standard</strong>.
         </div>`;
     }
     if (grid) grid.innerHTML = "";
   };
 
   //
-  // ─── utils ──────────────────────────────────────────────────────────────
+  // ─── utils ─────────────────────────────────────────────────────────────
   //
+  function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+  function on(id, ev, handler) { const el = document.getElementById(id); if (el) el.addEventListener(ev, handler); }
   function formatBytes(bytes) {
     if (!bytes && bytes !== 0) return "—";
-    const units = ["B", "KB", "MB", "GB"];
-    let i = 0;
-    let n = bytes;
+    const units = ["B", "KB", "MB", "GB"]; let i = 0, n = bytes;
     while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
     return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   }
-
   function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (c) => ({
+    return String(str == null ? "" : str).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
