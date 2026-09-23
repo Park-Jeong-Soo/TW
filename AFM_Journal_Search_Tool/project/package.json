@@ -1,0 +1,24 @@
+{
+  "name": "afm-journal-search-tool",
+  "version": "2.0.0",
+  "description": "AFM 매뉴얼 Introduction 작성을 위한 저널 검색·품질 평가·PDF 수집·ZIP 내보내기 통합 도구",
+  "author": "Park Systems",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "ppt": "node presentations/make_intro_ppt.js",
+    "script": "node presentations/make_script_docx.js",
+    "guide": "node scripts/make_guides.js",
+    "tools": "node scripts/copy_tools.js",
+    "clean": "node scripts/clean.js"
+  },
+  "dependencies": {
+    "docx": "^9.6.1",
+    "pptxgenjs": "^4.0.1",
+    "puppeteer": "^25.0.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-icons": "^5.6.0",
+    "sharp": "^0.34.5"
+  }
+}

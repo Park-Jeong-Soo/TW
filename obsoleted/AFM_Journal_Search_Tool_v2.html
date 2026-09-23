@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AFM Journal Search Tool v2 — Manual Introduction Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#ffffff;--bg2:#f6f7f9;--bg3:#eef0f4;
+  --text:#1a1c22;--text2:#5a5f6e;--text3:#9198a8;
+  --border:rgba(0,0,0,0.10);--border2:rgba(0,0,0,0.18);
+  --accent:#185FA5;--accent-bg:#E6F1FB;--accent-light:#B5D4F4;
+  --green:#3B6D11;--green-bg:#EAF3DE;
+  --amber:#854F0B;--amber-bg:#FAEEDA;
+  --purple:#3C3489;--purple-bg:#EEEDFE;
+  --red:#A32D2D;--red-bg:#FCEBEB;
+  --teal:#0F6E56;--teal-bg:#E1F5EE;
+  --radius:8px;--radius-lg:12px;
+  --shadow:0 1px 3px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.05);
+}
+[data-theme="dark"]{
+  --bg:#16181e;--bg2:#1e2028;--bg3:#262830;
+  --text:#e8eaf0;--text2:#9198a8;--text3:#5a5f6e;
+  --border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);
+  --accent:#5BA3E0;--accent-bg:#0c2a44;--accent-light:#1a4a7a;
+  --green:#8EC44A;--green-bg:#172a08;
+  --amber:#E8A94A;--amber-bg:#2a1a04;
+  --purple:#9B92E8;--purple-bg:#1e1a44;
+  --red:#E26464;--red-bg:#2a0e0e;
+  --teal:#3DBFA0;--teal-bg:#072218;
+  --shadow:0 1px 4px rgba(0,0,0,0.3),0 6px 24px rgba(0,0,0,0.2);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;line-height:1.6;font-size:14px;}
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+.topbar-brand{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--text);}
+.logo-dot{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.theme-btn{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;}
+.theme-btn:hover{background:var(--bg3);}
+.layout{display:flex;min-height:calc(100vh - 56px);}
+.sidebar{width:230px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--border);padding:1.5rem 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sidebar-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:0 1.25rem;margin-bottom:6px;margin-top:16px;}
+.sidebar-label:first-child{margin-top:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 1.25rem;cursor:pointer;transition:all .13s;color:var(--text2);font-size:13px;border-left:3px solid transparent;}
+.nav-item:hover{background:var(--bg2);color:var(--text);}
+.nav-item.active{background:var(--accent-bg);color:var(--accent);border-left-color:var(--accent);font-weight:500;}
+.nav-icon{font-size:16px;width:18px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;font-weight:600;padding:1px 7px;min-width:20px;text-align:center;}
+.main{flex:1;padding:2rem;max-width:960px;}
+.panel{display:none;}.panel.active{display:block;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow);}
+.card-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+.page-header{margin-bottom:1.5rem;}
+.page-header h2{font-size:20px;font-weight:700;margin-bottom:4px;}
+.page-header p{color:var(--text2);font-size:13px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);border:1px solid var(--border2);cursor:pointer;font-size:13px;font-weight:500;background:var(--bg2);color:var(--text);transition:all .15s;text-decoration:none;white-space:nowrap;}
+.btn:hover{background:var(--bg3);}.btn:active{transform:scale(.98);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{opacity:.88;background:var(--accent);}
+.btn-success{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-success:hover{opacity:.88;}
+.btn-warning{background:var(--amber);color:#fff;border-color:var(--amber);}
+.btn-warning:hover{opacity:.88;}
+.btn-danger-ghost{color:var(--red);border-color:var(--red-bg);background:var(--red-bg);}
+.btn-sm{padding:5px 10px;font-size:12px;}.btn-xs{padding:3px 8px;font-size:11px;}
+.btn-block{width:100%;justify-content:center;}
+input[type="text"],input[type="number"],input[type="email"],select,textarea{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;transition:border .15s,box-shadow .15s;width:100%;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(24,95,165,.12);}
+label.field-label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500;}
+.field-group{margin-bottom:10px;}
+.input-row{display:flex;gap:8px;}.input-row input{flex:1;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-grid .full{grid-column:1/-1;}
+.kw-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
+.kw-tag{display:inline-flex;align-items:center;gap:5px;padding:5px 13px;border-radius:20px;font-size:12px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:all .13s;user-select:none;}
+.kw-tag:hover{border-color:var(--accent);color:var(--accent);}
+.kw-tag.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-light);font-weight:500;}
+.kw-tag.custom{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bg);}
+.kw-tag.custom.active{border-color:var(--purple);}
+.kw-tag .rm{font-size:14px;line-height:1;opacity:.6;margin-left:2px;}
+.tip{font-size:12px;padding:10px 14px;border-radius:var(--radius);border-left:3px solid var(--accent);background:var(--accent-bg);color:var(--accent);margin-bottom:12px;line-height:1.6;}
+.tip.warning{border-color:var(--amber);background:var(--amber-bg);color:var(--amber);}
+.tip.success{border-color:var(--green);background:var(--green-bg);color:var(--green);}
+.tip.danger{border-color:var(--red);background:var(--red-bg);color:var(--red);}
+.db-row{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);margin-bottom:7px;}
+.db-name{font-size:13px;font-weight:500;display:flex;align-items:center;gap:9px;}
+.db-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.db-actions{display:flex;gap:6px;flex-wrap:wrap;}
+/* AUTO SEARCH RESULTS */
+.auto-result-item{border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;background:var(--bg2);margin-bottom:9px;transition:border-color .13s,box-shadow .13s;}
+.auto-result-item:hover{border-color:var(--border2);box-shadow:var(--shadow);}
+.auto-result-item.has-pdf{border-color:var(--teal);background:var(--teal-bg);}
+.auto-result-item.checking{opacity:.7;}
+.ari-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.ari-title{font-size:13px;font-weight:600;flex:1;line-height:1.5;}
+.ari-badge-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.ari-footer{display:flex;justify-content:space-between;align-items:center;}
+.ari-meta{font-size:11px;color:var(--text3);}
+.pdf-status{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;}
+.pdf-ok{background:var(--teal-bg);color:var(--teal);}
+.pdf-no{background:var(--red-bg);color:var(--red);}
+.pdf-checking{background:var(--amber-bg);color:var(--amber);}
+/* JOURNAL LIST */
+.journal-card{border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;background:var(--bg2);margin-bottom:9px;transition:border-color .13s;}
+.journal-card:hover{border-color:var(--border2);}
+.journal-card.selected{border-color:var(--accent-light);background:var(--accent-bg);}
+.jc-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:9px;}
+.jc-title{font-size:13px;font-weight:600;flex:1;line-height:1.5;}
+.jc-select{flex-shrink:0;margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:var(--accent);}
+.badge-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px;}
+.badge{font-size:11px;padding:2px 9px;border-radius:10px;font-weight:500;}
+.badge-if{background:var(--green-bg);color:var(--green);}
+.badge-cite{background:var(--amber-bg);color:var(--amber);}
+.badge-score{background:var(--purple-bg);color:var(--purple);}
+.badge-oa{background:var(--teal-bg);color:var(--teal);}
+.badge-pdf{background:var(--teal-bg);color:var(--teal);}
+.badge-gray{background:var(--bg3);color:var(--text2);}
+.score-bar{height:4px;border-radius:2px;background:var(--bg3);overflow:hidden;margin-bottom:9px;}
+.score-fill{height:100%;border-radius:2px;transition:width .4s;}
+.jc-footer{display:flex;justify-content:space-between;align-items:center;}
+.jc-meta{font-size:11px;color:var(--text3);}
+.jc-actions{display:flex;gap:6px;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem;}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;box-shadow:var(--shadow);}
+.stat-label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:2px;}
+.stat-val{font-size:26px;font-weight:700;}
+.filter-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.check-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);cursor:pointer;}
+.check-row input[type="checkbox"]{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);}
+.checks-wrap{display:flex;gap:18px;flex-wrap:wrap;}
+.sort-bar{display:flex;gap:6px;margin-bottom:10px;align-items:center;}
+.sort-bar span{font-size:12px;color:var(--text2);margin-right:4px;}
+.sort-btn{padding:4px 10px;font-size:12px;}
+.sort-btn.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-light);}
+.empty{text-align:center;padding:3rem 1rem;color:var(--text3);}
+.empty-icon{font-size:40px;margin-bottom:10px;}
+.step-row{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);}
+.step-row:last-child{border-bottom:none;}
+.step-dot{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-top:2px;}
+.step-dot.done{background:var(--green-bg);color:var(--green);}
+.step-dot.active{background:var(--accent-bg);color:var(--accent);}
+.step-dot.pending{background:var(--bg3);color:var(--text3);}
+.step-info h4{font-size:13px;font-weight:600;margin-bottom:2px;}
+.step-info p{font-size:12px;color:var(--text2);line-height:1.5;}
+.export-checks{display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;}
+.export-check-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);cursor:pointer;transition:border-color .13s;}
+.export-check-item:hover{border-color:var(--border2);}
+.export-check-item input{width:16px;height:16px;cursor:pointer;accent-color:var(--accent);}
+.eci-title{font-size:13px;font-weight:500;}
+.eci-desc{font-size:11px;color:var(--text2);}
+/* PROGRESS BAR */
+.progress-wrap{margin:12px 0;}
+.progress-track{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.progress-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .3s;}
+.progress-label{font-size:11px;color:var(--text2);margin-top:4px;}
+/* TAB SWITCHER */
+.tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+.tab-btn{padding:9px 18px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500;}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+/* SCORE PREVIEW */
+.score-preview-box{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;}
+.score-preview-row{display:flex;align-items:center;gap:12px;}
+.score-big{font-size:28px;font-weight:700;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:var(--bg);padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;box-shadow:var(--shadow);z-index:9999;transform:translateY(20px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+@media(max-width:768px){.sidebar{display:none;}.main{padding:1rem;}.stats-grid{grid-template-columns:repeat(2,1fr);}.filter-grid{grid-template-columns:repeat(2,1fr);}.form-grid{grid-template-columns:1fr;}.form-grid .full{grid-column:1;}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="logo-dot">A</div>
+    AFM Journal Search Tool <span style="font-size:11px;color:var(--text3);margin-left:6px;">v2.0</span>
+  </div>
+  <div class="topbar-right">
+    <span style="font-size:12px;color:var(--text3);">Manual Introduction Builder</span>
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">🌙 다크 모드</button>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-label">워크플로우</div>
+  <div class="nav-item active" onclick="nav('keywords')" id="nav-keywords"><span class="nav-icon">🔑</span>키워드 설정</div>
+  <div class="nav-item" onclick="nav('filters')" id="nav-filters"><span class="nav-icon">⚙️</span>검색 필터</div>
+  <div class="nav-item" onclick="nav('search')" id="nav-search"><span class="nav-icon">🔍</span>검색 링크</div>
+  <div class="sidebar-label">저널 관리</div>
+  <div class="nav-item" onclick="nav('auto')" id="nav-auto"><span class="nav-icon">🤖</span>자동 저널 등록</div>
+  <div class="nav-item" onclick="nav('add')" id="nav-add"><span class="nav-icon">➕</span>수동 저널 등록</div>
+  <div class="nav-item" onclick="nav('list')" id="nav-list"><span class="nav-icon">📚</span>저널 목록<span class="nav-badge" id="badge-total">0</span></div>
+  <div class="sidebar-label">완료</div>
+  <div class="nav-item" onclick="nav('export')" id="nav-export"><span class="nav-icon">📦</span>ZIP 내보내기</div>
+  <div class="nav-item" onclick="nav('process')" id="nav-process"><span class="nav-icon">📋</span>작성 프로세스</div>
+</nav>
+
+<main class="main">
+
+<!-- ① KEYWORDS -->
+<div class="panel active" id="panel-keywords">
+  <div class="page-header"><h2>🔑 키워드 설정</h2><p>AFM 모드 페이지 및 이전 매뉴얼을 기반으로 검색에 사용할 키워드를 선택하세요.</p></div>
+  <div class="card">
+    <div class="card-title">📌 Preset 키워드 (클릭하여 선택/해제)</div>
+    <div class="kw-grid" id="preset-kw-grid"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">✏️ 커스텀 키워드 추가</div>
+    <div class="tip">Park Systems 학습 페이지 (<a href="https://www.parksystems.com/en/learning-center/AFM-modes" target="_blank" style="color:inherit;">AFM-modes</a>) 참고하여 모드별 키워드를 추가하세요.</div>
+    <div class="input-row" style="margin-bottom:10px;">
+      <input type="text" id="custom-kw-input" placeholder="예: cantilever spring constant calibration" onkeydown="if(event.key==='Enter')addCustomKw()"/>
+      <button class="btn btn-primary" onclick="addCustomKw()">+ 추가</button>
+    </div>
+    <div class="kw-grid" id="custom-kw-grid"><span style="font-size:12px;color:var(--text3);">추가된 커스텀 키워드가 없습니다.</span></div>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button class="btn" onclick="activeKeywords.clear();renderPreset();updateBadges()">전체 해제</button>
+    <button class="btn btn-primary" onclick="nav('filters')">다음: 검색 필터 →</button>
+  </div>
+</div>
+
+<!-- ② FILTERS -->
+<div class="panel" id="panel-filters">
+  <div class="page-header"><h2>⚙️ 검색 필터</h2><p>자동 검색 및 품질 평가 기준을 설정하세요.</p></div>
+  <div class="card">
+    <div class="card-title">🎛️ 검색 조건</div>
+    <div class="filter-grid">
+      <div class="field-group"><label class="field-label">출판 연도 (이후)</label><input type="number" id="f-year" value="2010" min="1990" max="2025"/></div>
+      <div class="field-group"><label class="field-label">최소 Impact Factor</label><input type="number" id="f-if" value="2.0" step="0.5" min="0"/></div>
+      <div class="field-group"><label class="field-label">최소 인용 수</label><input type="number" id="f-cite" value="20" min="0"/></div>
+      <div class="field-group"><label class="field-label">CrossRef 검색 결과 수</label>
+        <select id="f-count"><option value="10">10개</option><option value="20" selected>20개</option><option value="50">50개</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📧 Unpaywall API 이메일</div>
+    <div class="tip">Unpaywall API는 이메일 주소가 필요합니다. 실제 이메일을 입력해야 PDF 접근 가능 여부를 확인할 수 있습니다.</div>
+    <div class="field-group"><label class="field-label">이메일 주소</label><input type="email" id="unpaywall-email" placeholder="your@email.com" value=""/></div>
+  </div>
+  <div class="card">
+    <div class="card-title">⭐ 품질 점수 가중치</div>
+    <div class="tip success">저널 등록 시 아래 기준으로 품질 점수(0~100)가 자동 계산됩니다.</div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse;">
+      <tr style="background:var(--bg2);"><th style="padding:8px 12px;text-align:left;">항목</th><th style="padding:8px 12px;text-align:left;">가중치</th><th style="padding:8px 12px;text-align:left;">기준</th></tr>
+      <tr><td style="padding:8px 12px;border-bottom:1px solid var(--border);">인용 수 (Citations)</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--amber);">40점</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);">500회 이상 = 만점</td></tr>
+      <tr><td style="padding:8px 12px;border-bottom:1px solid var(--border);">Impact Factor</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--green);">30점</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);">IF 20 이상 = 만점</td></tr>
+      <tr><td style="padding:8px 12px;border-bottom:1px solid var(--border);">수식 수 (Equations)</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--purple);">20점</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);">Introduction 내 수식 20개 이상</td></tr>
+      <tr><td style="padding:8px 12px;">Physics / 회로 포함</td><td style="padding:8px 12px;font-weight:600;color:var(--teal);">10점</td><td style="padding:8px 12px;color:var(--text2);">각 5점 보너스 (자동 감지)</td></tr>
+    </table>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button class="btn" onclick="nav('keywords')">← 이전</button>
+    <button class="btn btn-primary" onclick="generateLinks();nav('search')">검색 링크 생성 →</button>
+  </div>
+</div>
+
+<!-- ③ SEARCH LINKS -->
+<div class="panel" id="panel-search">
+  <div class="page-header"><h2>🔍 검색 데이터베이스</h2><p>선택된 키워드로 자동 생성된 검색 URL입니다. 각 버튼을 클릭하여 저널을 탐색하세요.</p></div>
+  <div class="card">
+    <div class="card-title">🗝️ 현재 선택 키워드</div>
+    <div class="kw-grid" id="active-kw-display"></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text2);">검색 쿼리: <code id="query-display" style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px;word-break:break-all;"></code></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🌐 학술 데이터베이스</div>
+    <div class="tip warning">⚠️ ScienceDirect·ACS·Wiley는 검색어 직접 입력 방식으로 링크 제공됩니다. 유료 저널은 <strong>Sci-Hub</strong> 버튼을 이용하세요.</div>
+    <div id="db-links-container"></div>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button class="btn" onclick="nav('filters')">← 이전</button>
+    <button class="btn btn-primary" onclick="nav('auto')">🤖 자동 저널 등록으로 →</button>
+  </div>
+</div>
+
+<!-- ④ AUTO JOURNAL REGISTRATION -->
+<div class="panel" id="panel-auto">
+  <div class="page-header"><h2>🤖 자동 저널 등록</h2><p>CrossRef API로 상위 저널을 검색하고, Unpaywall API로 PDF 접근 가능 여부를 확인하여 자동 등록합니다.</p></div>
+
+  <div class="card">
+    <div class="card-title">🔎 자동 검색 실행</div>
+    <div class="tip">CrossRef API로 키워드 관련 상위 <strong>10개</strong> 저널을 검색한 후, Unpaywall API로 각 논문의 오픈 액세스 PDF 다운로드 가능 여부를 확인합니다. PDF 접근 가능한 저널만 자동 등록됩니다.</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="runAutoSearch()" id="auto-search-btn" style="padding:10px 20px;">
+        🚀 자동 검색 시작
+      </button>
+      <button class="btn" onclick="clearAutoResults()">결과 초기화</button>
+      <span style="font-size:12px;color:var(--text2);" id="auto-status"></span>
+    </div>
+    <div class="progress-wrap" id="auto-progress-wrap" style="display:none;">
+      <div class="progress-track"><div class="progress-bar" id="auto-progress-bar" style="width:0%"></div></div>
+      <div class="progress-label" id="auto-progress-label">준비 중...</div>
+    </div>
+  </div>
+
+  <div id="auto-results-container">
+    <div class="empty"><div class="empty-icon">🤖</div><p>자동 검색 시작 버튼을 클릭하면<br>CrossRef + Unpaywall API로 저널을 자동 검색합니다.</p></div>
+  </div>
+</div>
+
+<!-- ⑤ MANUAL ADD JOURNAL -->
+<div class="panel" id="panel-add">
+  <div class="page-header"><h2>➕ 수동 저널 등록</h2><p>DOI를 입력하면 CrossRef API로 메타데이터를 자동 불러오거나, 직접 입력할 수 있습니다.</p></div>
+  <div class="card">
+    <div class="card-title">🔗 DOI로 자동 불러오기</div>
+    <div class="tip">DOI를 입력하면 CrossRef API와 Unpaywall API에서 메타데이터와 PDF 접근 정보를 자동으로 가져옵니다.</div>
+    <div class="input-row" style="margin-bottom:10px;">
+      <input type="text" id="doi-fetch-input" placeholder="예: 10.1038/s41565-021-00844-6 또는 https://doi.org/10.xxxx/..." onkeydown="if(event.key==='Enter')fetchByDOI()"/>
+      <button class="btn btn-primary" onclick="fetchByDOI()" id="doi-fetch-btn">📥 불러오기</button>
+    </div>
+    <div id="doi-fetch-status" style="font-size:12px;color:var(--text2);"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📝 저널 정보 입력</div>
+    <div class="form-grid">
+      <div class="field-group full"><label class="field-label">논문 제목 *</label><input type="text" id="j-title" placeholder="논문 제목을 입력하세요"/></div>
+      <div class="field-group"><label class="field-label">저자 (First Author)</label><input type="text" id="j-author" placeholder="예: Kim, J. et al."/></div>
+      <div class="field-group"><label class="field-label">출판 연도</label><input type="number" id="j-year" placeholder="예: 2021" min="1990" max="2026"/></div>
+      <div class="field-group"><label class="field-label">저널명</label><input type="text" id="j-journal" placeholder="예: Nature Nanotechnology"/></div>
+      <div class="field-group"><label class="field-label">Impact Factor</label><input type="number" id="j-if" placeholder="예: 8.5" step="0.1" min="0"/></div>
+      <div class="field-group"><label class="field-label">인용 수 (Citations)</label><input type="number" id="j-cite" placeholder="예: 340" min="0"/></div>
+      <div class="field-group"><label class="field-label">Introduction 수식 수</label><input type="number" id="j-eq" placeholder="직접 세어 입력" min="0"/></div>
+      <div class="field-group"><label class="field-label">데이터베이스 출처</label>
+        <select id="j-source"><option value="CrossRef/Auto">CrossRef (자동)</option><option value="Google Scholar">Google Scholar</option><option value="ScienceDirect">ScienceDirect</option><option value="Springer">Springer / Nature</option><option value="ACS Publications">ACS Publications</option><option value="Wiley">Wiley Online Library</option><option value="Sci-Hub">Sci-Hub</option><option value="Other">기타</option></select>
+      </div>
+      <div class="field-group full"><label class="field-label">DOI / URL</label><input type="text" id="j-doi" placeholder="https://doi.org/10.xxxx/..."/></div>
+      <div class="field-group full"><label class="field-label">PDF URL (오픈 액세스)</label><input type="text" id="j-pdf-url" placeholder="PDF 직접 다운로드 URL (자동 감지 또는 수동 입력)"/></div>
+      <div class="field-group full"><label class="field-label">관련 키워드 (쉼표로 구분)</label><input type="text" id="j-kw" placeholder="예: tapping mode, phase imaging"/></div>
+      <div class="field-group full"><label class="field-label">메모</label><textarea id="j-note" rows="2" style="resize:vertical;"></textarea></div>
+    </div>
+    <div class="checks-wrap" style="margin-bottom:14px;">
+      <label class="check-row"><input type="checkbox" id="j-physics"/> tip-sample physics 포함</label>
+      <label class="check-row"><input type="checkbox" id="j-circuit"/> 회로/신호처리 포함</label>
+      <label class="check-row"><input type="checkbox" id="j-oa"/> 오픈 액세스</label>
+    </div>
+    <div class="score-preview-box">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">예상 품질 점수 (실시간)</div>
+      <div class="score-preview-row">
+        <div class="score-big" id="preview-score" style="color:var(--accent);">0</div>
+        <div style="flex:1;"><div class="score-bar" style="height:8px;"><div class="score-fill" id="preview-bar" style="width:0%;background:var(--accent);"></div></div></div>
+        <div style="font-size:12px;color:var(--text2);">/ 100</div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="addJournal()" style="padding:12px;">+ 저널 등록</button>
+  </div>
+</div>
+
+<!-- ⑥ JOURNAL LIST -->
+<div class="panel" id="panel-list">
+  <div class="page-header"><h2>📚 저널 목록</h2><p>등록된 저널을 관리하세요. 체크된 저널이 ZIP에 포함됩니다.</p></div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">총 저널 수</div><div class="stat-val" id="sl-total">0</div></div>
+    <div class="stat-card"><div class="stat-label">선택됨</div><div class="stat-val" id="sl-selected">0</div></div>
+    <div class="stat-card"><div class="stat-label">PDF 보유</div><div class="stat-val" id="sl-pdf">0</div></div>
+    <div class="stat-card"><div class="stat-label">평균 점수</div><div class="stat-val" id="sl-score">—</div></div>
+  </div>
+  <div class="sort-bar">
+    <span>정렬:</span>
+    <button class="btn btn-sm sort-btn active" id="sort-score" onclick="sortBy('score')">점수순</button>
+    <button class="btn btn-sm sort-btn" id="sort-cite" onclick="sortBy('cite')">인용순</button>
+    <button class="btn btn-sm sort-btn" id="sort-if" onclick="sortBy('if')">IF순</button>
+    <button class="btn btn-sm sort-btn" id="sort-year" onclick="sortBy('year')">연도순</button>
+    <div style="margin-left:auto;display:flex;gap:6px;">
+      <button class="btn btn-sm" onclick="selectAll(true)">전체 선택</button>
+      <button class="btn btn-sm" onclick="selectAll(false)">전체 해제</button>
+    </div>
+  </div>
+  <div id="journal-list-container"><div class="empty"><div class="empty-icon">📭</div><p>등록된 저널이 없습니다.</p></div></div>
+</div>
+
+<!-- ⑦ EXPORT -->
+<div class="panel" id="panel-export">
+  <div class="page-header"><h2>📦 ZIP 내보내기</h2><p>선택된 저널 데이터와 PDF를 ZIP으로 다운로드합니다.</p></div>
+  <div class="card">
+    <div class="card-title">🏷️ AFM 모드 이름</div>
+    <div class="field-group"><label class="field-label">모드명 (파일명에 사용)</label><input type="text" id="ex-mode" placeholder="예: Tapping_Mode, PFM, KPFM"/></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📁 포함할 파일</div>
+    <div class="export-checks">
+      <label class="export-check-item"><input type="checkbox" id="ex-meta" checked/><div><div class="eci-title">📄 journals.json</div><div class="eci-desc">저널 전체 메타데이터 (PDF URL 포함)</div></div></label>
+      <label class="export-check-item"><input type="checkbox" id="ex-report" checked/><div><div class="eci-title">📊 report.html</div><div class="eci-desc">저널 품질 비교 보고서</div></div></label>
+      <label class="export-check-item"><input type="checkbox" id="ex-keywords" checked/><div><div class="eci-title">🔑 keywords.txt</div><div class="eci-desc">키워드 목록 및 검색 쿼리</div></div></label>
+      <label class="export-check-item"><input type="checkbox" id="ex-links" checked/><div><div class="eci-title">🔗 search_links.txt</div><div class="eci-desc">DB별 검색 URL 목록</div></div></label>
+      <label class="export-check-item"><input type="checkbox" id="ex-template" checked/><div><div class="eci-title">📝 intro_template.md</div><div class="eci-desc">Chapter 1 Introduction 초안 템플릿</div></div></label>
+      <label class="export-check-item"><input type="checkbox" id="ex-checklist" checked/><div><div class="eci-title">✅ review_checklist.md</div><div class="eci-desc">AFM 전문가 피드백 체크리스트</div></div></label>
+      <label class="export-check-item"><input type="checkbox" id="ex-pdfs" checked/><div><div class="eci-title">📰 pdf/ 폴더 — PDF 파일들</div><div class="eci-desc">오픈 액세스 PDF를 직접 다운로드하여 ZIP에 포함 (시간이 다소 걸릴 수 있습니다)</div></div></label>
+    </div>
+    <div class="tip warning" id="pdf-count-tip">PDF 보유 저널: 확인 중...</div>
+    <button class="btn btn-success btn-block" onclick="downloadZip()" style="padding:13px;font-size:14px;">⬇️ ZIP 파일 다운로드</button>
+    <div class="progress-wrap" id="zip-progress-wrap" style="display:none;">
+      <div class="progress-track"><div class="progress-bar" id="zip-progress-bar" style="width:0%"></div></div>
+      <div class="progress-label" id="zip-progress-label">준비 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ⑧ PROCESS -->
+<div class="panel" id="panel-process">
+  <div class="page-header"><h2>📋 매뉴얼 작성 프로세스</h2><p>AFM 매뉴얼 Introduction 표준 작성 프로세스입니다.</p></div>
+  <div class="card"><div class="card-title">🗺️ 5단계 프로세스</div><div id="process-container"></div></div>
+  <div class="card">
+    <div class="card-title">📐 Introduction 필수 구성 요소</div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse;">
+      <tr style="background:var(--bg2);"><th style="padding:9px 12px;text-align:left;">구성 요소</th><th style="padding:9px 12px;text-align:left;">포함 내용</th><th style="padding:9px 12px;text-align:left;">우선순위</th></tr>
+      <tr><td style="padding:8px 12px;border-bottom:1px solid var(--border);">Tip-Sample Interaction</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);">van der Waals, Lennard-Jones, DMT/JKR, Hertz</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);"><span class="badge badge-score">필수</span></td></tr>
+      <tr><td style="padding:8px 12px;border-bottom:1px solid var(--border);">Cantilever Dynamics</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);">조화진동자 모델, f₀, Q-factor, spring constant</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);"><span class="badge badge-score">필수</span></td></tr>
+      <tr><td style="padding:8px 12px;border-bottom:1px solid var(--border);">Signal Detection</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);">Lock-in amplifier, amplitude/phase detection</td><td style="padding:8px 12px;border-bottom:1px solid var(--border);"><span class="badge badge-oa">권장</span></td></tr>
+      <tr><td style="padding:8px 12px;">Mode-specific Physics</td><td style="padding:8px 12px;color:var(--text2);">해당 모드의 고유 물리 현상 및 수식</td><td style="padding:8px 12px;"><span class="badge badge-gray">모드별</span></td></tr>
+    </table>
+  </div>
+</div>
+
+</main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   STATE
+================================================================ */
+const PRESET_KWS = [
+  'atomic force microscopy','tapping mode AFM','cantilever dynamics',
+  'tip-sample interaction','van der Waals force','Hamaker constant',
+  'DMT Derjaguin Muller Toporov','JKR Johnson Kendall Roberts',
+  'Hertz contact mechanics','phase imaging AFM','energy dissipation AFM',
+  'Q factor cantilever','lock-in amplifier AFM','PID feedback control AFM',
+  'force-distance curve','amplitude modulation AFM','frequency modulation FM-AFM',
+  'electrostatic force microscopy','Kelvin probe force microscopy',
+  'piezoresponse force microscopy','magnetic force microscopy',
+  'conductive AFM','nanoscale imaging','surface topography AFM',
+  'non-contact AFM','contact mode AFM','cantilever spring constant',
+  'thermal noise AFM','bimodal AFM','scanning probe microscopy'
+];
+let activeKeywords = new Set(['atomic force microscopy','tapping mode AFM','tip-sample interaction','cantilever dynamics','Q factor cantilever']);
+let customKeywords = [];
+let journals = [];
+let currentSort = 'score';
+let autoResults = [];
+
+/* ================================================================
+   THEME
+================================================================ */
+function toggleTheme(){
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', dark?'':'dark');
+  document.getElementById('theme-btn').textContent = dark?'🌙 다크 모드':'☀️ 라이트 모드';
+  localStorage.setItem('afm-theme', dark?'light':'dark');
+}
+(function(){const t=localStorage.getItem('afm-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('theme-btn').textContent='☀️ 라이트 모드';}})();
+
+/* ================================================================
+   NAV
+================================================================ */
+function nav(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='list') renderJournalList();
+  if(name==='search'){renderActiveKwDisplay();generateLinks();}
+  if(name==='export') updateExportTip();
+  if(name==='process') renderProcess();
+}
+
+/* ================================================================
+   TOAST
+================================================================ */
+function toast(msg, dur=2800){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+/* ================================================================
+   KEYWORDS
+================================================================ */
+function renderPreset(){
+  document.getElementById('preset-kw-grid').innerHTML=PRESET_KWS.map(kw=>`
+    <span class="kw-tag ${activeKeywords.has(kw)?'active':''}" onclick="toggleKw(this,'${esc(kw)}')">${kw}</span>
+  `).join('');
+}
+function toggleKw(el,kw){
+  if(activeKeywords.has(kw)){activeKeywords.delete(kw);el.classList.remove('active');}
+  else{activeKeywords.add(kw);el.classList.add('active');}
+}
+function addCustomKw(){
+  const input=document.getElementById('custom-kw-input');
+  const val=input.value.trim();
+  if(!val)return;
+  if(customKeywords.includes(val)){toast('이미 추가된 키워드입니다.');return;}
+  customKeywords.push(val); activeKeywords.add(val); input.value='';
+  renderCustomKws(); toast('키워드 추가됨: '+val);
+}
+function renderCustomKws(){
+  const g=document.getElementById('custom-kw-grid');
+  if(!customKeywords.length){g.innerHTML='<span style="font-size:12px;color:var(--text3);">추가된 커스텀 키워드가 없습니다.</span>';return;}
+  g.innerHTML=customKeywords.map((kw,i)=>`
+    <span class="kw-tag custom ${activeKeywords.has(kw)?'active':''}">
+      ${kw} <span class="rm" onclick="removeCustomKw(${i},event)">×</span>
+    </span>
+  `).join('');
+}
+function removeCustomKw(i,e){
+  e.stopPropagation(); activeKeywords.delete(customKeywords[i]); customKeywords.splice(i,1);
+  renderCustomKws();
+}
+function renderActiveKwDisplay(){
+  const all=[...activeKeywords];
+  document.getElementById('active-kw-display').innerHTML=all.map(kw=>`<span class="kw-tag active" style="pointer-events:none;">${kw}</span>`).join('');
+  document.getElementById('query-display').textContent=all.join(' ');
+}
+function updateBadges(){}
+
+/* ================================================================
+   SEARCH LINKS — fixed DB list (no arXiv, proper URL for each)
+================================================================ */
+function generateLinks(){
+  const q=encodeURIComponent([...activeKeywords].join(' '));
+  const yr=document.getElementById('f-year')?.value||'2010';
+  const DBS=[
+    {name:'Google Scholar', color:'#4285F4',
+     url:`https://scholar.google.com/scholar?q=${q}&as_ylo=${yr}`,
+     note:'검색어 자동 입력', scihub:false},
+    {name:'ScienceDirect (Elsevier)', color:'#E5530C',
+     url:`https://www.sciencedirect.com/search?qs=${q}&years=${yr}-2026&sortBy=relevance`,
+     note:'검색어 자동 입력', scihub:true},
+    {name:'Springer / Nature', color:'#1A5276',
+     url:`https://link.springer.com/search?query=${q}&date-facet-mode=between&facet-start-year=${yr}`,
+     note:'검색어 자동 입력', scihub:true},
+    {name:'ACS Publications', color:'#00518A',
+     url:`https://pubs.acs.org/action/doSearch?AllField=${q}&filter=afterYear%3A${yr}`,
+     note:'연도 필터 적용', scihub:true},
+    {name:'Wiley Online Library', color:'#D00000',
+     url:`https://onlinelibrary.wiley.com/action/doSearch?query=${q}&AfterYear=${yr}&startPage=0&pageSize=20`,
+     note:'연도 필터 적용', scihub:true},
+    {name:'PubMed (Bio/Nano)', color:'#336699',
+     url:`https://pubmed.ncbi.nlm.nih.gov/?term=${q}&filter=years.${yr}-2026`,
+     note:'검색어 자동 입력', scihub:false},
+  ];
+  document.getElementById('db-links-container').innerHTML=DBS.map(db=>`
+    <div class="db-row">
+      <div class="db-name">
+        <span class="db-dot" style="background:${db.color}"></span>
+        ${db.name}
+        <span style="font-size:10px;color:var(--text3);margin-left:4px;">${db.note}</span>
+      </div>
+      <div class="db-actions">
+        <a href="${db.url}" target="_blank" class="btn btn-sm">🔍 검색</a>
+        ${db.scihub?`<a href="https://sci-hub.se/" target="_blank" class="btn btn-sm" style="background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bg);">Sci-Hub</a>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ================================================================
+   AUTO SEARCH — CrossRef + Unpaywall
+================================================================ */
+async function runAutoSearch(){
+  const kws=[...activeKeywords];
+  if(!kws.length){toast('⚠️ 키워드를 먼저 선택하세요.');return;}
+  const email=document.getElementById('unpaywall-email').value.trim();
+  if(!email||!email.includes('@')){toast('⚠️ Unpaywall API 사용을 위해 필터 탭에서 이메일을 입력하세요.');nav('filters');return;}
+
+  const btn=document.getElementById('auto-search-btn');
+  btn.disabled=true; btn.textContent='⏳ 검색 중...';
+  document.getElementById('auto-progress-wrap').style.display='block';
+  setProgress(0,'CrossRef API 검색 중...');
+  document.getElementById('auto-results-container').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><p>검색 중입니다...</p></div>';
+  autoResults=[];
+
+  try{
+    const query=kws.join(' ');
+    const count=document.getElementById('f-count')?.value||'20';
+    const yr=document.getElementById('f-year')?.value||'2010';
+    const encQ=encodeURIComponent(query);
+
+    // CrossRef search — sorted by relevance, top results
+    const url=`https://api.crossref.org/works?query=${encQ}&rows=${count}&sort=relevance&order=desc&filter=from-pub-date:${yr}&select=DOI,title,author,published,container-title,is-referenced-by-count,type,abstract`;
+    const r=await fetch(url);
+    if(!r.ok) throw new Error('CrossRef API 오류: '+r.status);
+    const data=await r.json();
+    const items=data.message.items||[];
+    if(!items.length){
+      document.getElementById('auto-results-container').innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>검색 결과가 없습니다.<br>키워드를 변경해보세요.</p></div>';
+      return;
+    }
+
+    // Take top 10
+    const top10=items.slice(0,10);
+    setProgress(20,`${top10.length}개 저널 발견. PDF 접근 가능 여부 확인 중...`);
+    document.getElementById('auto-status').textContent=`${top10.length}개 저널 발견`;
+
+    // Show placeholder cards
+    document.getElementById('auto-results-container').innerHTML=top10.map((item,i)=>`
+      <div class="auto-result-item checking" id="ari-${i}">
+        <div class="ari-top">
+          <div class="ari-title">${getTitle(item)}</div>
+          <span class="pdf-status pdf-checking">확인 중...</span>
+        </div>
+        <div class="ari-badge-row">
+          <span class="badge badge-gray">${getAuthor(item)}</span>
+          <span class="badge badge-gray">${getYear(item)||'연도 미상'}</span>
+          <span class="badge badge-gray">${getJournal(item)||'저널명 미상'}</span>
+          ${item['is-referenced-by-count']?`<span class="badge badge-cite">${item['is-referenced-by-count'].toLocaleString()} citations</span>`:''}
+        </div>
+        <div class="ari-footer"><div class="ari-meta">DOI: ${item.DOI||'—'}</div><div id="ari-actions-${i}"></div></div>
+      </div>
+    `).join('');
+
+    // Check each with Unpaywall
+    let registered=0;
+    for(let i=0;i<top10.length;i++){
+      const item=top10[i];
+      const doi=item.DOI;
+      const pct=20+Math.round((i/top10.length)*70);
+      setProgress(pct,`[${i+1}/${top10.length}] Unpaywall 확인 중: ${doi}`);
+
+      let pdfUrl=null;
+      let isOA=false;
+      try{
+        const uRes=await fetch(`https://api.unpaywall.org/v2/${doi}?email=${encodeURIComponent(email)}`);
+        if(uRes.ok){
+          const uData=await uRes.json();
+          isOA=uData.is_oa||false;
+          // Best PDF: prefer url_for_pdf
+          const loc=uData.best_oa_location;
+          if(loc){
+            pdfUrl=loc.url_for_pdf||loc.url||null;
+          }
+          // Fallback: check all oa_locations
+          if(!pdfUrl && uData.oa_locations){
+            for(const ol of uData.oa_locations){
+              if(ol.url_for_pdf){pdfUrl=ol.url_for_pdf;break;}
+            }
+          }
+        }
+      }catch(e){/* Unpaywall failed for this DOI */}
+
+      const card=document.getElementById('ari-'+i);
+      const statusEl=card?.querySelector('.pdf-status');
+      const actionsEl=document.getElementById('ari-actions-'+i);
+      const meta={
+        id: Date.now()+i,
+        title: getTitle(item),
+        author: getAuthor(item),
+        year: getYear(item),
+        journal: getJournal(item),
+        if: 0,
+        cite: item['is-referenced-by-count']||0,
+        eq: 0,
+        doi: doi,
+        pdfUrl: pdfUrl,
+        oa: isOA,
+        physics: detectPhysics(getTitle(item)+(item.abstract||'')),
+        circuit: detectCircuit(getTitle(item)+(item.abstract||'')),
+        source: 'CrossRef/Auto',
+        keywords: [...activeKeywords].slice(0,5),
+        note: '',
+        selected: true,
+        added: new Date().toISOString()
+      };
+      meta.score=calcScore(meta);
+      autoResults.push(meta);
+
+      if(card){
+        card.classList.remove('checking');
+        if(pdfUrl){ card.classList.add('has-pdf'); }
+        if(statusEl){ statusEl.className='pdf-status '+(pdfUrl?'pdf-ok':'pdf-no'); statusEl.textContent=pdfUrl?'✅ PDF 다운로드 가능':'❌ PDF 불가 (유료)'; }
+        if(actionsEl){
+          actionsEl.innerHTML=`
+            ${pdfUrl?`<a href="${pdfUrl}" target="_blank" class="btn btn-xs btn-success">📄 PDF 열기</a>`:'<a href="https://sci-hub.se/" target="_blank" class="btn btn-xs btn-warning" title="Sci-Hub에서 DOI 입력">Sci-Hub</a>'}
+            <button class="btn btn-xs btn-primary" onclick="registerSingle(${autoResults.length-1})">+ 등록</button>
+          `;
+        }
+        // Update badge row to add score
+        const badgeRow=card.querySelector('.ari-badge-row');
+        if(badgeRow){ badgeRow.innerHTML+=`<span class="badge badge-score">점수 ${meta.score}</span>${isOA?'<span class="badge badge-oa">Open Access</span>':''}`; }
+      }
+      if(pdfUrl) registered++;
+    }
+
+    setProgress(100,`완료: ${top10.length}개 검색, PDF 가능 ${registered}개`);
+    document.getElementById('auto-status').textContent=`검색 완료 — PDF 가능: ${registered}/${top10.length}`;
+    toast(`✅ 자동 검색 완료. PDF 접근 가능: ${registered}개`);
+
+    // Show bulk register button
+    if(registered>0){
+      const cont=document.getElementById('auto-results-container');
+      const div=document.createElement('div');
+      div.style='margin-top:12px;display:flex;gap:10px;';
+      div.innerHTML=`
+        <button class="btn btn-primary" onclick="registerAllPDF()">✅ PDF 가능한 저널 모두 등록 (${registered}개)</button>
+        <button class="btn" onclick="registerAll()">전체 등록 (${top10.length}개)</button>
+      `;
+      cont.prepend(div);
+    }
+  }catch(err){
+    toast('❌ 오류: '+err.message,4000);
+    document.getElementById('auto-results-container').innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><p>오류가 발생했습니다.<br>${err.message}<br><br>네트워크 연결 및 이메일 입력을 확인하세요.</p></div>`;
+  }finally{
+    btn.disabled=false; btn.textContent='🚀 자동 검색 시작';
+    setTimeout(()=>document.getElementById('auto-progress-wrap').style.display='none',3000);
+  }
+}
+
+function setProgress(pct,label){
+  document.getElementById('auto-progress-bar').style.width=pct+'%';
+  document.getElementById('auto-progress-label').textContent=label;
+}
+
+function getTitle(item){
+  if(!item.title||!item.title.length) return '제목 없음';
+  return Array.isArray(item.title)?item.title[0]:item.title;
+}
+function getAuthor(item){
+  if(!item.author||!item.author.length) return '';
+  const a=item.author[0];
+  const name=[a.family,a.given?a.given.charAt(0)+'.':''].filter(Boolean).join(', ');
+  return item.author.length>1?name+' et al.':name;
+}
+function getYear(item){
+  const d=item.published||item['published-print']||item['published-online'];
+  if(!d) return null;
+  const parts=d['date-parts'];
+  return parts&&parts[0]?parts[0][0]:null;
+}
+function getJournal(item){
+  if(item['container-title']&&item['container-title'].length) return item['container-title'][0];
+  return '';
+}
+function detectPhysics(text){
+  const kws=['van der Waals','tip-sample','cantilever','Hamaker','Hertz','DMT','JKR','oscillation','force'];
+  return kws.some(k=>text.toLowerCase().includes(k.toLowerCase()));
+}
+function detectCircuit(text){
+  const kws=['lock-in','PID','feedback','amplifier','signal processing','phase detection','controller'];
+  return kws.some(k=>text.toLowerCase().includes(k.toLowerCase()));
+}
+
+function registerSingle(idx){
+  const m=autoResults[idx];
+  if(!m) return;
+  if(journals.find(j=>j.doi===m.doi)){toast('이미 등록된 저널입니다.');return;}
+  journals.push({...m,id:Date.now()+Math.random()});
+  updateListBadge();
+  toast('✅ 등록됨: '+m.title.slice(0,40)+'...');
+}
+function registerAllPDF(){
+  let cnt=0;
+  autoResults.filter(m=>m.pdfUrl).forEach(m=>{
+    if(!journals.find(j=>j.doi===m.doi)){journals.push({...m,id:Date.now()+Math.random()});cnt++;}
+  });
+  updateListBadge();
+  toast(`✅ PDF 가능 저널 ${cnt}개가 등록되었습니다.`);
+}
+function registerAll(){
+  let cnt=0;
+  autoResults.forEach(m=>{
+    if(!journals.find(j=>j.doi===m.doi)){journals.push({...m,id:Date.now()+Math.random()});cnt++;}
+  });
+  updateListBadge();
+  toast(`✅ ${cnt}개 저널이 등록되었습니다.`);
+}
+function clearAutoResults(){
+  autoResults=[];
+  document.getElementById('auto-results-container').innerHTML='<div class="empty"><div class="empty-icon">🤖</div><p>자동 검색 시작 버튼을 클릭하면<br>CrossRef + Unpaywall API로 저널을 자동 검색합니다.</p></div>';
+  document.getElementById('auto-status').textContent='';
+}
+
+/* ================================================================
+   DOI FETCH (Manual)
+================================================================ */
+async function fetchByDOI(){
+  const raw=document.getElementById('doi-fetch-input').value.trim();
+  if(!raw){toast('⚠️ DOI를 입력하세요.');return;}
+  const doi=raw.replace(/^https?:\/\/doi\.org\//i,'').trim();
+  const btn=document.getElementById('doi-fetch-btn');
+  const status=document.getElementById('doi-fetch-status');
+  btn.disabled=true; btn.textContent='불러오는 중...'; status.textContent='';
+  try{
+    // CrossRef
+    const r=await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+    if(!r.ok) throw new Error('DOI를 찾을 수 없습니다.');
+    const d=await r.json();
+    const item=d.message;
+    document.getElementById('j-title').value=getTitle(item);
+    document.getElementById('j-author').value=getAuthor(item);
+    document.getElementById('j-year').value=getYear(item)||'';
+    document.getElementById('j-journal').value=getJournal(item);
+    document.getElementById('j-cite').value=item['is-referenced-by-count']||0;
+    document.getElementById('j-doi').value='https://doi.org/'+doi;
+    document.getElementById('j-source').value='CrossRef/Auto';
+    document.getElementById('j-physics').checked=detectPhysics(getTitle(item)+(item.abstract||''));
+    document.getElementById('j-circuit').checked=detectCircuit(getTitle(item)+(item.abstract||''));
+
+    // Unpaywall
+    const email=document.getElementById('unpaywall-email').value.trim();
+    if(email&&email.includes('@')){
+      const r2=await fetch(`https://api.unpaywall.org/v2/${doi}?email=${encodeURIComponent(email)}`);
+      if(r2.ok){
+        const d2=await r2.json();
+        document.getElementById('j-oa').checked=d2.is_oa||false;
+        const loc=d2.best_oa_location;
+        if(loc&&loc.url_for_pdf){
+          document.getElementById('j-pdf-url').value=loc.url_for_pdf;
+          status.textContent='✅ 메타데이터 + PDF URL 자동 완성됨';
+          status.style.color='var(--green)';
+        } else {
+          status.textContent='✅ 메타데이터 자동 완성됨 (PDF 접근 불가)';
+          status.style.color='var(--amber)';
+        }
+      }
+    } else {
+      status.textContent='✅ 메타데이터 자동 완성됨 (PDF 확인은 이메일 입력 필요)';
+      status.style.color='var(--accent)';
+    }
+    updatePreview();
+    toast('✅ DOI 메타데이터 자동 완성!');
+  }catch(err){
+    status.textContent='❌ '+err.message; status.style.color='var(--red)';
+    toast('❌ 오류: '+err.message);
+  }finally{
+    btn.disabled=false; btn.textContent='📥 불러오기';
+  }
+}
+
+/* ================================================================
+   SCORE
+================================================================ */
+function calcScore(j){
+  const ifS=Math.min((j.if||0)/20,1)*30;
+  const citeS=Math.min((j.cite||0)/500,1)*40;
+  const eqS=Math.min((j.eq||0)/20,1)*20;
+  const bonus=(j.physics?5:0)+(j.circuit?5:0);
+  return Math.round(ifS+citeS+eqS+bonus);
+}
+function updatePreview(){
+  const j={if:parseFloat(document.getElementById('j-if').value)||0,cite:parseInt(document.getElementById('j-cite').value)||0,eq:parseInt(document.getElementById('j-eq').value)||0,physics:document.getElementById('j-physics').checked,circuit:document.getElementById('j-circuit').checked};
+  const s=calcScore(j);
+  const color=s>=70?'var(--green)':s>=40?'var(--accent)':'var(--amber)';
+  document.getElementById('preview-score').textContent=s;
+  document.getElementById('preview-score').style.color=color;
+  document.getElementById('preview-bar').style.width=s+'%';
+  document.getElementById('preview-bar').style.background=color;
+}
+
+/* ================================================================
+   MANUAL ADD
+================================================================ */
+function addJournal(){
+  const title=document.getElementById('j-title').value.trim();
+  if(!title){toast('⚠️ 논문 제목을 입력하세요.');return;}
+  const j={
+    id:Date.now(),title,
+    author:document.getElementById('j-author').value.trim(),
+    year:parseInt(document.getElementById('j-year').value)||null,
+    journal:document.getElementById('j-journal').value.trim(),
+    if:parseFloat(document.getElementById('j-if').value)||0,
+    cite:parseInt(document.getElementById('j-cite').value)||0,
+    eq:parseInt(document.getElementById('j-eq').value)||0,
+    source:document.getElementById('j-source').value,
+    doi:document.getElementById('j-doi').value.trim(),
+    pdfUrl:document.getElementById('j-pdf-url').value.trim(),
+    keywords:document.getElementById('j-kw').value.split(',').map(k=>k.trim()).filter(Boolean),
+    note:document.getElementById('j-note').value.trim(),
+    physics:document.getElementById('j-physics').checked,
+    circuit:document.getElementById('j-circuit').checked,
+    oa:document.getElementById('j-oa').checked,
+    selected:true,
+    added:new Date().toISOString()
+  };
+  j.score=calcScore(j);
+  journals.push(j);
+  ['j-title','j-author','j-year','j-journal','j-if','j-cite','j-eq','j-doi','j-pdf-url','j-kw','j-note'].forEach(id=>document.getElementById(id).value='');
+  ['j-physics','j-circuit','j-oa'].forEach(id=>document.getElementById(id).checked=false);
+  updatePreview(); updateListBadge();
+  toast('✅ 저널 등록됨 (점수: '+j.score+')');
+}
+function updateListBadge(){document.getElementById('badge-total').textContent=journals.length;}
+
+/* ================================================================
+   JOURNAL LIST
+================================================================ */
+function sortBy(mode){
+  currentSort=mode;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sort-'+mode).classList.add('active');
+  renderJournalList();
+}
+function selectAll(v){journals.forEach(j=>j.selected=v);renderJournalList();}
+function renderJournalList(){
+  const sorted=[...journals].sort((a,b)=>(b[currentSort]||0)-(a[currentSort]||0));
+  const c=document.getElementById('journal-list-container');
+  if(!sorted.length){c.innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>등록된 저널이 없습니다.</p></div>';updateListStats();return;}
+  c.innerHTML=sorted.map(j=>{
+    const doiUrl=j.doi?(j.doi.startsWith('http')?j.doi:'https://doi.org/'+j.doi):null;
+    const scoreCol=j.score>=70?'var(--green)':j.score>=40?'var(--accent)':'var(--amber)';
+    return`<div class="journal-card ${j.selected?'selected':''}" id="jc-${j.id}">
+      <div class="jc-top">
+        <input type="checkbox" class="jc-select" ${j.selected?'checked':''} onchange="toggleJSelect(${j.id},this)"/>
+        <div class="jc-title">${j.title}</div>
+      </div>
+      <div class="badge-row">
+        ${j.author||j.year?`<span class="badge badge-gray">${[j.author,j.year?'('+j.year+')':''].filter(Boolean).join(' ')}</span>`:''}
+        ${j.journal?`<span class="badge badge-gray">${j.journal}</span>`:''}
+        ${j.if?`<span class="badge badge-if">IF ${j.if.toFixed(1)}</span>`:''}
+        ${j.cite?`<span class="badge badge-cite">${j.cite.toLocaleString()} citations</span>`:''}
+        ${j.eq?`<span class="badge badge-gray">수식 ${j.eq}개</span>`:''}
+        <span class="badge badge-score">점수 ${j.score}</span>
+        ${j.pdfUrl?`<span class="badge badge-pdf">📄 PDF 보유</span>`:''}
+        ${j.oa?`<span class="badge badge-oa">Open Access</span>`:''}
+      </div>
+      <div class="score-bar"><div class="score-fill" style="width:${j.score}%;background:${scoreCol}"></div></div>
+      ${j.note?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:8px;background:var(--bg3);border-radius:var(--radius);">${j.note}</div>`:''}
+      <div class="jc-footer">
+        <div class="jc-meta">${j.source}${j.eq?' · 수식 '+j.eq+'개':''}</div>
+        <div class="jc-actions">
+          ${j.pdfUrl?`<a href="${j.pdfUrl}" target="_blank" class="btn btn-xs btn-success">📄 PDF</a>`:''}
+          ${doiUrl?`<a href="${doiUrl}" target="_blank" class="btn btn-xs">🔗 DOI</a>`:''}
+          <button class="btn btn-xs btn-danger-ghost" onclick="removeJournal(${j.id})">🗑️</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  updateListStats();
+}
+function toggleJSelect(id,cb){
+  const j=journals.find(x=>x.id===id);
+  if(j){j.selected=cb.checked;document.getElementById('jc-'+id)?.classList.toggle('selected',j.selected);}
+  updateListStats();
+}
+function removeJournal(id){journals=journals.filter(j=>j.id!==id);renderJournalList();updateListBadge();toast('저널이 삭제되었습니다.');}
+function updateListStats(){
+  const sel=journals.filter(j=>j.selected);
+  const pdfCount=journals.filter(j=>j.pdfUrl).length;
+  document.getElementById('sl-total').textContent=journals.length;
+  document.getElementById('sl-selected').textContent=sel.length;
+  document.getElementById('sl-pdf').textContent=pdfCount;
+  document.getElementById('sl-score').textContent=sel.length?Math.round(sel.reduce((s,j)=>s+(j.score||0),0)/sel.length):'—';
+}
+
+/* ================================================================
+   EXPORT UTILS
+================================================================ */
+function updateExportTip(){
+  const sel=journals.filter(j=>j.selected);
+  const pdfSel=sel.filter(j=>j.pdfUrl);
+  document.getElementById('pdf-count-tip').textContent=`선택된 저널 ${sel.length}개 중 PDF 보유: ${pdfSel.length}개. ZIP에 PDF 포함 시 시간이 다소 걸릴 수 있습니다.`;
+}
+
+/* ================================================================
+   ZIP DOWNLOAD (with PDF fetch)
+================================================================ */
+async function downloadZip(){
+  if(typeof JSZip==='undefined'){toast('⚠️ JSZip 로딩 중. 잠시 후 재시도.');return;}
+  const modeName=(document.getElementById('ex-mode').value.trim()||'AFM_Mode').replace(/\s+/g,'_');
+  const selected=journals.filter(j=>j.selected);
+  const kws=[...activeKeywords];
+  const yr=document.getElementById('f-year')?.value||'2010';
+
+  document.getElementById('zip-progress-wrap').style.display='block';
+  const setZipProg=(pct,lbl)=>{
+    document.getElementById('zip-progress-bar').style.width=pct+'%';
+    document.getElementById('zip-progress-label').textContent=lbl;
+  };
+  setZipProg(5,'ZIP 생성 중...');
+
+  const zip=new JSZip();
+  const folder=zip.folder(`AFM_Manual_${modeName}`);
+  const pdfFolder=folder.folder('pdf');
+
+  // ── journals.json ──
+  if(document.getElementById('ex-meta').checked){
+    folder.file('journals.json',JSON.stringify({
+      tool:'AFM Journal Search Tool v2.0',mode:modeName,
+      exportedAt:new Date().toISOString(),totalJournals:selected.length,
+      filters:{minYear:yr,minIF:document.getElementById('f-if')?.value,minCitations:document.getElementById('f-cite')?.value},
+      keywords:kws,journals:selected
+    },null,2));
+  }
+
+  // ── keywords.txt ──
+  if(document.getElementById('ex-keywords').checked){
+    folder.file('keywords.txt',`AFM Manual Introduction Builder v2.0\nMode: ${modeName}\nExport: ${new Date().toLocaleDateString('ko-KR')}\n\n[선택 키워드]\n${kws.join('\n')}\n\n[검색 쿼리]\n${kws.join(' ')}`);
+  }
+
+  // ── search_links.txt ──
+  if(document.getElementById('ex-links').checked){
+    const q=encodeURIComponent(kws.join(' '));
+    folder.file('search_links.txt',
+`AFM Journal Search Links — ${modeName}
+Keywords: ${kws.join(', ')}
+==============================================
+[Google Scholar]
+https://scholar.google.com/scholar?q=${q}&as_ylo=${yr}
+
+[ScienceDirect]
+https://www.sciencedirect.com/search?qs=${q}&years=${yr}-2026
+
+[Springer / Nature]
+https://link.springer.com/search?query=${q}&facet-start-year=${yr}
+
+[ACS Publications]
+https://pubs.acs.org/action/doSearch?AllField=${q}&filter=afterYear%3A${yr}
+
+[Wiley Online Library]
+https://onlinelibrary.wiley.com/action/doSearch?query=${q}&AfterYear=${yr}
+
+[PubMed]
+https://pubmed.ncbi.nlm.nih.gov/?term=${q}&filter=years.${yr}-2026
+
+[Sci-Hub (DOI 입력)]
+https://sci-hub.se/
+`);
+  }
+
+  // ── report.html ──
+  if(document.getElementById('ex-report').checked){
+    const rows=selected.map(j=>{
+      const doiUrl=j.doi?(j.doi.startsWith('http')?j.doi:'https://doi.org/'+j.doi):null;
+      const sc=j.score>=70?'#3B6D11':j.score>=40?'#185FA5':'#854F0B';
+      return`<tr><td><strong>${j.title}</strong></td><td>${[j.author,j.year?'('+j.year+')':''].filter(Boolean).join(' ')}</td><td>${j.journal||''}</td><td style="color:#3B6D11;font-weight:600;">${j.if?j.if.toFixed(1):''}</td><td style="color:#854F0B;font-weight:600;">${j.cite?j.cite.toLocaleString():''}</td><td>${j.eq||''}</td><td style="color:${sc};font-weight:700;">${j.score}</td><td>${j.pdfUrl?`<a href="${j.pdfUrl}" style="color:#0F6E56;">PDF</a>`:''}${doiUrl?` <a href="${doiUrl}">DOI</a>`:''}</td></tr>`;
+    }).join('');
+    folder.file('report.html',`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>AFM Journal Report — ${modeName}</title><style>body{font-family:system-ui,sans-serif;max-width:1400px;margin:2rem auto;padding:0 1.5rem;color:#1a1c22;background:#f6f7f9;}h1{font-size:22px;font-weight:700;margin-bottom:4px;}.sub{color:#5a5f6e;font-size:13px;margin-bottom:1.5rem;}.stats{display:flex;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;}.sc{background:#fff;border:1px solid #e0e4ec;border-radius:10px;padding:12px 18px;}.sc .sv{font-size:24px;font-weight:700;}.sc .sl{font-size:11px;color:#9198a8;font-weight:500;}table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07);}th{background:#f0f4f8;padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#5a5f6e;border-bottom:2px solid #e0e4ec;}td{padding:9px 12px;border-bottom:1px solid #f0f4f8;font-size:13px;vertical-align:top;}tr:hover{background:#f9fbfd;}a{color:#185FA5;}</style></head><body><h1>📊 AFM Journal Report — ${modeName}</h1><p class="sub">Generated: ${new Date().toLocaleString('ko-KR')} | Selected: ${selected.length}</p><div class="stats"><div class="sc"><div class="sl">Total</div><div class="sv">${selected.length}</div></div><div class="sc"><div class="sl">PDF 보유</div><div class="sv">${selected.filter(j=>j.pdfUrl).length}</div></div><div class="sc"><div class="sl">Avg Score</div><div class="sv">${selected.length?Math.round(selected.reduce((s,j)=>s+j.score,0)/selected.length):'—'}</div></div></div><table><thead><tr><th>Title</th><th>Author/Year</th><th>Journal</th><th>IF</th><th>Citations</th><th>Equations</th><th>Score</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  }
+
+  setZipProg(30,'메타데이터 파일 생성 완료...');
+
+  // ── intro_template.md ──
+  if(document.getElementById('ex-template').checked){
+    const refs=selected.slice(0,8).map((j,i)=>`[${i+1}] ${j.author||'Author'}, "${j.title}", *${j.journal||'Journal'}* (${j.year||'Year'}). ${j.doi||''}`).join('\n');
+    folder.file('intro_template.md',
+`# ${modeName} Manual — Chapter 1: Introduction
+
+> 작성 가이드: 수식 중심, 사용자 관점의 Introduction 초안 구조입니다.
+
+## 1.1 Background and Motivation
+[${modeName}의 측정 원리 및 기술적 배경]
+
+## 1.2 Tip-Sample Interaction Physics
+$$F_{vdW} = -\\frac{A_H R}{6 z^2}$$
+$$F_{DMT} = \\frac{4}{3} E^* \\sqrt{R} \\delta^{3/2} - 2\\pi w R$$
+
+## 1.3 Cantilever Dynamics
+$$m^* \\ddot{z} + \\frac{m^* \\omega_0}{Q} \\dot{z} + k z = F_{drive} + F_{ts}$$
+$$f_0 = \\frac{1}{2\\pi}\\sqrt{\\frac{k}{m^*}}, \\quad Q = \\frac{m^* \\omega_0}{b}$$
+
+## 1.4 Signal Detection
+$$A = \\sqrt{X^2 + Y^2}, \\quad \\varphi = \\arctan(Y/X)$$
+
+## 1.5 ${modeName}-specific Principles
+[모드 고유 물리 및 수식]
+
+## References
+${refs}
+
+*작성일: ${new Date().toLocaleDateString('ko-KR')} | 검토 상태: 대기 중*
+`);
+  }
+
+  // ── review_checklist.md ──
+  if(document.getElementById('ex-checklist').checked){
+    folder.file('review_checklist.md',
+`# AFM 전문가 피드백 체크리스트 — ${modeName}
+작성일: ${new Date().toLocaleDateString('ko-KR')}  검토자: ___________
+
+## 물리적 타당성
+- [ ] van der Waals 표현식이 적절한가?
+- [ ] DMT/JKR 모델 적용 조건이 명시되었는가?
+- [ ] 캔틸레버 조화진동자 모델 가정이 명확한가?
+- [ ] Q-factor와 에너지 소산 관계가 올바른가?
+
+## 실제 시스템 구동 방식
+- [ ] Lock-in amplifier 설명이 실제 기기와 일치하는가?
+- [ ] PID feedback 루프 설명이 올바른가?
+- [ ] ${modeName} 측정 신호(채널)가 정확히 명시되었는가?
+
+## 사용자 관점
+- [ ] 수식의 각 변수가 명확하게 정의되었는가?
+- [ ] 핵심 파라미터 설정 가이드가 포함되었는가?
+
+## 피드백 메모
+(자유 기재)
+
+서명: ___________  날짜: ___________
+`);
+  }
+
+  setZipProg(50,'PDF 다운로드 시작...');
+
+  // ── PDF files ──
+  if(document.getElementById('ex-pdfs').checked){
+    const pdfJournals=selected.filter(j=>j.pdfUrl);
+    if(pdfJournals.length){
+      for(let i=0;i<pdfJournals.length;i++){
+        const j=pdfJournals[i];
+        const pct=50+Math.round((i/pdfJournals.length)*45);
+        setZipProg(pct,`PDF 다운로드 중 [${i+1}/${pdfJournals.length}]...`);
+        try{
+          const res=await fetch(j.pdfUrl);
+          if(res.ok){
+            const buf=await res.arrayBuffer();
+            const safeName=(j.title||'paper').replace(/[^a-zA-Z0-9가-힣\s]/g,'').trim().slice(0,60).replace(/\s+/g,'_');
+            pdfFolder.file(`${i+1}_${safeName}.pdf`,buf);
+          }
+        }catch(e){
+          // PDF 다운로드 실패 시 링크 텍스트 파일로 대체
+          pdfFolder.file(`${i+1}_download_link.txt`,`Title: ${j.title}\nPDF URL: ${j.pdfUrl}\nDOI: ${j.doi||''}\n\n위 URL에서 직접 다운로드하세요.`);
+        }
+      }
+    }
+  }
+
+  setZipProg(97,'ZIP 압축 중...');
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`AFM_Manual_${modeName}_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click(); URL.revokeObjectURL(url);
+  setZipProg(100,'완료!');
+  setTimeout(()=>document.getElementById('zip-progress-wrap').style.display='none',3000);
+  toast('✅ ZIP 다운로드 완료!');
+}
+
+/* ================================================================
+   PROCESS
+================================================================ */
+const STEPS=[
+  {label:'키워드 추합',desc:'이전 매뉴얼 + Park Systems AFM-modes 페이지 기반 키워드 정리',state:'done'},
+  {label:'저널 검색 (자동)',desc:'CrossRef API로 상위 저널 검색 → Unpaywall API로 PDF 접근 가능 여부 확인',state:'active'},
+  {label:'저널 선별 및 등록',desc:'인용 수 · IF · 수식 수 기준 품질 점수 산정, PDF 가능 저널 자동 등록',state:'active'},
+  {label:'Introduction 초안 작성',desc:'tip-sample 물리 수식 중심, 사용자 관점 초안 구성',state:'pending'},
+  {label:'AFM 전문가 피드백 & Release',desc:'물리적 타당성 · 실제 시스템 일치 여부 검토 후 최종 배포',state:'pending'},
+];
+function renderProcess(){
+  document.getElementById('process-container').innerHTML=STEPS.map((s,i)=>`
+    <div class="step-row">
+      <div class="step-dot ${s.state}">${i+1}</div>
+      <div class="step-info"><h4>${s.label}</h4><p>${s.desc}</p></div>
+    </div>
+  `).join('');
+}
+
+/* ================================================================
+   HELPERS
+================================================================ */
+function esc(s){return s.replace(/'/g,"\\'");}
+
+/* ================================================================
+   INIT
+================================================================ */
+document.addEventListener('DOMContentLoaded',()=>{
+  renderPreset();
+  renderCustomKws();
+  generateLinks();
+  renderProcess();
+  ['j-if','j-cite','j-eq'].forEach(id=>document.getElementById(id)?.addEventListener('input',updatePreview));
+  ['j-physics','j-circuit'].forEach(id=>document.getElementById(id)?.addEventListener('change',updatePreview));
+});
+</script>
+</body>
+</html>
