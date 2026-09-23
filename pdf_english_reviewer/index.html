@@ -5,6 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDF English Reviewer</title>
   <link rel="stylesheet" href="./styles.css" />
+  <script>
+    // Preview mode: stub /api/* calls before app_v3.js runs its initial fetches.
+    (function () {
+      const _origFetch = window.fetch.bind(window);
+      window.fetch = function (input, init) {
+        const url = typeof input === "string" ? input : (input && input.url) || "";
+        if (url.startsWith("/api/")) {
+          const isPost = init && (init.method || "GET").toUpperCase() === "POST";
+          if (isPost && url === "/api/documents") {
+            return Promise.reject(new Error("Preview mode: upload handled client-side"));
+          }
+          const body = url.includes("engines/status")
+            ? JSON.stringify({ engines: [], ready: false })
+            : "[]";
+          return Promise.resolve(new Response(body, {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }));
+        }
+        return _origFetch(input, init);
+      };
+    })();
+  </script>
 </head>
 <body>
   <div id="demo-banner" style="background:#fef3c7;border-bottom:1px solid #f59e0b;color:#92400e;padding:10px 20px;font-size:13px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -544,5 +567,6 @@
     </section>
   </div>
   <script src="./app_v3.js"></script>
+  <script src="./demo.js"></script>
 </body>
 </html>
