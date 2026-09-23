@@ -279,40 +279,72 @@
   );
 
   //
-  // ─── Reviewer viewer ────────────────────────────────────────────────────
+  // ─── Reviewer viewer (preserves original layout) ────────────────────────
   //
+  // Keeps the app's left sidebar, toolbar, and right issues panel intact;
+  // only populates the document info, page label, and PDF canvas area.
+  //
+  const viewerState = { pdf: null, zoom: 1, viewMode: "one", currentPage: 1, filename: "" };
+
   async function renderViewer(pdf, name) {
+    viewerState.pdf = pdf;
+    viewerState.filename = name;
+    viewerState.currentPage = 1;
+    viewerState.zoom = 1;
+    viewerState.viewMode = "one";
+
     const upload = document.getElementById("upload-panel");
     const workspace = document.getElementById("workspace");
     if (upload) upload.classList.add("hidden");
     if (!workspace) return;
     workspace.classList.remove("hidden");
 
-    const maxPages = Math.min(pdf.numPages, 25);
-    workspace.innerHTML = `
-      <div style="padding:24px;max-width:1000px;margin:0 auto;">
-        <div style="background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:14px 18px;border-radius:10px;margin-bottom:20px;font-size:13px;line-height:1.5;">
-          <strong>${escapeHtml(name)}</strong> &middot; ${pdf.numPages} pages<br/>
-          Rendered locally in your browser via PDF.js. Saved to your browser's storage (Workspaces tab).
-          Review suggestions, glossary, and CSV/PDF exports require running the local FastAPI backend.
-        </div>
-        <div style="display:flex;gap:12px;margin-bottom:20px;">
-          <button id="demo-back-btn" style="padding:8px 16px;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer;font-size:13px;">&larr; Upload another PDF</button>
-        </div>
-        <div id="demo-pages" style="display:flex;flex-direction:column;gap:16px;align-items:center;"></div>
-      </div>
-    `;
+    // Populate document header info.
+    setText("document-name", name);
+    setText("document-meta", `${pdf.numPages} pages · Preview mode`);
+    setText("review-status", "Preview mode — review disabled (backend required)");
+    setText("page-label", `/ ${pdf.numPages}`);
+    setText("issue-total", "0");
+    setText("dictionary-count", "0 terms");
 
-    document.getElementById("demo-back-btn").addEventListener("click", () => {
-      workspace.classList.add("hidden");
-      if (upload) upload.classList.remove("hidden");
-      workspace.innerHTML = "";
-    });
+    const pageInput = document.getElementById("page-number-input");
+    if (pageInput) {
+      pageInput.value = 1;
+      pageInput.max = pdf.numPages;
+    }
 
-    const container = document.getElementById("demo-pages");
-    for (let i = 1; i <= maxPages; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1.3 });
+    // Empty out issues list with informative message.
+    const issuesList = document.getElementById("issues-list");
+    if (issuesList) {
+      issuesList.innerHTML = `<div class="empty-issues" style="padding:20px;color:#6b7280;font-size:13px;line-height:1.5;">Review suggestions require the local FastAPI backend. Run <code>run_local.bat</code> to enable Full Review, Vale, Ollama, and Team Manual Standard checks.</div>`;
+    }
+
+    // Empty ollama log / engine cards with preview note.
+    const ollamaLog = document.getElementById("ollama-log-list");
+    if (ollamaLog) ollamaLog.innerHTML = `<span class="hint">Preview mode — Ollama disabled.</span>`;
+    const dictList = document.getElementById("dictionary-list");
+    if (dictList) dictList.innerHTML = `<span class="hint">Preview mode — glossary requires backend.</span>`;
+
+    wireViewerToolbar();
+    await renderCurrentPages();
+  }
+
+  async function renderCurrentPages() {
+    const container = document.getElementById("pdf-document");
+    if (!container || !viewerState.pdf) return;
+    container.innerHTML = "";
+    const pdf = viewerState.pdf;
+    const total = pdf.numPages;
+    const pagesToRender = viewerState.viewMode === "two"
+      ? [viewerState.currentPage, viewerState.currentPage + 1].filter((n) => n >= 1 && n <= total)
+      : [viewerState.currentPage];
+
+    for (const pageNum of pagesToRender) {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.3 * viewerState.zoom });
+      const wrap = document.createElement("div");
+      wrap.className = "pdf-page-wrap";
+      wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;margin:12px auto;position:relative;";
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -320,16 +352,71 @@
       canvas.style.height = "auto";
       canvas.style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)";
       canvas.style.background = "#fff";
-      canvas.style.borderRadius = "4px";
-      container.appendChild(canvas);
+      wrap.appendChild(canvas);
+      const label = document.createElement("div");
+      label.textContent = `Page ${pageNum} / ${total}`;
+      label.style.cssText = "font-size:11px;color:#6b7280;margin-top:6px;";
+      wrap.appendChild(label);
+      container.appendChild(wrap);
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
     }
-    if (pdf.numPages > maxPages) {
-      const note = document.createElement("div");
-      note.style.cssText = "padding:16px;color:#6b7280;font-size:13px;text-align:center;";
-      note.textContent = `Showing first ${maxPages} of ${pdf.numPages} pages (preview limit).`;
-      container.appendChild(note);
-    }
+    setText("zoom-label", Math.round(viewerState.zoom * 100) + "%");
+  }
+
+  let viewerWired = false;
+  function wireViewerToolbar() {
+    if (viewerWired) return;
+    viewerWired = true;
+
+    // Page navigation.
+    on("previous-page-btn", "click", () => gotoPage(viewerState.currentPage - 1));
+    on("next-page-btn", "click", () => gotoPage(viewerState.currentPage + step()));
+    on("page-number-input", "change", (e) => gotoPage(parseInt(e.target.value, 10) || 1));
+
+    // View mode.
+    on("one-page-mode-btn", "click", () => setViewMode("one"));
+    on("two-page-mode-btn", "click", () => setViewMode("two"));
+
+    // Zoom.
+    on("zoom-in-btn", "click", () => setZoom(viewerState.zoom * 1.15));
+    on("zoom-out-btn", "click", () => setZoom(viewerState.zoom / 1.15));
+    on("reset-zoom-btn", "click", () => setZoom(1));
+    on("fit-width-btn", "click", () => setZoom(1.5));
+    on("fit-page-btn", "click", () => setZoom(1));
+  }
+
+  function step() { return viewerState.viewMode === "two" ? 2 : 1; }
+
+  function gotoPage(n) {
+    if (!viewerState.pdf) return;
+    const total = viewerState.pdf.numPages;
+    viewerState.currentPage = Math.max(1, Math.min(n, total));
+    const input = document.getElementById("page-number-input");
+    if (input) input.value = viewerState.currentPage;
+    renderCurrentPages();
+  }
+
+  function setViewMode(mode) {
+    viewerState.viewMode = mode;
+    const one = document.getElementById("one-page-mode-btn");
+    const two = document.getElementById("two-page-mode-btn");
+    if (one) one.classList.toggle("active", mode === "one");
+    if (two) two.classList.toggle("active", mode === "two");
+    renderCurrentPages();
+  }
+
+  function setZoom(z) {
+    viewerState.zoom = Math.max(0.4, Math.min(z, 3));
+    renderCurrentPages();
+  }
+
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  function on(id, ev, handler) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(ev, handler);
   }
 
   //
