@@ -4,8 +4,12 @@
 // renders the selected PDF locally with PDF.js.
 
 (function () {
-  const PDFJS_VERSION = "4.0.379";
-  const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
+  const PDFJS_VERSION = "3.11.174";
+  const PDFJS_SOURCES = [
+    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build`,
+    `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build`,
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`,
+  ];
 
   let pdfjsReady = null;
 
@@ -19,11 +23,22 @@
     });
   }
 
-  function ensurePdfjs() {
+  async function ensurePdfjs() {
     if (pdfjsReady) return pdfjsReady;
-    pdfjsReady = loadScript(`${PDFJS_BASE}/pdf.min.js`).then(() => {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/pdf.worker.min.js`;
-    });
+    pdfjsReady = (async () => {
+      let lastErr;
+      for (const base of PDFJS_SOURCES) {
+        try {
+          await loadScript(`${base}/pdf.min.js`);
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.js`;
+          return;
+        } catch (err) {
+          lastErr = err;
+          console.warn("[demo] PDF.js load failed from", base, err);
+        }
+      }
+      throw lastErr || new Error("All PDF.js CDNs failed");
+    })();
     return pdfjsReady;
   }
 
