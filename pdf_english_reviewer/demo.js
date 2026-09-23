@@ -19,7 +19,7 @@
   const JSPDF_URL = "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
 
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
-  const RULES_STORAGE_KEY = "tw-demo-rules-v3";
+  const RULES_STORAGE_KEY = "tw-demo-rules-v4";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
