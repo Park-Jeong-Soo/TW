@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF English Reviewer</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="demo-banner" style="background:#fef3c7;border-bottom:1px solid #f59e0b;color:#92400e;padding:10px 20px;font-size:13px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <strong>UI Preview (Demo Mode)</strong> &mdash; Backend disabled. This is a static preview of the local app. Full functionality requires running the FastAPI backend locally.
+  </div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">ER</div>
+      <div>
+        <h1>PDF English Reviewer</h1>
+        <p>Local-first proofreading for technical manuals</p>
+      </div>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <button class="nav-btn active" id="nav-reviewer">Reviewer</button>
+      <button class="nav-btn" id="nav-workspaces">Workspaces</button>
+      <button class="nav-btn" id="nav-team-standard">Team Manual Standard</button>
+      <button class="nav-btn hidden" id="nav-glossary">Manual Glossary</button>
+      <button class="nav-btn" id="nav-engines">Review Engines</button>
+    </nav>
+    <div class="topbar-actions">
+      <button class="secondary" id="open-upload-btn">Upload PDF</button>
+      <button class="secondary hidden" id="download-csv-btn">Export CSV</button>
+      <button class="secondary hidden" id="download-json-btn">Export JSON</button>
+      <button class="primary hidden" id="download-pdf-btn">Annotated PDF</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="upload-panel" id="upload-panel">
+      <div class="intro-copy">
+        <span class="eyebrow">INTERNAL MANUAL REVIEW</span>
+        <h2>Review technical English without sending PDFs to a paid cloud API.</h2>
+        <p>Upload a PDF, apply its manual glossary, review suggestions, and export an annotated PDF or CSV report.</p>
+        <div class="feature-list">
+          <span>✓ PDF page preview</span>
+          <span>✓ Style and format checks</span>
+          <span>✓ Terminology consistency</span>
+          <span>✓ Local Ollama support</span>
+        </div>
+      </div>
+      <form id="upload-form" class="upload-card">
+        <label class="file-drop" for="pdf-file">
+          <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
+          <span class="file-icon">⇧</span>
+          <strong>Choose a PDF manual</strong>
+          <small>PDF only · recommended under 60 MB</small>
+          <span class="selected-file" id="selected-file">No file selected</span>
+        </label>
+        <label>
+          Project name
+          <input id="project-name" name="project_name" value="system name" maxlength="80" list="project-list" required />
+          <datalist id="project-list"></datalist>
+        </label>
+        <label>
+          Reviewer
+          <input id="reviewer" name="reviewer" value="Manual Team" maxlength="80" required />
+        </label>
+        <button type="submit" class="primary wide">Open review workspace</button>
+      </form>
+    </section>
+
+    <section class="workspace hidden" id="workspace">
+      <aside class="left-sidebar">
+        <div class="doc-info">
+          <p class="eyebrow">CURRENT DOCUMENT</p>
+          <h2 id="document-name">—</h2>
+          <p id="document-meta">—</p>
+        </div>
+        <div class="run-review-card">
+          <h3>Live engine status</h3>
+          <p class="hint">Full Review uses the confirmed reviewer categories plus Team Manual Standard pilot categories. Glossary findings are reported as Consistency.</p>
+          <div class="review-settings-card">
+            <label>Review Profile
+              <select id="review-profile-select" aria-label="Review Profile"></select>
+            </label>
+            <div class="settings-group">
+              <strong>External Publishing Standards</strong>
+              <div class="checkbox-list" id="publishing-standards-list"></div>
+            </div>
+            <div class="settings-group">
+              <strong>Internal Standards</strong>
+              <label><input type="checkbox" data-internal-standard-setting="team_manual" checked /> Team Manual Standard</label>
+            </div>
+            <div class="settings-group">
+              <strong>External Review Engines</strong>
+              <label><input type="checkbox" data-engine-setting="vale" checked /> Vale</label>
+              <label class="hidden"><input type="checkbox" data-engine-setting="glossary" /> Glossary</label>
+              <label><input type="checkbox" data-engine-setting="ollama" /> Ollama</label>
+            </div>
+          </div>
+          <div class="review-mode-note" id="review-mode-note">Checking local engine availability…</div>
+          <button class="secondary wide" id="recheck-workspace-engines-btn">Recheck engines now</button>
+          <button class="primary wide" id="run-full-review-btn" disabled>Run Full Review</button>
+          <button class="secondary wide" id="run-part-review-btn" disabled>Run Custom Review</button>
+          <p class="part-review-note">Custom Review runs only the selected external engines, internal standards, and external publishing standards.</p>
+          <button class="secondary wide" id="run-ocr-btn">OCR current page</button>
+          <div class="review-progress-panel hidden" id="review-progress-panel" aria-live="polite">
+            <div class="review-progress-heading">
+              <strong id="review-progress-stage">Preparing review</strong>
+              <span id="review-progress-percent">0%</span>
+            </div>
+            <div class="review-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="review-progress-track">
+              <div class="review-progress-fill" id="review-progress-fill"></div>
+            </div>
+            <p id="review-progress-location">Waiting for progress data…</p>
+            <p class="review-progress-engine" id="review-progress-engine"></p>
+            <div class="review-progress-meta">
+              <span id="review-progress-findings">0 suggestions</span>
+              <span id="review-progress-time">Estimating time…</span>
+            </div>
+          </div>
+          <div class="ollama-log-panel">
+            <div class="ollama-log-heading">
+              <strong>Ollama review log</strong>
+              <button class="secondary compact-btn" id="refresh-ollama-log-btn">Refresh</button>
+            </div>
+            <p class="hint">Metadata only—page, block, result count, and duration. Document text is never logged.</p>
+            <div class="ollama-log-list" id="ollama-log-list">
+              <span class="hint">Open a document to load its Ollama log.</span>
+            </div>
+          </div>
+          <div class="engine-status-list" id="engine-status-list">
+            <span>Style Engine: Vale Optional</span>
+            <span>Typo Engine: Basic Rules Only</span>
+            <span>Context AI: Not Connected</span>
+            <span class="safe-status">External Data Transfer: Disabled</span>
+          </div>
+          <div class="security-warning hidden" id="engine-security-warning">An unapproved external engine endpoint is configured and has been blocked.</div>
+        </div>
+        <div class="dictionary-card">
+          <div class="section-heading">
+            <h3>Applied glossary</h3>
+            <span id="dictionary-count">0 terms</span>
+          </div>
+          <p class="hint">Common terms and this project's terms are applied automatically. Project terms override matching common terms.</p>
+          <button class="secondary wide hidden" id="manage-glossary-btn">Manage manual glossary</button>
+          <div class="dictionary-list" id="dictionary-list"></div>
+        </div>
+        <div class="dictionary-card document-data-card">
+          <h3>Document data</h3>
+          <button class="secondary wide" data-delete-document="original">Delete Document</button>
+          <button class="secondary wide" data-delete-document="review-results">Delete Review Results</button>
+          <button class="secondary wide" data-delete-document="generated-files">Delete Generated Files</button>
+          <button class="danger wide" data-delete-document="all">Delete All Document Data</button>
+        </div>
+      </aside>
+
+      <section class="viewer-panel">
+        <div class="viewer-toolbar">
+          <div class="toolbar-group history-controls">
+            <button class="secondary compact-btn" id="history-back-btn" disabled>← Previous Review Location</button>
+            <button class="secondary compact-btn" id="history-forward-btn" disabled>Next Review Location →</button>
+          </div>
+          <div class="toolbar-group page-controls">
+            <button class="icon-btn" id="previous-page-btn" aria-label="Previous PDF page">←</button>
+            <label class="page-jump-label">Page <input id="page-number-input" type="number" min="1" value="1" /></label>
+            <span id="page-label">/ —</span>
+            <button class="icon-btn" id="next-page-btn" aria-label="Next PDF page">→</button>
+          </div>
+          <div class="toolbar-group view-mode-controls">
+            <span>View Mode:</span>
+            <button class="mode-btn active" id="one-page-mode-btn">1 Page</button>
+            <button class="mode-btn" id="two-page-mode-btn">2 Pages</button>
+          </div>
+          <div class="toolbar-group">
+            <button class="mode-btn" id="text-selection-btn" aria-pressed="false">Select Text</button>
+          </div>
+          <div class="toolbar-group">
+            <button class="primary compact-btn" id="save-progress-btn">Save Progress</button>
+            <span class="save-progress-status" id="save-progress-status"></span>
+          </div>
+          <div class="toolbar-group zoom-controls">
+            <button class="icon-btn" id="zoom-out-btn" aria-label="Zoom out">−</button>
+            <span id="zoom-label">100%</span>
+            <button class="icon-btn" id="zoom-in-btn" aria-label="Zoom in">+</button>
+            <button class="secondary compact-btn" id="fit-width-btn">Fit Width</button>
+            <button class="secondary compact-btn" id="fit-page-btn">Fit Page</button>
+            <button class="secondary compact-btn" id="reset-zoom-btn">Reset</button>
+          </div>
+          <div class="review-status" id="review-status">Upload a PDF to begin</div>
+        </div>
+        <div class="pdf-canvas-wrap" id="pdf-canvas-wrap">
+          <div class="pdf-document" id="pdf-document"><div class="empty-viewer">No PDF selected.</div></div>
+        </div>
+      </section>
+
+      <aside class="issues-panel">
+        <div class="issues-header">
+          <div>
+            <p class="eyebrow">REVIEW RESULTS</p>
+            <h2>Suggestions <span id="issue-total">0</span></h2>
+          </div>
+          <div class="issue-controls-grid">
+            <select id="category-filter" aria-label="Filter by category">
+              <option value="all">All categories</option>
+              <option value="typo">Typo</option>
+              <option value="grammar">Grammar</option>
+              <option value="awkward">Awkward</option>
+              <option value="content">Content</option>
+              <option value="consistency">Consistency</option>
+              <option value="format">Format</option>
+              <option value="punctuation">Punctuation</option>
+              <option value="capitalization">Capitalization</option>
+              <option value="numbers_abbreviations">Numbers and abbreviations</option>
+              <option value="hyphenation_terminology">Hyphenation and terminology</option>
+            </select>
+            <select id="engine-filter" aria-label="Filter by engine">
+              <option value="all">All engines</option>
+              <option value="basic">Basic</option>
+              <option value="publishing_standard">Publishing Standard</option>
+              <option value="team_rule">Team Rule</option>
+              <option value="glossary">Glossary</option>
+              <option value="vale">Vale</option>
+              <option value="ollama">Ollama</option>
+            </select>
+            <select id="standard-filter" aria-label="Filter by standard">
+              <option value="all">All standards</option>
+            </select>
+          </div>
+          <div class="bulk-category-actions">
+            <button class="accept-btn compact-btn" id="accept-category-btn" disabled>Accept Category</button>
+            <button class="reject-btn compact-btn" id="reject-category-btn" disabled>Reject Category</button>
+            <button class="secondary compact-btn" id="add-selected-team-standard-btn" disabled>Add Selected to Team Manual Standard</button>
+          </div>
+        </div>
+        <div class="summary-pills" id="summary-pills"></div>
+        <div class="issues-list" id="issues-list">
+          <div class="empty-issues">Run a review to see reviewer suggestions and Team Manual Standard pilot issues.</div>
+        </div>
+      </aside>
+    </section>
+
+
+    <section class="team-standard-view hidden" id="team-standard-view">
+      <div class="page-shell">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">CANONICAL WRITING RULES</p>
+            <h2>Team Manual Standard</h2>
+            <p>Manage internal writing rules stored in <code>data/reviewer.db</code>.</p>
+          </div>
+          <div class="heading-actions">
+            <button class="secondary" id="team-standard-migration-report-btn">Migration Report</button>
+            <button class="primary" id="team-standard-refresh-btn">Refresh</button>
+          </div>
+        </div>
+        <div class="team-standard-grid">
+          <div class="team-standard-table-card">
+            <table class="glossary-table team-standard-table">
+              <thead>
+                <tr><th>Key</th><th>Title</th><th>Status</th><th>Enabled</th><th>Source</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="team-standard-table-body"></tbody>
+            </table>
+          </div>
+          <form class="team-standard-editor" id="team-standard-form">
+            <input type="hidden" id="team-standard-rule-id" />
+            <label>Rule Key<input id="team-standard-rule-key" placeholder="UNIT_SPACE_001" /></label>
+            <label>Title<input id="team-standard-title" required /></label>
+            <label>Category<input id="team-standard-category" value="consistency" required /></label>
+            <label>Severity<input id="team-standard-severity" value="warning" required /></label>
+            <label>Pattern<textarea id="team-standard-pattern" rows="3" required></textarea></label>
+            <label>Replacement<input id="team-standard-replacement" /></label>
+            <label>Message<textarea id="team-standard-message" rows="3" required></textarea></label>
+            <label>Description<textarea id="team-standard-description" rows="3"></textarea></label>
+            <label>Status
+              <select id="team-standard-approval-status">
+                <option value="candidate">candidate</option>
+                <option value="approved">approved</option>
+                <option value="archived">archived</option>
+              </select>
+            </label>
+            <label class="checkbox-inline"><input id="team-standard-enabled" type="checkbox" checked /> Enabled</label>
+            <label>Test Sentence<textarea id="team-standard-sample" rows="3"></textarea></label>
+            <div class="form-actions">
+              <button type="button" class="secondary" id="team-standard-new-btn">New</button>
+              <button type="button" class="secondary" id="team-standard-validate-btn">Validate</button>
+              <button type="submit" class="primary">Save Rule</button>
+            </div>
+            <pre class="validation-output" id="team-standard-validation-output"></pre>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="glossary-view hidden" id="glossary-view">
+      <div class="page-shell">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">TERMINOLOGY DATABASE</p>
+            <h2>Manual Glossary</h2>
+            <p>Manage terms stored per uploaded manual PDF in <code>data/manual_glossaries/</code>.</p>
+          </div>
+          <div class="heading-actions">
+            <button class="secondary" id="export-glossary-db-btn">Export DB</button>
+            <button class="secondary" id="export-glossary-txt-btn">Export TXT</button>
+            <button class="secondary" id="export-glossary-xlsx-btn">Export Excel</button>
+            <button class="primary" id="add-glossary-btn">+ Add Term</button>
+          </div>
+        </div>
+
+        <div class="glossary-toolbar">
+          <label>Manual PDF
+            <select id="glossary-project"></select>
+          </label>
+          <label>Scope
+            <select id="glossary-scope">
+              <option value="all">All</option>
+              <option value="common">Common</option>
+              <option value="document">Manual</option>
+            </select>
+          </label>
+          <label class="search-field">Search
+            <input id="glossary-search" type="search" placeholder="Source, preferred term, or description" />
+          </label>
+          <label>Type
+            <select id="glossary-type-filter">
+              <option value="">All types</option>
+              <option value="protected">Protected</option>
+              <option value="preferred">Preferred</option>
+              <option value="discouraged">Discouraged</option>
+            </select>
+          </label>
+          <label>Status
+            <select id="glossary-status-filter">
+              <option value="">All statuses</option>
+              <option value="true">Active</option>
+              <option value="false">Disabled</option>
+            </select>
+          </label>
+          <label>Sort
+            <select id="glossary-sort">
+              <option value="term:asc">A-Z</option>
+              <option value="term:desc">Z-A</option>
+              <option value="updated:desc">Recently updated</option>
+              <option value="updated:asc">Oldest updated</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="glossary-table-card">
+          <div class="table-scroll">
+            <table class="glossary-table">
+              <thead>
+                <tr>
+                  <th>Scope</th>
+                  <th>Type</th>
+                  <th>Source Term</th>
+                  <th>Preferred Term</th>
+                  <th>Description</th>
+                  <th>Case Sensitive</th>
+                  <th>Status</th>
+                  <th>Updated Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="glossary-table-body"></tbody>
+            </table>
+          </div>
+          <div class="glossary-summary" id="glossary-summary">Applied terms: Common 0 + Manual 0 = Total 0</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspaces-view hidden" id="workspaces-view">
+      <div class="page-shell">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">SAVED REVIEW SESSIONS</p>
+            <h2>Workspaces</h2>
+            <p>Reopen a document at its last saved page, scroll position, zoom, and view mode.</p>
+          </div>
+          <button class="primary" id="workspace-upload-btn">Upload New PDF</button>
+        </div>
+        <div class="workspace-toolbar">
+          <input id="workspace-search" type="search" placeholder="Search filename or project" />
+          <button class="secondary" id="refresh-workspaces-btn">Refresh</button>
+        </div>
+        <div class="workspace-list" id="workspace-list">
+          <div class="empty-issues">Loading saved workspaces…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="engine-status-view hidden" id="engine-status-view">
+      <div class="page-shell narrow-shell">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">LOCAL ENGINE AND SECURITY CHECK</p>
+            <h2>Review Engines</h2>
+            <p>Check local engine readiness and what each engine contributes to review results.</p>
+          </div>
+          <button class="primary" id="recheck-engines-btn">Recheck</button>
+        </div>
+        <div class="engine-overall-card" id="engine-overall-card">Checking local components…</div>
+        <div class="engine-check-grid" id="engine-check-grid"></div>
+        <div class="engine-policy-card">
+          <h3>Review policy</h3>
+          <p><strong>Custom Review:</strong> Runs only the selected external engines, Team Manual Standard, and selected external publishing standards.</p>
+          <p><strong>Review scope:</strong> Full Review uses the selected local style, standard, terminology, and Ollama context checks. Headings, labels, TOC leaders, trademark markers, and general whitespace are excluded.</p>
+          <p><strong>Context:</strong> Full Review requires Ollama Local and records metadata-only outcomes for every reviewed unit, including zero-finding results.</p>
+          <p class="hint">The Reviewer does not download or install engines. See SETUP_GUIDE.md for approved offline setup steps.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop hidden" id="glossary-modal">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="glossary-modal-title">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">MANUAL GLOSSARY</p>
+          <h2 id="glossary-modal-title">Add Term</h2>
+        </div>
+        <button class="icon-btn" id="close-glossary-modal" aria-label="Close">×</button>
+      </div>
+      <form id="glossary-term-form">
+        <input type="hidden" id="glossary-term-id" />
+        <div class="form-grid">
+          <label>Manual PDF
+            <select id="term-project" required></select>
+          </label>
+          <label>Scope
+            <select id="term-scope">
+              <option value="document">Manual</option>
+              <option value="common">Common</option>
+            </select>
+          </label>
+        </div>
+        <fieldset>
+          <legend>Type</legend>
+          <div class="radio-row">
+            <label><input type="radio" name="term_type" value="protected" checked /> Protected Term</label>
+            <label><input type="radio" name="term_type" value="preferred" /> Preferred Term</label>
+            <label><input type="radio" name="term_type" value="discouraged" /> Discouraged Term</label>
+          </div>
+        </fieldset>
+        <label>Source Term
+          <input id="term-source" maxlength="200" required />
+        </label>
+        <label>Preferred Term
+          <input id="term-preferred" maxlength="200" />
+          <span class="hint">Required for Preferred and Discouraged terms.</span>
+        </label>
+        <label>Description
+          <textarea id="term-description" maxlength="500" rows="3"></textarea>
+        </label>
+        <div class="glossary-provenance-panel hidden" id="glossary-provenance-panel">
+          <strong>Engine Suggestions</strong>
+          <div id="glossary-provenance-list"></div>
+        </div>
+        <div class="form-grid">
+          <label class="toggle-row"><input type="checkbox" id="term-case-sensitive" /> <span>Case Sensitive</span></label>
+          <label>Status
+            <select id="term-active">
+              <option value="true">Active</option>
+              <option value="false">Disabled</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="cancel-glossary-modal">Cancel</button>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="project-modal">
+    <section class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
+      <div class="modal-header"><h2 id="project-modal-title">New Project</h2><button class="icon-btn" id="close-project-modal">×</button></div>
+      <form id="project-form">
+        <label>Project name<input id="new-project-name" maxlength="80" required /></label>
+        <div class="modal-actions"><button type="button" class="secondary" id="cancel-project-modal">Cancel</button><button class="primary" type="submit">Create Project</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="storage-notice-modal">
+    <section class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="storage-notice-title">
+      <div class="modal-header"><h2 id="storage-notice-title">Local Data Storage Notice</h2></div>
+      <p class="notice-copy">Uploaded PDFs, OCR text, review results, and glossary data are stored on this PC.</p>
+      <ul class="notice-list">
+        <li>Do not install Reviewer in a cloud-sync folder.</li>
+        <li>Do not use a shared public folder.</li>
+        <li>Use Windows account protection and disk encryption.</li>
+        <li>Review and delete completed documents regularly.</li>
+      </ul>
+      <div class="modal-actions"><button class="primary" id="acknowledge-storage-notice">I Understand</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="no-issues-modal">
+    <section class="modal small-modal no-issues-dialog" role="dialog" aria-modal="true" aria-labelledby="no-issues-title">
+      <div class="no-issues-icon">✓</div>
+      <h2 id="no-issues-title">No issues found</h2>
+      <p>The review completed successfully and found no suggestions for the selected checks.</p>
+      <div class="no-issues-summary" id="no-issues-summary"></div>
+      <p class="hint">This means zero findings, not a program failure. Optional engines that were unavailable are listed separately.</p>
+      <div class="modal-actions"><button class="primary" id="close-no-issues-modal">Done</button></div>
+    </section>
+  </div>
+
+  <aside class="failure-drawer hidden" id="failure-panel" role="alert">
+    <div class="failure-header">
+      <div>
+        <p class="eyebrow">OPERATION FAILED</p>
+        <h2 id="failure-title">Review failed</h2>
+      </div>
+      <button class="icon-btn" id="close-failure-panel" aria-label="Close failure details">×</button>
+    </div>
+    <p class="failure-reason" id="failure-reason"></p>
+    <h3>How to fix</h3>
+    <ol class="failure-steps" id="failure-steps"></ol>
+    <div class="failure-actions">
+      <button class="secondary" id="run-diagnostics-btn">Run Local Diagnostics</button>
+    </div>
+    <div class="diagnostics-results hidden" id="diagnostics-results"></div>
+  </aside>
+
+  <div class="toast hidden" id="toast"></div>
+  <div class="modal-backdrop hidden" id="team-candidate-modal">
+    <section class="modal wide-modal" role="dialog" aria-modal="true" aria-labelledby="team-candidate-modal-title">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">TEAM MANUAL STANDARD</p>
+          <h2 id="team-candidate-modal-title">Add External Findings as Candidates</h2>
+        </div>
+        <button class="icon-btn" id="close-team-candidate-modal" aria-label="Close">×</button>
+      </div>
+      <div class="candidate-draft-list" id="team-candidate-draft-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="cancel-team-candidate-modal">Cancel</button>
+        <button type="button" class="primary" id="save-team-candidates-btn">Save Candidates</button>
+      </div>
+    </section>
+  </div>
+  <script src="./app_v3.js"></script>
+</body>
+</html>
