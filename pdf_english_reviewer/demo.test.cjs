@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
-const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,titleCaseText,isTitleText,runRulesOnPdf};})();');
+const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,titleCaseText,titleCaseSuggestion,isTitleText,runRulesOnPdf};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
   {id:'chicago-03-intro-clause'}, {id:'chicago-08-define-abbrev'},
@@ -82,12 +82,19 @@ assert.equal(context.testApi.getRules().length,37,'v7 migration is idempotent');
 assert.equal(context.testApi.titleCaseText('Figure 2: the airflow and iPhone control'),'Figure 2: The Airflow and iPhone Control');
 assert.equal(context.testApi.titleCaseText('the air and water system'),'The Air and Water System');
 assert.equal(context.testApi.titleCaseText('Results because the sample changed as time passed'),'Results because the Sample Changed as Time Passed');
-const mockItem=(str,x,y,size=10)=>({str,transform:[size,0,0,size,x,y],width:150,height:size});
+assert.equal(context.testApi.titleCaseSuggestion('Figure 4: the flow of air. the pressure remains stable.'),'Figure 4: The Flow Of Air. the pressure remains stable.');
+const mockItem=(str,x,y,size=10,fontName='BodyRegular')=>({str,transform:[size,0,0,size,x,y],width:150,height:size,fontName});
 const caption=mockItem('Figure 2: the air and water system',50,200);
 assert.equal(context.testApi.isTitleText(caption,10,[caption]),true);
-assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),true);
+assert.equal(context.testApi.isTitleText(mockItem('(A) air flow direction',80,250,8),10,[caption]),true);
+assert.equal(context.testApi.isTitleText(mockItem('(A) this list item is prose',80,250,10),10,[caption]),false);
+assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the method was tested.',80,250),10,[caption]),false);
-assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,700,12),10,[]),true);
+assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,700,14,'HeadingBold'),10,[]),true);
+assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,700,12),10,[]),false);
+assert.equal(context.testApi.isTitleText(mockItem('Figure 2 shows the results',50,400),10,[caption]),false);
+assert.equal(context.testApi.isTitleText(mockItem('the data show a steady increase',50,400,14),10,[caption]),false);
+assert.equal(context.testApi.isTitleText(mockItem('the data show a steady increase.',50,400,14),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the split caption and its details',110,190),10,[],[mockItem('Figure 3:',50,190)]),true);
 assert.equal(context.testApi.isTitleText(mockItem('ordinary paragraph',110,150),10,[],[mockItem('Figure 3:',50,190)]),false);
 context.testApi.ruleFilters.enabled='true';
@@ -126,22 +133,30 @@ appElements.get('issue-search').value='Team Manual Standard';
 assert.equal(appContext.visibleIssues().length,2);
 const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
   mockItem('ordinary prose remains lowercase.',50,500),
-  mockItem('1.2 the system and its parts',50,450,12),
-  mockItem('the results of the test',50,400,12),
-  mockItem('air flow direction',80,250,8),caption,
+  mockItem('1.2 the system and its parts',50,450,14),
+  mockItem('the results of the test',50,400,14,'HeadingBold'),
+  mockItem('a larger body sentence should stay lowercase.',50,350,14),
+  mockItem('nearby prose remains lowercase',80,270,8),
+  mockItem('(A) air flow direction',80,250,8),caption,
   mockItem('Figure 3:',50,190),mockItem('the split caption and its details',110,190),
   mockItem('Table 1: the output and the input',50,180),
+  mockItem('Callout B: inlet pressure',50,170),
+  mockItem('Figure 4: the flow of air. the pressure remains stable.',50,165),
   mockItem('5 KHz',50,160),
 ]})})};
 context.testApi.runRulesOnPdf(pdf).then(findings=>{
   const titles=findings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));
   assert.ok(titles.some(f=>f.suggestion==='The Results Of the Test'));
-  assert.ok(titles.some(f=>f.suggestion==='Air Flow Direction'));
+  assert.ok(titles.some(f=>f.suggestion==='(A) Air Flow Direction'));
   assert.ok(titles.some(f=>f.suggestion==='Figure 2: The Air and Water System'));
   assert.ok(titles.some(f=>f.suggestion==='The Split Caption and Its Details'));
   assert.ok(titles.some(f=>f.suggestion==='Table 1: The Output and the Input'));
+  assert.ok(titles.some(f=>f.suggestion==='Callout B: Inlet Pressure'));
+  assert.ok(titles.some(f=>f.suggestion==='Figure 4: The Flow Of Air. the pressure remains stable.'));
   assert.ok(!titles.some(f=>f.text==='ordinary prose remains lowercase.'));
+  assert.ok(!titles.some(f=>f.text==='a larger body sentence should stay lowercase.'));
+  assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
   console.log('migration, 20 Chicago rules, title case, filters, PDF review: passed');
 }).catch(error=>{console.error(error);process.exitCode=1;});

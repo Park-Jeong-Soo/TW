@@ -174,8 +174,8 @@
       pattern: "([A-Za-z]) +\\.(?=\\s|$)", flags: "g", replacement: "$1.", severity: "minor", enabled: true },
   ];
   const TEAM_RULES = [
-    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, figure labels, and figure/table captions",
-      pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table)\\s+\\d+[.:]?\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
+    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, captions, and callouts",
+      pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table|Callout)\\s+\\w+[.:]\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...TEAM_RULES];
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
@@ -495,10 +495,11 @@
       const pageHeight = page.view[3]; // [x0, y0, x1, y1]
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
-      const sizes = content.items.map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
+      const bodyCandidates = content.items.filter((item) => (item.str || "").trim().split(/\s+/).length >= 6);
+      const sizes = (bodyCandidates.length ? bodyCandidates : content.items).map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
       const bodySize = sizes[Math.floor(sizes.length / 2)] || 10;
-      const figureCaptions = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:]?(?:\s+|$)/i.test(item.str || ""));
-      const titlePrefixes = content.items.filter((item) => /^(?:(?:Figure|Fig\.|Table)\s+\d+[.:]?|\d+(?:\.\d+)*[.:]?)$/i.test((item.str || "").trim()));
+      const figureCaptions = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
+      const titlePrefixes = content.items.filter((item) => /^(?:(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]|\d+(?:\.\d+)*[.:]?)$/i.test((item.str || "").trim()));
       for (const item of content.items) {
         if (!item.str || !item.str.trim()) continue;
         const bbox = itemBbox(item);
@@ -511,7 +512,7 @@
         if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
 
         if (titleRule && isTitleText(item, bodySize, figureCaptions, titlePrefixes)) {
-          const suggestion = titleCaseText(item.str);
+          const suggestion = titleCaseSuggestion(item.str);
           if (suggestion !== item.str) findings.push({
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
             category: titleRule.category, severity: titleRule.severity,
@@ -549,7 +550,7 @@
   const TITLE_SMALL_WORDS = new Set(["a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet", "as", "if", "because", "although", "though", "while", "when", "whereas", "unless", "until", "since", "once", "whether", "than", "that"]);
   function titleCaseText(text) {
     let wordIndex = 0;
-    const captionPrefixLength = /^(?:Figure|Fig\.|Table)\s+\d+[.:]?\s+/i.exec(text)?.[0].length || 0;
+    const captionPrefixLength = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text)?.[0].length || 0;
     let captionStarted = false;
     return text.replace(/[A-Za-z][A-Za-z'’]*/g, (word, offset) => {
       if (captionPrefixLength && offset >= captionPrefixLength && !captionStarted) { wordIndex = 0; captionStarted = true; }
@@ -560,19 +561,31 @@
       return result;
     });
   }
+  function titleCaseSuggestion(text) {
+    const prefix = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text);
+    if (!prefix) return titleCaseText(text);
+    const descriptionStart = text.indexOf(". ", prefix[0].length);
+    return descriptionStart < 0
+      ? titleCaseText(text)
+      : titleCaseText(text.slice(0, descriptionStart + 1)) + text.slice(descriptionStart + 1);
+  }
   function isTitleText(item, bodySize, figureCaptions, titlePrefixes = []) {
     const value = (item.str || "").trim();
-    if (!value || /[.!?;:]$/.test(value) || value.split(/\s+/).length > 14) return false;
-    if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]?\s+\S/i.test(value)) return true;
-    if (/^\d+(?:\.\d+)*\s+[A-Za-z]/.test(value)) return true;
+    if (!value) return false;
+    if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
+    if (/^Callout\s+\w+[.:]\s+\S/i.test(value)) return true;
+    if (value.split(/\s+/).length > 12) return false;
     const x = item.transform?.[4], y = item.transform?.[5];
+    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
+    const headingStyle = /bold|semibold|heavy/i.test(item.fontName || "") && size >= bodySize * 1.05;
+    const numberedHeading = /^\d+(?:\.\d+)*[.:]?\s+[A-Za-z]/.test(value) && (headingStyle || size >= bodySize * 1.3);
     if (titlePrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
       && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
-      && x - prefix.transform?.[4] < 250)) return true;
-    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
-    if (size >= bodySize * 1.16 && value.split(/\s+/).length >= 2) return true;
-    // Labels inside a figure are usually short, isolated items above its caption.
-    if (value.split(/\s+/).length > 5 || !/^[A-Za-z][A-Za-z\s/&-]*$/.test(value)) return false;
+      && x - prefix.transform?.[4] < (prefix.width || 100) + 60
+      && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str) || headingStyle))) return true;
+    if ((headingStyle || numberedHeading) && value.split(/\s+/).length >= 2 && !/[.!?;:]$/.test(value)) return true;
+    // Only marked callouts near a figure caption; nearby prose is not a callout.
+    if (!/^\([A-Z]\)\s+[A-Za-z]/.test(value) || value.split(/\s+/).length > 5 || size > bodySize * 0.9) return false;
     return figureCaptions.some((caption) => {
       const cx = caption.transform?.[4], cy = caption.transform?.[5];
       return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(cx) && Number.isFinite(cy)
