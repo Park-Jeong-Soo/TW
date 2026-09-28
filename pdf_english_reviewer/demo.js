@@ -21,6 +21,7 @@
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
   const RULES_STORAGE_KEY = "tw-demo-rules-v4";
   const RULES_MIGRATION_KEY = "tw-demo-rules-migration-v5";
+  const RULES_ADDITION_KEY = "tw-demo-rules-addition-v6";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -110,10 +111,31 @@
       pattern: "\\b(pages?|pp\\.?|figures?|figs?\\.?)\\s+(\\d+)-(\\d+)\\b", flags: "gi", replacement: "$1 $2–$3", severity: "minor", enabled: true },
     { id: "chicago-25-us-abbreviation", category: "numbers_abbreviations", name: "Chicago 10.37 — US without periods",
       pattern: "\\bU\\.S\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "US", severity: "minor", enabled: true },
+    { id: "chicago-26-date-day-comma", category: "punctuation", name: "Chicago 6.41 — Comma after the day in a month-day-year date",
+      pattern: "\\b(January|February|March|April|May|June|July|August|September|October|November|December)\\s+(\\d{1,2})\\s+((?:19|20)\\d{2})\\b", flags: "g", replacement: "$1 $2, $3", severity: "minor", enabled: true },
+    { id: "chicago-27-date-year-comma", category: "punctuation", name: "Chicago 6.41 — Comma after the year when a date continues a sentence",
+      pattern: "\\b(January|February|March|April|May|June|July|August|September|October|November|December)\\s+(\\d{1,2}),\\s+((?:19|20)\\d{2})\\s+([a-z])", flags: "g", replacement: "$1 $2, $3, $4", severity: "minor", enabled: true },
+    { id: "chicago-28-for-example-comma", category: "punctuation", name: "Chicago 6.54 — Comma after introductory 'for example'",
+      pattern: "^For example\\s+([A-Za-z])", flags: "g", replacement: "For example, $1", severity: "minor", enabled: true },
+    { id: "chicago-29-year-range", category: "numbers_abbreviations", name: "Chicago 6.83 — En dash in labeled year ranges",
+      pattern: "\\b(years?)\\s+((?:19|20)\\d{2})-((?:19|20)\\d{2})\\b", flags: "gi", replacement: "$1 $2–$3", severity: "minor", enabled: true },
+    { id: "chicago-30-slash-alternatives", category: "punctuation", name: "Chicago 6.113 — No spaces in single-word slash alternatives",
+      pattern: "\\b(on|off|yes|no|input|output|read|write|start|stop|open|closed|true|false)\\s+/\\s+(on|off|yes|no|input|output|read|write|start|stop|open|closed|true|false)\\b", flags: "gi", replacement: "$1/$2", severity: "minor", enabled: true },
+    { id: "chicago-31-punctuation-space", category: "punctuation", name: "Chicago 6.127 — No space before a comma or semicolon",
+      pattern: "([A-Za-z]) +([,;])", flags: "g", replacement: "$1$2", severity: "minor", enabled: true },
+    { id: "chicago-32-website", category: "hyphenation_terminology", name: "Chicago 7.85 — Website as one word",
+      pattern: "\\b([Ww])eb[ -]+site(s)?\\b", flags: "g", replacement: "$1ebsite$2", severity: "minor", enabled: true },
+    { id: "chicago-33-percent-range", category: "numbers_abbreviations", name: "Chicago 9.19 — Repeat percent sign in a range",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s*[-–]\\s*(\\d+(?:\\.\\d+)?)%", flags: "g", replacement: "$1%–$2%", severity: "minor", enabled: true },
+    { id: "chicago-34-kilogram-case", category: "numbers_abbreviations", name: "Chicago 10.58 — Lowercase kg unit symbol",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+Kg\\b", flags: "g", replacement: "$1 kg", severity: "minor", enabled: true },
+    { id: "chicago-35-si-plural", category: "numbers_abbreviations", name: "Chicago 10.59 — Do not pluralize SI unit symbols",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+(kg|mg|km|cm|mm|nm)s\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES];
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
   const NEW_RULES = CHICAGO_RULES.filter((rule) => /^chicago-2[1-5]-/.test(rule.id));
+  const ADDED_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:2[6-9]|3[0-5])-/.test(rule.id));
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -221,6 +243,12 @@
         rules.push(...NEW_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_MIGRATION_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_ADDITION_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...ADDED_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_ADDITION_KEY, "done");
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
