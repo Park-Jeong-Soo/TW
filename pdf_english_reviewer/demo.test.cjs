@@ -2,23 +2,28 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
-const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState};})();');
+const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,titleCaseText,isTitleText,runRulesOnPdf};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
   {id:'chicago-03-intro-clause'}, {id:'chicago-08-define-abbrev'},
   {id:'chicago-14-consistent-compound'}, {id:'custom',enabled:false}
 ])]]);
 const elements = new Map();
-const context = {console, window:{}, document:{head:{appendChild(){}}, createElement(){return{}},
+const context = {console, crypto:{randomUUID:()=>String(Math.random())}, window:{}, document:{head:{appendChild(){}}, createElement(){return{}},
   addEventListener(){}, getElementById(id){return elements.get(id)||null}},
   localStorage:{getItem(k){return data.get(k)||null},setItem(k,v){data.set(k,v)},removeItem(k){data.delete(k)}}};
 vm.runInNewContext(code,context);
 const rules=context.testApi.getRules();
-assert.equal(rules.length,16);
+assert.equal(rules.length,37);
 assert.equal(rules.filter(r=>/^chicago-2[1-5]-/.test(r.id)).length,5);
 assert.equal(rules.filter(r=>/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id)).length,10);
+assert.equal(rules.filter(r=>/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)).length,20);
+assert.equal(rules.filter(r=>r.id==='team-title-case').length,1);
+assert.equal(new Set(rules.map(r=>r.id)).size,rules.length);
+for(const removed of ['chicago-03-intro-clause','chicago-08-define-abbrev','chicago-14-consistent-compound']) assert.ok(!rules.some(r=>r.id===removed));
+assert.ok(!rules.some(r=>/^Chicago (?:6\.26|7\.89|10\.3)\b/.test(r.name)));
 assert.equal(rules.find(r=>r.id==='custom').enabled,false);
-assert.equal(context.testApi.getRules().length,16);
+assert.equal(context.testApi.getRules().length,37);
 for(const [id,input,expected] of [
   ['chicago-21-colon-space','Note:Check','Note: Check'],
   ['chicago-22-em-dash-space','one — two','one—two'],
@@ -38,12 +43,60 @@ for(const [id,input,expected] of [
   const r=rules.find(x=>x.id===id);
   assert.equal(input.replace(new RegExp(r.pattern,r.flags),r.replacement),expected,id);
 }
+for(const [id,input,expected] of [
+  ['chicago-36-quote-comma','"ready",','"ready,"'],
+  ['chicago-37-quote-period','"ready".','"ready."'],
+  ['chicago-38-yes-comma','Yes we can','Yes, we can'],
+  ['chicago-39-no-comma','No I cannot','No, I cannot'],
+  ['chicago-40-oh-comma','Oh dear','Oh, dear'],
+  ['chicago-41-ah-comma','Ah yes','Ah, yes'],
+  ['chicago-42-namely-comma','Namely three','Namely, three'],
+  ['chicago-43-that-is-comma','That is one','That is, one'],
+  ['chicago-44-khz-case','5 KHz','5 kHz'],
+  ['chicago-45-mpa-case','5 Mpa','5 MPa'],
+  ['chicago-46-kpa-uppercase','5 KPA','5 kPa'],
+  ['chicago-47-section-range','sections 2-4','sections 2–4'],
+  ['chicago-48-chapter-range','chapters 2-4','chapters 2–4'],
+  ['chicago-49-decade-apostrophe',"1990's",'1990s'],
+  ['chicago-50-percent-space','5 %','5%'],
+  ['chicago-51-ratio-space','3 : 1','3:1'],
+  ['chicago-52-kpa-case','5 KPa','5 kPa'],
+  ['chicago-53-mhz-case','5 Mhz','5 MHz'],
+  ['chicago-54-ghz-case','5 Ghz','5 GHz'],
+  ['chicago-55-period-space','Done .','Done.']]){
+  const r=rules.find(x=>x.id===id);
+  assert.equal(input.replace(new RegExp(r.pattern,r.flags),r.replacement),expected,id);
+}
+const noComma=rules.find(r=>r.id==='chicago-39-no-comma');
+assert.equal('No problem'.replace(new RegExp(noComma.pattern,noComma.flags),noComma.replacement),'No problem');
 const website=rules.find(r=>r.id==='chicago-32-website');
 assert.equal('Web site'.replace(new RegExp(website.pattern,website.flags),website.replacement),'Website');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id))));
 data.delete('tw-demo-rules-addition-v6');
-assert.equal(context.testApi.getRules().length,16,'v6 adds rules to an existing v5 rule set');
-assert.equal(context.testApi.getRules().length,16,'v6 addition runs only once');
+assert.equal(context.testApi.getRules().length,37,'v6 adds rules to an existing v5 rule set');
+assert.equal(context.testApi.getRules().length,37,'v7 addition runs only once');
+data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)&&r.id!=='team-title-case')));
+data.delete('tw-demo-rules-expansion-v7');
+assert.equal(context.testApi.getRules().length,37,'v7 adds rules while preserving existing rules');
+assert.equal(context.testApi.getRules().length,37,'v7 migration is idempotent');
+assert.equal(context.testApi.titleCaseText('Figure 2: the airflow and iPhone control'),'Figure 2: The Airflow and iPhone Control');
+assert.equal(context.testApi.titleCaseText('the air and water system'),'The Air and Water System');
+assert.equal(context.testApi.titleCaseText('Results because the sample changed as time passed'),'Results because the Sample Changed as Time Passed');
+const mockItem=(str,x,y,size=10)=>({str,transform:[size,0,0,size,x,y],width:150,height:size});
+const caption=mockItem('Figure 2: the air and water system',50,200);
+assert.equal(context.testApi.isTitleText(caption,10,[caption]),true);
+assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),true);
+assert.equal(context.testApi.isTitleText(mockItem('the method was tested.',80,250),10,[caption]),false);
+assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,700,12),10,[]),true);
+assert.equal(context.testApi.isTitleText(mockItem('the split caption and its details',110,190),10,[],[mockItem('Figure 3:',50,190)]),true);
+assert.equal(context.testApi.isTitleText(mockItem('ordinary paragraph',110,150),10,[],[mockItem('Figure 3:',50,190)]),false);
+context.testApi.ruleFilters.enabled='true';
+context.testApi.ruleFilters.category='capitalization';
+context.testApi.ruleFilters.name='title case';
+assert.equal(context.testApi.filteredRules(rules).length,1);
+context.testApi.ruleFilters.enabled='false';
+assert.equal(context.testApi.filteredRules(rules).length,0);
+Object.assign(context.testApi.ruleFilters,{enabled:'all',category:'all',name:''});
 const millis=rules.find(r=>r.id==='chicago-35-si-plural');
 assert.equal('5 ms'.replace(new RegExp(millis.pattern,millis.flags),millis.replacement),'5 ms');
 elements.set('category-filter',{value:'all'});
@@ -71,4 +124,24 @@ vm.runInNewContext(appSource.slice(start,end)+'\nglobalThis.visibleIssues=visibl
 assert.equal(appContext.visibleIssues().length,1);
 appElements.get('issue-search').value='Team Manual Standard';
 assert.equal(appContext.visibleIssues().length,2);
-console.log('migration, rules, search: passed');
+const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
+  mockItem('ordinary prose remains lowercase.',50,500),
+  mockItem('1.2 the system and its parts',50,450,12),
+  mockItem('the results of the test',50,400,12),
+  mockItem('air flow direction',80,250,8),caption,
+  mockItem('Figure 3:',50,190),mockItem('the split caption and its details',110,190),
+  mockItem('Table 1: the output and the input',50,180),
+  mockItem('5 KHz',50,160),
+]})})};
+context.testApi.runRulesOnPdf(pdf).then(findings=>{
+  const titles=findings.filter(f=>f.ruleId==='team-title-case');
+  assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));
+  assert.ok(titles.some(f=>f.suggestion==='The Results Of the Test'));
+  assert.ok(titles.some(f=>f.suggestion==='Air Flow Direction'));
+  assert.ok(titles.some(f=>f.suggestion==='Figure 2: The Air and Water System'));
+  assert.ok(titles.some(f=>f.suggestion==='The Split Caption and Its Details'));
+  assert.ok(titles.some(f=>f.suggestion==='Table 1: The Output and the Input'));
+  assert.ok(!titles.some(f=>f.text==='ordinary prose remains lowercase.'));
+  assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
+  console.log('migration, 20 Chicago rules, title case, filters, PDF review: passed');
+}).catch(error=>{console.error(error);process.exitCode=1;});

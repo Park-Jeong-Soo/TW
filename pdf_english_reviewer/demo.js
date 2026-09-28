@@ -22,6 +22,7 @@
   const RULES_STORAGE_KEY = "tw-demo-rules-v4";
   const RULES_MIGRATION_KEY = "tw-demo-rules-migration-v5";
   const RULES_ADDITION_KEY = "tw-demo-rules-addition-v6";
+  const RULES_EXPANSION_KEY = "tw-demo-rules-expansion-v7";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -131,11 +132,56 @@
       pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+Kg\\b", flags: "g", replacement: "$1 kg", severity: "minor", enabled: true },
     { id: "chicago-35-si-plural", category: "numbers_abbreviations", name: "Chicago 10.59 — Do not pluralize SI unit symbols",
       pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+(kg|mg|km|cm|mm|nm)s\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+    { id: "chicago-36-quote-comma", category: "punctuation", name: "Chicago 6.9 — Comma inside closing quotation mark",
+      pattern: '"([^"\\n]+)",', flags: "g", replacement: '"$1,"', severity: "minor", enabled: true },
+    { id: "chicago-37-quote-period", category: "punctuation", name: "Chicago 6.9 — Period inside closing quotation mark",
+      pattern: '"([^"\\n]+)"\\.', flags: "g", replacement: '"$1."', severity: "minor", enabled: true },
+    { id: "chicago-38-yes-comma", category: "punctuation", name: "Chicago 6.37 — Comma after introductory Yes",
+      pattern: "^Yes\\s+([a-z])", flags: "g", replacement: "Yes, $1", severity: "minor", enabled: true },
+    { id: "chicago-39-no-comma", category: "punctuation", name: "Chicago 6.37 — Comma after introductory No",
+      pattern: "^No\\s+(I|we|you|he|she|it|they)\\b", flags: "g", replacement: "No, $1", severity: "minor", enabled: true },
+    { id: "chicago-40-oh-comma", category: "punctuation", name: "Chicago 6.38 — Comma after introductory Oh",
+      pattern: "^Oh\\s+([a-z])", flags: "g", replacement: "Oh, $1", severity: "minor", enabled: true },
+    { id: "chicago-41-ah-comma", category: "punctuation", name: "Chicago 6.38 — Comma after introductory Ah",
+      pattern: "^Ah\\s+([a-z])", flags: "g", replacement: "Ah, $1", severity: "minor", enabled: true },
+    { id: "chicago-42-namely-comma", category: "punctuation", name: "Chicago 6.54 — Comma after introductory Namely",
+      pattern: "^Namely\\s+([a-z])", flags: "g", replacement: "Namely, $1", severity: "minor", enabled: true },
+    { id: "chicago-43-that-is-comma", category: "punctuation", name: "Chicago 6.54 — Comma after introductory That is",
+      pattern: "^That is\\s+([a-z])", flags: "g", replacement: "That is, $1", severity: "minor", enabled: true },
+    { id: "chicago-44-khz-case", category: "numbers_abbreviations", name: "Chicago 10.58 — Correct kHz unit capitalization",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+KHz\\b", flags: "g", replacement: "$1 kHz", severity: "minor", enabled: true },
+    { id: "chicago-45-mpa-case", category: "numbers_abbreviations", name: "Chicago 10.58 — Correct MPa unit capitalization",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+Mpa\\b", flags: "g", replacement: "$1 MPa", severity: "minor", enabled: true },
+    { id: "chicago-46-kpa-uppercase", category: "numbers_abbreviations", name: "Chicago 10.58 — Correct all-capitals KPA unit symbol",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+KPA\\b", flags: "g", replacement: "$1 kPa", severity: "minor", enabled: true },
+    { id: "chicago-47-section-range", category: "numbers_abbreviations", name: "Chicago 6.83 — En dash in numbered section ranges",
+      pattern: "\\b(sections?|secs?\\.?)\\s+(\\d+)-(\\d+)\\b", flags: "gi", replacement: "$1 $2–$3", severity: "minor", enabled: true },
+    { id: "chicago-48-chapter-range", category: "numbers_abbreviations", name: "Chicago 6.83 — En dash in numbered chapter ranges",
+      pattern: "\\b(chapters?|chaps?\\.?)\\s+(\\d+)-(\\d+)\\b", flags: "gi", replacement: "$1 $2–$3", severity: "minor", enabled: true },
+    { id: "chicago-49-decade-apostrophe", category: "numbers_abbreviations", name: "Chicago 9.35 — Decades without an apostrophe",
+      pattern: "\\b((?:18|19|20)\\d0)'s\\b", flags: "g", replacement: "$1s", severity: "minor", enabled: true },
+    { id: "chicago-50-percent-space", category: "numbers_abbreviations", name: "Chicago 9.20 — Close percent symbol to numeral",
+      pattern: "\\b(\\d+(?:\\.\\d+)?) +%", flags: "g", replacement: "$1%", severity: "minor", enabled: true },
+    { id: "chicago-51-ratio-space", category: "numbers_abbreviations", name: "Chicago 9.60 — Close up numerical ratios",
+      pattern: "\\b(\\d+) +: +(\\d+)\\b", flags: "g", replacement: "$1:$2", severity: "minor", enabled: true },
+    { id: "chicago-52-kpa-case", category: "numbers_abbreviations", name: "Chicago 10.58 — Correct kPa unit capitalization",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+KPa\\b", flags: "g", replacement: "$1 kPa", severity: "minor", enabled: true },
+    { id: "chicago-53-mhz-case", category: "numbers_abbreviations", name: "Chicago 10.58 — Correct MHz unit capitalization",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+Mhz\\b", flags: "g", replacement: "$1 MHz", severity: "minor", enabled: true },
+    { id: "chicago-54-ghz-case", category: "numbers_abbreviations", name: "Chicago 10.58 — Correct GHz unit capitalization",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+Ghz\\b", flags: "g", replacement: "$1 GHz", severity: "minor", enabled: true },
+    { id: "chicago-55-period-space", category: "punctuation", name: "Chicago 6.127 — No space before a sentence period",
+      pattern: "([A-Za-z]) +\\.(?=\\s|$)", flags: "g", replacement: "$1.", severity: "minor", enabled: true },
   ];
-  DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES];
+  const TEAM_RULES = [
+    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, figure labels, and figure/table captions",
+      pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table)\\s+\\d+[.:]?\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
+  ];
+  DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...TEAM_RULES];
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
   const NEW_RULES = CHICAGO_RULES.filter((rule) => /^chicago-2[1-5]-/.test(rule.id));
   const ADDED_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:2[6-9]|3[0-5])-/.test(rule.id));
+  const EXPANDED_RULES = [...CHICAGO_RULES.filter((rule) => /^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(rule.id)), ...TEAM_RULES];
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -249,6 +295,12 @@
         rules.push(...ADDED_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_ADDITION_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EXPANSION_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...EXPANDED_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_EXPANSION_KEY, "done");
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
@@ -430,7 +482,8 @@
   async function runRulesOnPdf(pdf) {
     const rules = getRules().filter((r) => r.enabled);
     if (!rules.length) return [];
-    const compiled = rules.map((r) => {
+    const titleRule = rules.find((r) => r.id === "team-title-case");
+    const compiled = rules.filter((r) => r.id !== "team-title-case").map((r) => {
       try { return { rule: r, re: new RegExp(r.pattern, r.flags || "g") }; }
       catch { return null; }
     }).filter(Boolean);
@@ -442,6 +495,10 @@
       const pageHeight = page.view[3]; // [x0, y0, x1, y1]
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
+      const sizes = content.items.map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
+      const bodySize = sizes[Math.floor(sizes.length / 2)] || 10;
+      const figureCaptions = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:]?(?:\s+|$)/i.test(item.str || ""));
+      const titlePrefixes = content.items.filter((item) => /^(?:(?:Figure|Fig\.|Table)\s+\d+[.:]?|\d+(?:\.\d+)*[.:]?)$/i.test((item.str || "").trim()));
       for (const item of content.items) {
         if (!item.str || !item.str.trim()) continue;
         const bbox = itemBbox(item);
@@ -452,6 +509,15 @@
         const yTop = bbox[1] + bbox[3];
         if (yBottom < MARGIN_PT) continue;                    // in bottom footer
         if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
+
+        if (titleRule && isTitleText(item, bodySize, figureCaptions, titlePrefixes)) {
+          const suggestion = titleCaseText(item.str);
+          if (suggestion !== item.str) findings.push({
+            id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
+            category: titleRule.category, severity: titleRule.severity,
+            text: item.str, context: item.str, suggestion, bbox, status: "pending",
+          });
+        }
 
         for (const { rule, re } of compiled) {
           re.lastIndex = 0;
@@ -478,6 +544,40 @@
       }
     }
     return findings;
+  }
+
+  const TITLE_SMALL_WORDS = new Set(["a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet", "as", "if", "because", "although", "though", "while", "when", "whereas", "unless", "until", "since", "once", "whether", "than", "that"]);
+  function titleCaseText(text) {
+    let wordIndex = 0;
+    const captionPrefixLength = /^(?:Figure|Fig\.|Table)\s+\d+[.:]?\s+/i.exec(text)?.[0].length || 0;
+    let captionStarted = false;
+    return text.replace(/[A-Za-z][A-Za-z'’]*/g, (word, offset) => {
+      if (captionPrefixLength && offset >= captionPrefixLength && !captionStarted) { wordIndex = 0; captionStarted = true; }
+      if (/^[A-Z]{2,}$/.test(word) || /[a-z][A-Z]/.test(word)) { wordIndex++; return word; }
+      const lower = word.toLowerCase();
+      const result = wordIndex > 0 && TITLE_SMALL_WORDS.has(lower) ? lower : lower[0].toUpperCase() + lower.slice(1);
+      wordIndex++;
+      return result;
+    });
+  }
+  function isTitleText(item, bodySize, figureCaptions, titlePrefixes = []) {
+    const value = (item.str || "").trim();
+    if (!value || /[.!?;:]$/.test(value) || value.split(/\s+/).length > 14) return false;
+    if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]?\s+\S/i.test(value)) return true;
+    if (/^\d+(?:\.\d+)*\s+[A-Za-z]/.test(value)) return true;
+    const x = item.transform?.[4], y = item.transform?.[5];
+    if (titlePrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
+      && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
+      && x - prefix.transform?.[4] < 250)) return true;
+    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
+    if (size >= bodySize * 1.16 && value.split(/\s+/).length >= 2) return true;
+    // Labels inside a figure are usually short, isolated items above its caption.
+    if (value.split(/\s+/).length > 5 || !/^[A-Za-z][A-Za-z\s/&-]*$/.test(value)) return false;
+    return figureCaptions.some((caption) => {
+      const cx = caption.transform?.[4], cy = caption.transform?.[5];
+      return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(cx) && Number.isFinite(cy)
+        && y > cy && y - cy < 180 && Math.abs(x - cx) < 400;
+    });
   }
 
   function applyReplacement(template, match) {
@@ -867,6 +967,14 @@
   // ─── Team Manual Standard tab → Rule editor ───────────────────────────
   //
   window.loadTeamStandardRules = renderRuleEditor;
+  const ruleFilters = { enabled: "all", category: "all", name: "", pattern: "", replacement: "", severity: "all" };
+  function filteredRules(rules) {
+    return rules.filter((rule) =>
+      (ruleFilters.enabled === "all" || String(Boolean(rule.enabled)) === ruleFilters.enabled)
+      && (ruleFilters.category === "all" || rule.category === ruleFilters.category)
+      && (ruleFilters.severity === "all" || rule.severity === ruleFilters.severity)
+      && ["name", "pattern", "replacement"].every((key) => String(rule[key] || "").toLowerCase().includes(ruleFilters[key].toLowerCase())));
+  }
 
   function renderRuleEditor() {
     const view = document.getElementById("team-standard-view");
@@ -893,17 +1001,12 @@
         <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px;">
           <thead style="background:#f9fafb;">
             <tr>
-              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">On</th>
-              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Category</th>
-              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Name</th>
-              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Pattern (regex)</th>
-              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Replacement</th>
-              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Severity</th>
+              ${["enabled", "category", "name", "pattern", "replacement", "severity"].map((key) => `<th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;vertical-align:top;">${{enabled:"On",category:"Category",name:"Name",pattern:"Pattern (regex)",replacement:"Replacement",severity:"Severity"}[key]} <button type="button" data-rule-filter-button="${key}" aria-label="Filter ${{enabled:"On",category:"Category",name:"Name",pattern:"Pattern",replacement:"Replacement",severity:"Severity"}[key]}" title="Filter this column" style="border:1px solid #cbd5e1;background:#fff;border-radius:4px;cursor:pointer;">⌕</button><div data-rule-filter-panel="${key}" hidden style="margin-top:6px;">${key === "enabled" || key === "category" || key === "severity" ? `<select data-rule-filter-input="${key}" aria-label="Filter ${key}" style="max-width:130px;">${["all", ...(key === "enabled" ? ["true", "false"] : key === "severity" ? ["minor", "major", "critical"] : [...new Set(rules.map((rule) => rule.category))].sort())].map((option) => `<option value="${escapeHtml(option)}" ${ruleFilters[key] === option ? "selected" : ""}>${option === "true" ? "On" : option === "false" ? "Off" : option}</option>`).join("")}</select>` : `<input type="search" data-rule-filter-input="${key}" aria-label="Filter ${key}" value="${escapeHtml(ruleFilters[key])}" style="width:120px;" />`}</div></th>`).join("")}
               <th style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb;">Actions</th>
             </tr>
           </thead>
           <tbody id="rule-tbody">
-            ${rules.map(renderRuleRow).join("")}
+            ${filteredRules(rules).map(renderRuleRow).join("")}
           </tbody>
         </table>
         <input type="file" id="rule-import-file" accept="application/json" style="display:none;" />
@@ -930,6 +1033,23 @@
   }
 
   function wireRuleEditor() {
+    const header = document.querySelector("#team-standard-view thead");
+    header.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rule-filter-button]");
+      if (!button) return;
+      const panel = header.querySelector(`[data-rule-filter-panel="${button.dataset.ruleFilterButton}"]`);
+      panel.hidden = !panel.hidden;
+      button.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) panel.querySelector("input,select").focus();
+    });
+    const updateFilter = (event) => {
+      const key = event.target.dataset.ruleFilterInput;
+      if (!key) return;
+      ruleFilters[key] = event.target.value;
+      document.getElementById("rule-tbody").innerHTML = filteredRules(getRules()).map(renderRuleRow).join("");
+    };
+    header.addEventListener("input", updateFilter);
+    header.addEventListener("change", updateFilter);
     document.getElementById("rule-add-btn").addEventListener("click", () => openRuleModal(null));
     document.getElementById("rule-reset-btn").addEventListener("click", () => {
       if (!confirm("Reset to default rules? Your custom rules will be removed.")) return;
@@ -976,7 +1096,11 @@
       const row = e.target.closest("[data-rule-id]");
       const id = row.dataset.ruleId;
       const rule = getRules().find((r) => r.id === id);
-      if (rule) { rule.enabled = e.target.checked; upsertRule(rule); }
+      if (rule) {
+        rule.enabled = e.target.checked;
+        upsertRule(rule);
+        tbody.innerHTML = filteredRules(getRules()).map(renderRuleRow).join("");
+      }
     });
   }
 
@@ -1004,14 +1128,15 @@
             </select>
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Pattern (JavaScript regex, without / /)
-            <input name="pattern" value="${escapeHtml(r.pattern)}" required style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+            <input name="pattern" value="${escapeHtml(r.pattern)}" required ${r.id === "team-title-case" ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Flags
             <input name="flags" value="${escapeHtml(r.flags || "g")}" placeholder="g, gi, gm…" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Replacement (use $1, $2 for capture groups)
-            <input name="replacement" value="${escapeHtml(r.replacement || "")}" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+            <input name="replacement" value="${escapeHtml(r.replacement || "")}" ${r.id === "team-title-case" ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
+          ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">This rule uses PDF layout to identify headings, captions, and figure labels. Pattern and replacement are shown for reference.</p>' : ''}
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Severity
             <select name="severity" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
               <option value="minor" ${r.severity === "minor" ? "selected" : ""}>Minor (yellow)</option>
