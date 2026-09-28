@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDF English Reviewer</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=10" />
   <script>
     // Preview mode: stub /api/* calls before app_v3.js runs its initial fetches.
     (function () {
@@ -245,6 +245,9 @@
               <option value="all">All standards</option>
             </select>
           </div>
+          <label class="issue-search-label" for="issue-search">Search suggestions
+            <input id="issue-search" type="search" placeholder="Chicago number or Team Manual Standard rule" autocomplete="off" />
+          </label>
           <div class="bulk-category-actions">
             <button class="accept-btn compact-btn" id="accept-category-btn" disabled>Accept Category</button>
             <button class="reject-btn compact-btn" id="reject-category-btn" disabled>Reject Category</button>
@@ -563,7 +566,7 @@
       </div>
     </section>
   </div>
-  <script src="./app_v3.js?v=9"></script>
-  <script src="./demo.js?v=9"></script>
+  <script src="./app_v3.js?v=10"></script>
+  <script src="./demo.js?v=10"></script>
 </body>
 </html>

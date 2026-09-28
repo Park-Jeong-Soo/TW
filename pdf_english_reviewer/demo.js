@@ -20,6 +20,7 @@
 
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
   const RULES_STORAGE_KEY = "tw-demo-rules-v4";
+  const RULES_MIGRATION_KEY = "tw-demo-rules-migration-v5";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -56,7 +57,7 @@
     numbers_abbreviations: "#f43f5e", hyphenation_terminology: "#eab308",
   };
 
-  // 20 representative Chicago Manual of Style rules (pilot).
+  // Representative Chicago Manual of Style rules (pilot).
   // Regex-implementable rules are enabled by default; NLP/parser/context-only
   // rules are added as disabled with a placeholder pattern so users see them
   // in the editor and can enable or refine.
@@ -65,16 +66,11 @@
       pattern: "([.!?])  +", flags: "g", replacement: "$1 ", severity: "minor", enabled: true },
     { id: "chicago-02-serial-comma",   category: "punctuation", name: "Chicago 6.19 — Serial (Oxford) comma",
       pattern: "(\\w+),\\s+(\\w+)\\s+(and|or)\\s+(\\w+)", flags: "g", replacement: "$1, $2, $3 $4", severity: "minor", enabled: false },
-    { id: "chicago-03-intro-clause",   category: "grammar", name: "Chicago 6.26 — Comma after introductory dependent clause",
-      pattern: "^(After|Before|When|If|Although|While|Because|Since|Unless)\\s+[\\w\\s]{5,60}\\s+([A-Z]\\w+)", flags: "gm", replacement: "$1, $2", severity: "major", enabled: false },
     { id: "chicago-04-comma-splice",   category: "grammar", name: "Chicago 6.23 — Comma splice between independent clauses (heuristic)",
       pattern: "\\b(is|are|was|were|has|have|had|will)\\s+\\w+[^.!?]{0,60},\\s+(it|this|that|these|those|they|we|you|he|she)\\s+(is|are|was|were|has|have|had|will)\\b",
       flags: "gi", replacement: ". (start new sentence)", severity: "major", enabled: false },
     { id: "chicago-05-cap-after-colon",category: "capitalization", name: "Chicago 6.63 — Capitalize a complete sentence after a colon",
       pattern: ":\\s+([a-z])", flags: "g", replacement: ": (capitalize)", severity: "minor", enabled: false },
-    { id: "chicago-08-define-abbrev",  category: "numbers_abbreviations", name: "Chicago 10.3 — Define unfamiliar abbreviation at first use (heuristic)",
-      pattern: "\\b([A-Z]{3,6})\\b(?!\\s*\\()",
-      flags: "g", replacement: "$1 (define at first use)", severity: "minor", enabled: false },
     { id: "chicago-10-list-punct",     category: "punctuation", name: "Chicago 6.130 — List items with inconsistent punctuation (heuristic)",
       pattern: "(^|\\n)\\s*[-•*]\\s+[a-z]",
       flags: "gm", replacement: "$&", severity: "minor", enabled: false },
@@ -86,9 +82,6 @@
     { id: "chicago-13-suspended-hyphen",category:"hyphenation_terminology", name: "Chicago 7.88 — Suspended hyphens in shared compounds (heuristic)",
       pattern: "\\b(low|high|short|long|left|right|up|down)\\s+and\\s+(low|high|short|long|left|right|up|down)-(\\w+)",
       flags: "gi", replacement: "$1- and $2-$3", severity: "minor", enabled: false },
-    { id: "chicago-14-consistent-compound",category: "hyphenation_terminology", name: "Chicago 7.89 — Dual-form compound term (review consistency)",
-      pattern: "\\b(e-?mail|log-?in|set-?up|start-?up|real-?time|on-?line|web-?site|micro-?controller|drop-?down|check-?box|multi-?task)\\b",
-      flags: "gi", replacement: "$1", severity: "minor", enabled: false },
     { id: "chicago-15-ui-capitalization",category: "hyphenation_terminology", name: "Chicago 8.155 — UI action word capitalization (heuristic)",
       pattern: "\\b(click|press|select|tap|choose)\\s+(ok|cancel|submit|apply|save|delete|close|reset|next|previous|back|help|open|edit)\\b",
       flags: "g", replacement: "$1 (capitalize $2)", severity: "minor", enabled: false },
@@ -107,8 +100,20 @@
     { id: "chicago-20-parallel-lists", category: "grammar", name: "Chicago 6.130 — Non-parallel list items (heuristic)",
       pattern: "(?:^|\\n)\\s*\\d+\\.\\s+\\w+ing\\b[^\\n]*\\n\\s*\\d+\\.\\s+(?!\\w+ing\\b)[A-Za-z]\\w+",
       flags: "gm", replacement: "(use parallel forms)", severity: "minor", enabled: false },
+    { id: "chicago-21-colon-space", category: "punctuation", name: "Chicago 6.66 — Space after a colon",
+      pattern: ":([A-Za-z])", flags: "g", replacement: ": $1", severity: "minor", enabled: true },
+    { id: "chicago-22-em-dash-space", category: "punctuation", name: "Chicago 6.91 — Close up spaces around an em dash",
+      pattern: "([A-Za-z])(?: +— *| *— +)([A-Za-z])", flags: "g", replacement: "$1—$2", severity: "minor", enabled: true },
+    { id: "chicago-23-decimal-zero", category: "numbers_abbreviations", name: "Chicago 9.21 — Zero before a decimal fraction",
+      pattern: "(?<![\\w.])\\.(\\d+)\\b", flags: "g", replacement: "0.$1", severity: "minor", enabled: true },
+    { id: "chicago-24-number-range", category: "numbers_abbreviations", name: "Chicago 9.62 — En dash in page and figure ranges",
+      pattern: "\\b(pages?|pp\\.?|figures?|figs?\\.?)\\s+(\\d+)-(\\d+)\\b", flags: "gi", replacement: "$1 $2–$3", severity: "minor", enabled: true },
+    { id: "chicago-25-us-abbreviation", category: "numbers_abbreviations", name: "Chicago 10.37 — US without periods",
+      pattern: "\\bU\\.S\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "US", severity: "minor", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES];
+  const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
+  const NEW_RULES = CHICAGO_RULES.filter((rule) => /^chicago-2[1-5]-/.test(rule.id));
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -208,9 +213,16 @@
   function getRules() {
     try {
       const raw = localStorage.getItem(RULES_STORAGE_KEY);
-      if (!raw) return DEFAULT_RULES.slice();
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_RULES.slice();
+      const parsed = raw ? JSON.parse(raw) : null;
+      let rules = Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_RULES.slice();
+      if (localStorage.getItem(RULES_MIGRATION_KEY) !== "done") {
+        rules = rules.filter((rule) => !REMOVED_RULE_IDS.has(rule.id));
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...NEW_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_MIGRATION_KEY, "done");
+      }
+      return rules;
     } catch { return DEFAULT_RULES.slice(); }
   }
   function saveRules(rules) { localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(rules)); }
@@ -658,6 +670,7 @@
         <option value="custom">Custom</option>`;
     }
     on("category-filter", "change", () => { renderIssuesPanel(); renderCurrentPages(); });
+    on("issue-search", "input", renderIssuesPanel);
   }
   let actionsWired = false;
   function wireIssueActions() {
@@ -686,7 +699,12 @@
   function getFilterValue(id) { const el = document.getElementById(id); return (el && el.value) || "all"; }
   function visibleFindings() {
     const cat = getFilterValue("category-filter");
-    return viewerState.findings.filter((f) => cat === "all" || f.category === cat);
+    const query = (document.getElementById("issue-search")?.value || "").trim().toLocaleLowerCase();
+    return viewerState.findings.filter((f) =>
+      (cat === "all" || f.category === cat)
+      && (!query || [f.ruleName, f.ruleId, f.category, "Team Manual Standard"]
+        .some((value) => String(value || "").toLocaleLowerCase().includes(query)))
+    );
   }
   function renderIssuesPanel() {
     const target = document.getElementById("issues-list");

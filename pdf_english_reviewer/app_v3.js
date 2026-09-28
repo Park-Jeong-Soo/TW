@@ -983,11 +983,15 @@ function visibleIssues() {
   const category = $("category-filter").value;
   const engine = $("engine-filter") ? $("engine-filter").value : "all";
   const standard = $("standard-filter") ? $("standard-filter").value : "all";
+  const query = $("issue-search").value.trim().toLocaleLowerCase();
   const filtered = reviewVisibleIssueSource().filter((issue) =>
     issue.status !== "rejected"
     && (category === "all" || issue.category === category)
     && (engine === "all" || (issue.engine || "basic") === engine)
     && (standard === "all" || (issue.standard || issue.rule_source || "") === standard)
+    && (!query || [issue.rule_id, issue.rule_reference, issue.standard, issue.rule_source,
+      issue.message, issue.reference, issue.explanation_en, issue.source_text]
+      .some((value) => String(value || "").toLocaleLowerCase().includes(query)))
   );
   return filtered.sort((left, right) => (
     Number(left.page) - Number(right.page)
@@ -2126,6 +2130,7 @@ function attachEventHandlers() {
   $("category-filter").addEventListener("change", renderIssueList);
   $("engine-filter").addEventListener("change", renderIssueList);
   $("standard-filter").addEventListener("change", renderIssueList);
+  $("issue-search").addEventListener("input", renderIssueList);
   $("accept-category-btn").addEventListener("click", () => bulkUpdateCategory("accepted"));
   $("reject-category-btn").addEventListener("click", () => bulkUpdateCategory("rejected"));
   document.querySelectorAll("[data-delete-document]").forEach((button) => button.addEventListener("click", () => deleteDocumentTarget(button.dataset.deleteDocument)));
