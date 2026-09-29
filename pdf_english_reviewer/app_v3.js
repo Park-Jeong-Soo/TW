@@ -29,6 +29,7 @@ const state = {
   scrollTimer: null,
   engineStatus: null,
   textSelectionMode: false,
+  pdfSearch: { matches: [], index: -1, request: 0, pages: new Map() },
   engineProbeRunning: false,
   enginePollTimer: null,
   reviewRunning: false,
@@ -408,6 +409,7 @@ function renderDocumentPages(preserveLocation = true) {
   }).join("");
   setupPageObserver();
   renderAllHighlights();
+  renderPdfSearchMark();
   updatePageIndicator();
   $("zoom-label").textContent = `${Math.round(state.zoom * 100)}%`;
   $("one-page-mode-btn").classList.toggle("active", state.viewMode === "one");
@@ -552,6 +554,63 @@ function setZoom(nextZoom, preserve = true) {
     window.requestAnimationFrame(() => restoreLocation(location, false));
   }
   scheduleSaveUiState();
+}
+
+function renderPdfSearchMark() {
+  document.querySelectorAll(".pdf-search-mark").forEach((mark) => mark.remove());
+  const match = state.pdfSearch.matches[state.pdfSearch.index];
+  if (!match || !state.document) return;
+  const page = state.document.pages[match.page - 1];
+  const layer = document.querySelector(`.pdf-page-shell[data-page="${match.page}"] .pdf-page-content`);
+  if (!page || !layer) return;
+  const [x0, y0, x1, y1] = match.bbox;
+  const mark = document.createElement("div");
+  mark.className = "pdf-search-mark";
+  mark.style.cssText = `left:${x0 / page.width * 100}%;top:${y0 / page.height * 100}%;width:${Math.max(0.6, (x1 - x0) / page.width * 100)}%;height:${Math.max(0.6, (y1 - y0) / page.height * 100)}%;`;
+  layer.appendChild(mark);
+}
+
+function showPdfSearchMatch(direction = 0) {
+  if (window.previewViewerActive) return window.previewPdfSearchMove?.(direction);
+  const search = state.pdfSearch;
+  if (!search.matches.length) return;
+  search.index = (search.index + direction + search.matches.length) % search.matches.length;
+  $("pdf-search-count").textContent = `${search.index + 1} / ${search.matches.length}`;
+  renderPdfSearchMark();
+  goToPage(search.matches[search.index].page, "PDF search");
+  window.setTimeout(() => document.querySelector(".pdf-page-content .pdf-search-mark")?.scrollIntoView({ block: "center", inline: "center" }), 100);
+}
+
+async function searchPdf(query) {
+  if (window.previewViewerActive) return window.previewPdfSearch?.(query);
+  const search = state.pdfSearch;
+  const request = ++search.request;
+  search.matches = [];
+  search.index = -1;
+  $("pdf-search-count").textContent = query.trim() ? "Searching…" : "0 / 0";
+  renderPdfSearchMark();
+  if (!query.trim() || !state.documentId || !state.document) return;
+  const documentId = state.documentId;
+  const pages = [];
+  try {
+    for (let start = 1; start <= state.document.page_count; start += 8) {
+      const numbers = Array.from({ length: Math.min(8, state.document.page_count - start + 1) }, (_, i) => start + i);
+      const batch = await Promise.all(numbers.map(async (page) => {
+        const key = `${documentId}:${page}`;
+        if (!search.pages.has(key)) search.pages.set(key, await api(`/api/documents/${documentId}/page/${page}/text-layer`));
+        const result = search.pages.get(key);
+        return { page, items: (result.words || []).map((word) => ({ text: word.text, bbox: [word.x0, word.y0, word.x1, word.y1] })) };
+      }));
+      if (request !== search.request || documentId !== state.documentId) return;
+      pages.push(...batch);
+    }
+    search.matches = window.findPdfTextMatches(pages, query);
+    search.index = search.matches.length ? 0 : -1;
+    $("pdf-search-count").textContent = search.matches.length ? `1 / ${search.matches.length}` : "0 / 0";
+    if (search.matches.length) showPdfSearchMatch(0);
+  } catch (error) {
+    if (request === search.request) $("pdf-search-count").textContent = "Search failed";
+  }
 }
 
 function setViewMode(mode, preserve = true) {
@@ -1243,7 +1302,7 @@ async function loadEngineStatus(probe = false) {
     $("engine-status-list").innerHTML = `
       <span>Style Engine: Vale ${status.vale ? "Local / Ready" : "Optional"}</span>
       <span>Typo Engine: Basic Rules Only</span>
-      <span>Context AI: ${escapeHtml(status.ollama.mode)}</span>
+      <span>Context AI: ${escapeHtml(status.ollama?.mode || "Unavailable")}</span>
       <span class="safe-status">External Data Transfer: ${escapeHtml(preflight?.external_data_transfer || "Disabled")}</span>
     `;
     $("engine-security-warning").classList.toggle("hidden", !status.blocked_external_endpoint);
@@ -1292,6 +1351,11 @@ function scheduleEngineStatusPoll() {
 }
 
 async function loadDocument(documentId) {
+  state.pdfSearch.request += 1;
+  state.pdfSearch.matches = [];
+  state.pdfSearch.index = -1;
+  $("pdf-search-input").value = "";
+  $("pdf-search-count").textContent = "0 / 0";
   state.documentId = documentId;
   state.document = await api(`/api/documents/${documentId}`);
   state.selectedTeamCandidateIssueIds.clear();
@@ -2079,9 +2143,31 @@ function attachEventHandlers() {
   });
   $("pdf-canvas-wrap").addEventListener("wheel", (event) => {
     if (!event.ctrlKey) return;
+    if (!window.previewViewerActive && !state.document) return;
     event.preventDefault();
-    setZoom(state.zoom + (event.deltaY < 0 ? 0.1 : -0.1));
+    if (window.previewViewerActive) window.previewSetZoom?.(event.deltaY < 0 ? 1.1 : 1 / 1.1);
+    else if (state.document) setZoom(state.zoom + (event.deltaY < 0 ? 0.1 : -0.1));
   }, { passive: false });
+  $("sidebar-toggle").addEventListener("click", () => {
+    const collapsed = $("workspace").classList.toggle("sidebar-collapsed");
+    const button = $("sidebar-toggle");
+    button.setAttribute("aria-expanded", String(!collapsed));
+    button.title = collapsed ? "Expand left panel" : "Collapse left panel";
+    button.innerHTML = collapsed ? '▶ <span>Expand</span>' : '◀ <span>Collapse</span>';
+    window.requestAnimationFrame(() => {
+      if (window.previewViewerActive) window.previewRerender?.();
+      else if (state.document) renderDocumentPages();
+    });
+  });
+  $("pdf-search-input").addEventListener("input", () => {
+    window.clearTimeout(searchPdf.timer);
+    searchPdf.timer = window.setTimeout(() => searchPdf($("pdf-search-input").value), 220);
+  });
+  $("pdf-search-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); showPdfSearchMatch(event.shiftKey ? -1 : 1); }
+  });
+  $("pdf-search-prev").addEventListener("click", () => showPdfSearchMatch(-1));
+  $("pdf-search-next").addEventListener("click", () => showPdfSearchMatch(1));
   $("zoom-out-btn").addEventListener("click", () => setZoom(state.zoom - 0.1));
   $("zoom-in-btn").addEventListener("click", () => setZoom(state.zoom + 0.1));
   $("reset-zoom-btn").addEventListener("click", () => setZoom(1));

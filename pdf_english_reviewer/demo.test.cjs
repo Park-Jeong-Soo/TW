@@ -14,16 +14,18 @@ const context = {console, crypto:{randomUUID:()=>String(Math.random())}, window:
   localStorage:{getItem(k){return data.get(k)||null},setItem(k,v){data.set(k,v)},removeItem(k){data.delete(k)}}};
 vm.runInNewContext(code,context);
 const rules=context.testApi.getRules();
-assert.equal(rules.length,37);
+assert.equal(rules.length,58);
 assert.equal(rules.filter(r=>/^chicago-2[1-5]-/.test(r.id)).length,5);
 assert.equal(rules.filter(r=>/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id)).length,10);
 assert.equal(rules.filter(r=>/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)).length,20);
+assert.equal(rules.filter(r=>/^chicago-(?:5[6-9]|6\d|7[0-5])-/.test(r.id)).length,20);
+assert.ok(rules.some(r=>r.id==='space-unit'&&r.name.startsWith('Team Manual Standard')));
 assert.equal(rules.filter(r=>r.id==='team-title-case').length,1);
 assert.equal(new Set(rules.map(r=>r.id)).size,rules.length);
 for(const removed of ['chicago-03-intro-clause','chicago-08-define-abbrev','chicago-14-consistent-compound']) assert.ok(!rules.some(r=>r.id===removed));
 assert.ok(!rules.some(r=>/^Chicago (?:6\.26|7\.89|10\.3)\b/.test(r.name)));
 assert.equal(rules.find(r=>r.id==='custom').enabled,false);
-assert.equal(context.testApi.getRules().length,37);
+assert.equal(context.testApi.getRules().length,58);
 for(const [id,input,expected] of [
   ['chicago-21-colon-space','Note:Check','Note: Check'],
   ['chicago-22-em-dash-space','one — two','one—two'],
@@ -42,6 +44,30 @@ for(const [id,input,expected] of [
   ['chicago-35-si-plural','5 kgs','5 kg']]){
   const r=rules.find(x=>x.id===id);
   assert.equal(input.replace(new RegExp(r.pattern,r.flags),r.replacement),expected,id);
+}
+for(const [id,input,expected] of [
+  ['chicago-56-am-time','10 AM','10 a.m.'],
+  ['chicago-57-pm-time','3 PM','3 p.m.'],
+  ['chicago-58-email','e-mail','email'],
+  ['chicago-59-esports','e-sports','esports'],
+  ['chicago-60-eg-comma','e.g. valves','e.g., valves'],
+  ['chicago-61-ie-comma','i.e. valves','i.e., valves'],
+  ['chicago-62-etc-period','valves, etc','valves, etc.'],
+  ['chicago-63-dc','Washington, D.C.,','Washington, DC,'],
+  ['chicago-64-uk','U.K. manual','UK manual'],
+  ['chicago-65-eu','E.U. manual','EU manual'],
+  ['chicago-66-un','U.N. manual','UN manual'],
+  ['chicago-67-month-day-cardinal','May 9th','May 9'],
+  ['chicago-68-ellipsis-before','wait… and','wait … and'],
+  ['chicago-69-ellipsis-after','wait …and','wait … and'],
+  ['chicago-70-question-space','Really ?','Really?'],
+  ['chicago-71-exclamation-space','Stop !','Stop!']]) {
+  const rule=rules.find(r=>r.id===id);
+  assert.equal(input.replace(new RegExp(rule.pattern,rule.flags),rule.replacement),expected,id);
+}
+const unit=rules.find(r=>r.id==='space-unit');
+for(const [input,expected] of [['5mm','5 mm'],['2.5kPa','2.5 kPa'],['20°C','20 °C'],['50%','50%']]) {
+  assert.equal(input.replace(new RegExp(unit.pattern,unit.flags),unit.replacement),expected);
 }
 for(const [id,input,expected] of [
   ['chicago-36-quote-comma','"ready",','"ready,"'],
@@ -73,12 +99,18 @@ const website=rules.find(r=>r.id==='chicago-32-website');
 assert.equal('Web site'.replace(new RegExp(website.pattern,website.flags),website.replacement),'Website');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id))));
 data.delete('tw-demo-rules-addition-v6');
-assert.equal(context.testApi.getRules().length,37,'v6 adds rules to an existing v5 rule set');
-assert.equal(context.testApi.getRules().length,37,'v7 addition runs only once');
+assert.equal(context.testApi.getRules().length,58,'v6 adds rules to an existing v5 rule set');
+assert.equal(context.testApi.getRules().length,58,'v7 addition runs only once');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)&&r.id!=='team-title-case')));
 data.delete('tw-demo-rules-expansion-v7');
-assert.equal(context.testApi.getRules().length,37,'v7 adds rules while preserving existing rules');
-assert.equal(context.testApi.getRules().length,37,'v7 migration is idempotent');
+assert.equal(context.testApi.getRules().length,58,'v7 adds rules while preserving existing rules');
+assert.equal(context.testApi.getRules().length,58,'v7 migration is idempotent');
+data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:5[6-9]|6\d|7[0-5])-/.test(r.id)).map(r=>r.id==='space-unit'?{...r,name:'Number-unit spacing'}:r)));
+data.delete('tw-demo-rules-expansion-v8');
+const migrated=context.testApi.getRules();
+assert.equal(migrated.length,58,'v8 adds exactly 20 rules');
+assert.ok(migrated.find(r=>r.id==='space-unit').name.startsWith('Team Manual Standard'));
+assert.equal(context.testApi.getRules().length,58,'v8 migration is idempotent');
 assert.equal(context.testApi.titleCaseText('Figure 2: the airflow and iPhone control'),'Figure 2: The Airflow and iPhone Control');
 assert.equal(context.testApi.titleCaseText('the air and water system'),'The Air and Water System');
 assert.equal(context.testApi.titleCaseText('Results because the sample changed as time passed'),'Results because the Sample Changed as Time Passed');
@@ -124,6 +156,25 @@ assert.ok(!htmlSource.includes('id="nav-engines"'));
 assert.ok(!htmlSource.includes('id="engine-status-view"'));
 assert.ok(!appSource.includes('$("nav-engines").addEventListener'));
 assert.ok(appSource.includes('async function loadEngineStatus('),'review readiness checks remain available');
+for (const id of ['sidebar-toggle','pdf-search-input','pdf-search-prev','pdf-search-next','pdf-search-count']) {
+  assert.ok(htmlSource.includes(`id="${id}"`),`${id} control is present`);
+}
+const engineStart=appSource.indexOf('async function loadEngineStatus(');
+const engineEnd=appSource.indexOf('\nfunction scheduleEngineStatusPoll(',engineStart);
+const engineElements=new Map();
+const engineContext={
+  state:{engineProbeRunning:false,reviewRunning:false},
+  api:async()=>({vale:false,preflight:{checks:[]}}),
+  $:(id)=>{
+    if (!engineElements.has(id)) engineElements.set(id,{classList:{toggle(){}},disabled:false});
+    return engineElements.get(id);
+  },
+  document:{querySelector:()=>null},
+  escapeHtml:(value)=>String(value),
+  showToast:(message)=>{throw new Error(`Unexpected toast: ${message}`)},
+};
+vm.runInNewContext(appSource.slice(engineStart,engineEnd)+'\nglobalThis.loadEngineStatus=loadEngineStatus;',engineContext);
+const engineStatusPromise=engineContext.loadEngineStatus(true);
 const start=appSource.indexOf('function visibleIssues() {');
 const end=appSource.indexOf('\nfunction canImportIssueAsTeamCandidate',start);
 assert.ok(start>=0&&end>start);
@@ -153,6 +204,8 @@ const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async
   mockItem('Callout B: inlet pressure',50,170),
   mockItem('Figure 4: the flow of air. the pressure remains stable.',50,165),
   mockItem('5 KHz',50,160),
+  mockItem('10mm',50,150),
+  mockItem('May 9th',50,140),
 ]})})};
 const opaqueFontPdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
   mockItem('the manual for the control system',50,700,18,'g_d0_f1'),
@@ -165,7 +218,8 @@ const opaqueFontPdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextCon
   mockItem('a larger body sentence appears here.',50,490,12,'g_d0_f3'),
   mockItem('More body text continues without a heading at this point.',50,478,10,'g_d0_f3'),
 ]})})};
-Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf)]).then(([findings,opaqueFindings])=>{
+Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf),engineStatusPromise]).then(([findings,opaqueFindings])=>{
+  assert.ok(engineElements.get('engine-status-list').innerHTML.includes('Unavailable'));
   const titles=findings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));
   assert.ok(titles.some(f=>f.suggestion==='The Results Of the Test'));
@@ -180,6 +234,8 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(!titles.some(f=>f.text==='the method was tested. further work continues'));
   assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
+  assert.ok(findings.some(f=>f.ruleId==='space-unit'&&f.suggestion==='10 mm'));
+  assert.ok(findings.some(f=>f.ruleId==='chicago-67-month-day-cardinal'&&f.suggestion==='May 9'));
   const opaqueTitles=opaqueFindings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(opaqueTitles.some(f=>f.suggestion==='The Manual for the Control System'),'large unnumbered main title');
   assert.ok(opaqueTitles.some(f=>f.suggestion==='Operating the Inlet Valve'),'opaque-font subtitle');

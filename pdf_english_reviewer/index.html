@@ -17,7 +17,7 @@
             return Promise.reject(new Error("Preview mode: upload handled client-side"));
           }
           const body = url.includes("engines/status")
-            ? JSON.stringify({ engines: [], ready: false })
+            ? JSON.stringify({ vale: false, ollama: { mode: "Preview only" }, preflight: { checks: [], full_review_ready: false, basic_viewer_ready: false, external_data_transfer: "Disabled" } })
             : "[]";
           return Promise.resolve(new Response(body, {
             status: 200,
@@ -88,6 +88,8 @@
 
     <section class="workspace hidden" id="workspace">
       <aside class="left-sidebar">
+        <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-expanded="true" aria-controls="sidebar-content" title="Collapse left panel">◀ <span>Collapse</span></button>
+        <div id="sidebar-content" class="sidebar-content">
         <div class="doc-info">
           <p class="eyebrow">CURRENT DOCUMENT</p>
           <h2 id="document-name">—</h2>
@@ -170,6 +172,7 @@
           <button class="secondary wide" data-delete-document="generated-files">Delete Generated Files</button>
           <button class="danger wide" data-delete-document="all">Delete All Document Data</button>
         </div>
+        </div>
       </aside>
 
       <section class="viewer-panel">
@@ -203,6 +206,12 @@
             <button class="secondary compact-btn" id="fit-width-btn">Fit Width</button>
             <button class="secondary compact-btn" id="fit-page-btn">Fit Page</button>
             <button class="secondary compact-btn" id="reset-zoom-btn">Reset</button>
+          </div>
+          <div class="toolbar-group pdf-search-controls" role="search" aria-label="Search PDF text">
+            <input id="pdf-search-input" type="search" placeholder="Search PDF" aria-label="Search PDF text" autocomplete="off" />
+            <button class="icon-btn" id="pdf-search-prev" type="button" aria-label="Previous PDF search result">↑</button>
+            <button class="icon-btn" id="pdf-search-next" type="button" aria-label="Next PDF search result">↓</button>
+            <span id="pdf-search-count" role="status">0 / 0</span>
           </div>
           <div class="review-status" id="review-status">Upload a PDF to begin</div>
         </div>
@@ -545,7 +554,8 @@
     </section>
   </div>
   <script src="./page_layout.js?v=1"></script>
-  <script src="./app_v3.js?v=12"></script>
-  <script src="./demo.js?v=15"></script>
+  <script src="./pdf_search.js?v=1"></script>
+  <script src="./app_v3.js?v=13"></script>
+  <script src="./demo.js?v=16"></script>
 </body>
 </html>

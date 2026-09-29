@@ -23,6 +23,7 @@
   const RULES_MIGRATION_KEY = "tw-demo-rules-migration-v5";
   const RULES_ADDITION_KEY = "tw-demo-rules-addition-v6";
   const RULES_EXPANSION_KEY = "tw-demo-rules-expansion-v7";
+  const RULES_EXPANSION_2026_KEY = "tw-demo-rules-expansion-v8";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -44,7 +45,6 @@
     { id: "typo-alot",    category: "typo", name: "alot → a lot",        pattern: "\\balot\\b",       flags: "gi", replacement: "a lot",   severity: "minor", enabled: true },
     { id: "typo-thier",   category: "typo", name: "thier → their",       pattern: "\\bthier\\b",      flags: "gi", replacement: "their",   severity: "minor", enabled: true },
     // Spacing.
-    { id: "space-unit",   category: "spacing", name: "Number-unit spacing", pattern: "\\b(\\d+(?:\\.\\d+)?)(mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "space-double", category: "spacing", name: "Double space",        pattern: "  +",             flags: "g", replacement: " ", severity: "minor", enabled: true },
   ];
 
@@ -172,8 +172,31 @@
       pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+Ghz\\b", flags: "g", replacement: "$1 GHz", severity: "minor", enabled: true },
     { id: "chicago-55-period-space", category: "punctuation", name: "Chicago 6.127 — No space before a sentence period",
       pattern: "([A-Za-z]) +\\.(?=\\s|$)", flags: "g", replacement: "$1.", severity: "minor", enabled: true },
+    // CMOS 18 guidance: abbreviations, dates, punctuation, plurals, and current spelling.
+    { id: "chicago-56-am-time", category: "numbers_abbreviations", name: "Chicago 10.46 — Lowercase a.m. after a time", pattern: "\\b(\\d{1,2}(?::\\d{2})?)\\s*A\\.?M\\.?(?=\\s|[),;.!?]|$)", flags: "g", replacement: "$1 a.m.", severity: "minor", enabled: true },
+    { id: "chicago-57-pm-time", category: "numbers_abbreviations", name: "Chicago 10.46 — Lowercase p.m. after a time", pattern: "\\b(\\d{1,2}(?::\\d{2})?)\\s*P\\.?M\\.?(?=\\s|[),;.!?]|$)", flags: "g", replacement: "$1 p.m.", severity: "minor", enabled: true },
+    { id: "chicago-58-email", category: "hyphenation_terminology", name: "Chicago — Email without a hyphen", pattern: "\\b([Ee])-mail\\b", flags: "g", replacement: "$1mail", severity: "minor", enabled: true },
+    { id: "chicago-59-esports", category: "hyphenation_terminology", name: "Chicago — Esports without a hyphen", pattern: "\\b([Ee])-sports\\b", flags: "g", replacement: "$1sports", severity: "minor", enabled: true },
+    { id: "chicago-60-eg-comma", category: "punctuation", name: "Chicago — Comma after e.g.", pattern: "\\be\\.g\\.(?!,)(?=\\s+[A-Za-z])", flags: "gi", replacement: "e.g.,", severity: "minor", enabled: true },
+    { id: "chicago-61-ie-comma", category: "punctuation", name: "Chicago — Comma after i.e.", pattern: "\\bi\\.e\\.(?!,)(?=\\s+[A-Za-z])", flags: "gi", replacement: "i.e.,", severity: "minor", enabled: true },
+    { id: "chicago-62-etc-period", category: "numbers_abbreviations", name: "Chicago — Period after etc.", pattern: "\\betc(?=\\s*[,;)]|$)", flags: "gi", replacement: "etc.", severity: "minor", enabled: true },
+    { id: "chicago-63-dc", category: "numbers_abbreviations", name: "Chicago — DC without periods", pattern: "\\bD\\.C\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "DC", severity: "minor", enabled: true },
+    { id: "chicago-64-uk", category: "numbers_abbreviations", name: "Chicago — UK without periods", pattern: "\\bU\\.K\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "UK", severity: "minor", enabled: true },
+    { id: "chicago-65-eu", category: "numbers_abbreviations", name: "Chicago — EU without periods", pattern: "\\bE\\.U\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "EU", severity: "minor", enabled: true },
+    { id: "chicago-66-un", category: "numbers_abbreviations", name: "Chicago — UN without periods", pattern: "\\bU\\.N\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "UN", severity: "minor", enabled: true },
+    { id: "chicago-67-month-day-cardinal", category: "numbers_abbreviations", name: "Chicago 9.33 — Cardinal day after a month", pattern: "\\b(January|February|March|April|May|June|July|August|September|October|November|December)\\s+(\\d{1,2})(?:st|nd|rd|th)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+    { id: "chicago-68-ellipsis-before", category: "punctuation", name: "Chicago 12.68 — Space before a mid-sentence ellipsis", pattern: "([A-Za-z])…", flags: "g", replacement: "$1 …", severity: "minor", enabled: true },
+    { id: "chicago-69-ellipsis-after", category: "punctuation", name: "Chicago 12.68 — Space after a mid-sentence ellipsis", pattern: "…([A-Za-z])", flags: "g", replacement: "… $1", severity: "minor", enabled: true },
+    { id: "chicago-70-question-space", category: "punctuation", name: "Chicago 6.129 — No space before a question mark", pattern: "([A-Za-z]) +\\?", flags: "g", replacement: "$1?", severity: "minor", enabled: true },
+    { id: "chicago-71-exclamation-space", category: "punctuation", name: "Chicago 6.129 — No space before an exclamation point", pattern: "([A-Za-z]) +!", flags: "g", replacement: "$1!", severity: "minor", enabled: true },
+    { id: "chicago-72-acronym-plural", category: "numbers_abbreviations", name: "Chicago 7.15 — No apostrophe in an acronym plural (review context)", pattern: "\\b([A-Z]{2,})['’]s\\b", flags: "g", replacement: "$1s", severity: "minor", enabled: false },
+    { id: "chicago-73-internet", category: "capitalization", name: "Chicago — Lowercase generic internet (review proper names)", pattern: "\\bInternet\\b", flags: "g", replacement: "internet", severity: "minor", enabled: false },
+    { id: "chicago-74-seasons", category: "capitalization", name: "Chicago — Lowercase generic seasons (review titles)", pattern: "\\b(Spring|Summer|Autumn|Fall|Winter)\\b", flags: "g", replacement: "(lowercase generic season)", severity: "minor", enabled: false },
+    { id: "chicago-75-titles", category: "capitalization", name: "Chicago — Lowercase generic office titles after the name (review context)", pattern: "\\b(President|Secretary|Director) of (?:the|a)\\b", flags: "g", replacement: "(lowercase office title)", severity: "minor", enabled: false },
   ];
   const TEAM_RULES = [
+    { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, captions, and callouts",
       pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table|Callout)\\s+\\w+[.:]\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
   ];
@@ -182,6 +205,7 @@
   const NEW_RULES = CHICAGO_RULES.filter((rule) => /^chicago-2[1-5]-/.test(rule.id));
   const ADDED_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:2[6-9]|3[0-5])-/.test(rule.id));
   const EXPANDED_RULES = [...CHICAGO_RULES.filter((rule) => /^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(rule.id)), ...TEAM_RULES];
+  const EXPANDED_2026_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:5[6-9]|6\d|7[0-5])-/.test(rule.id));
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -301,6 +325,22 @@
         rules.push(...EXPANDED_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_EXPANSION_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EXPANSION_2026_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...EXPANDED_2026_RULES.filter((rule) => !existingIds.has(rule.id)));
+        const defaultUnitRule = TEAM_RULES.find((rule) => rule.id === "space-unit");
+        let unitRule = rules.find((rule) => rule.id === "space-unit");
+        if (!unitRule) {
+          unitRule = { ...defaultUnitRule };
+          rules.push(unitRule);
+        }
+        if (unitRule && unitRule.name === "Number-unit spacing") {
+          unitRule.name = defaultUnitRule.name;
+          unitRule.pattern = defaultUnitRule.pattern;
+        }
+        saveRules(rules);
+        localStorage.setItem(RULES_EXPANSION_2026_KEY, "done");
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
@@ -422,9 +462,11 @@
   //
   // ─── Reviewer state ────────────────────────────────────────────────────
   //
-  const viewerState = { pdf: null, zoom: 1, viewMode: "one", currentPage: 1, filename: "", findings: [], activeFindingId: null };
+  const viewerState = { pdf: null, zoom: 1, viewMode: "one", currentPage: 1, filename: "", findings: [], activeFindingId: null,
+    textPages: new Map(), searchMatches: [], searchIndex: -1, searchRequest: 0, renderRequest: 0 };
 
   async function renderViewer(pdf, name) {
+    window.previewViewerActive = true;
     viewerState.pdf = pdf;
     viewerState.filename = name;
     viewerState.currentPage = 1;
@@ -432,6 +474,13 @@
     viewerState.viewMode = "one";
     viewerState.findings = [];
     viewerState.activeFindingId = null;
+    viewerState.textPages = new Map();
+    viewerState.searchMatches = [];
+    viewerState.searchIndex = -1;
+    viewerState.searchRequest += 1;
+    setText("pdf-search-count", "0 / 0");
+    const searchInput = document.getElementById("pdf-search-input");
+    if (searchInput) searchInput.value = "";
 
     const upload = document.getElementById("upload-panel");
     const workspace = document.getElementById("workspace");
@@ -495,6 +544,7 @@
       const pageHeight = page.view[3]; // [x0, y0, x1, y1]
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
+      viewerState.textPages.set(p, content.items);
       const bodyCandidates = content.items.filter((item) => {
         const value = (item.str || "").trim();
         return value.split(/\s+/).length >= 4
@@ -645,6 +695,7 @@
   // ─── Page rendering with highlight overlay ─────────────────────────────
   //
   async function renderCurrentPages() {
+    const request = ++viewerState.renderRequest;
     const container = document.getElementById("pdf-document");
     if (!container || !viewerState.pdf) return;
     container.innerHTML = "";
@@ -657,6 +708,7 @@
 
     for (const pageNum of pages) {
       const page = await pdf.getPage(pageNum);
+      if (request !== viewerState.renderRequest) return;
       const original = page.getViewport({ scale: 1 });
       const viewerWidth = document.getElementById("pdf-canvas-wrap")?.clientWidth || 800;
       const layout = window.a4PageLayout(original.width, original.height, viewerWidth, viewerState.zoom, viewerState.viewMode === "two");
@@ -680,7 +732,9 @@
       container.appendChild(wrap);
       await page.render({ canvasContext: canvas.getContext("2d"), viewport,
         transform: [1, 0, 0, 1, layout.offsetX, layout.offsetY] }).promise;
+      if (request !== viewerState.renderRequest) return;
       drawFindingsForPage(overlay, pageNum, viewport, layout.offsetX, layout.offsetY);
+      drawPdfSearchMark(overlay, pageNum, viewport, layout.offsetX, layout.offsetY);
     }
     setText("zoom-label", Math.round(viewerState.zoom * 100) + "%");
   }
@@ -712,6 +766,59 @@
       overlay.appendChild(mark);
     }
   }
+
+  function drawPdfSearchMark(overlay, pageNum, viewport, offsetX, offsetY) {
+    const match = viewerState.searchMatches[viewerState.searchIndex];
+    if (!match || match.page !== pageNum) return;
+    const [x, y, width, height] = match.bbox;
+    const [left, bottom] = viewport.convertToViewportPoint(x, y);
+    const [right, top] = viewport.convertToViewportPoint(x + width, y + height);
+    const mark = document.createElement("div");
+    mark.className = "pdf-search-mark";
+    mark.style.cssText = `left:${Math.min(left, right) + offsetX}px;top:${Math.min(top, bottom) + offsetY}px;width:${Math.abs(right - left)}px;height:${Math.abs(bottom - top)}px;`;
+    overlay.appendChild(mark);
+  }
+
+  async function searchPreviewPdf(query) {
+    const request = ++viewerState.searchRequest;
+    viewerState.searchMatches = [];
+    viewerState.searchIndex = -1;
+    setText("pdf-search-count", query.trim() ? "Searching…" : "0 / 0");
+    if (!query.trim() || !viewerState.pdf) { renderCurrentPages(); return; }
+    const pages = [];
+    for (let pageNumber = 1; pageNumber <= viewerState.pdf.numPages; pageNumber++) {
+      let items = viewerState.textPages.get(pageNumber);
+      if (!items) {
+        try {
+          const page = await viewerState.pdf.getPage(pageNumber);
+          items = (await page.getTextContent()).items;
+        } catch { items = []; }
+        viewerState.textPages.set(pageNumber, items);
+      }
+      if (request !== viewerState.searchRequest) return;
+      pages.push({ page: pageNumber, items: items.map((item) => ({ text: item.str, bbox: itemBbox(item) })) });
+    }
+    viewerState.searchMatches = window.findPdfTextMatches(pages, query);
+    viewerState.searchIndex = viewerState.searchMatches.length ? 0 : -1;
+    setText("pdf-search-count", viewerState.searchMatches.length ? `1 / ${viewerState.searchMatches.length}` : "0 / 0");
+    if (viewerState.searchMatches.length) {
+      await gotoPage(viewerState.searchMatches[0].page);
+      document.querySelector(".findings-overlay .pdf-search-mark")?.scrollIntoView({ block: "center", inline: "center" });
+    } else renderCurrentPages();
+  }
+
+  async function movePreviewPdfSearch(direction) {
+    if (!viewerState.searchMatches.length) return;
+    viewerState.searchIndex = (viewerState.searchIndex + direction + viewerState.searchMatches.length) % viewerState.searchMatches.length;
+    setText("pdf-search-count", `${viewerState.searchIndex + 1} / ${viewerState.searchMatches.length}`);
+    await gotoPage(viewerState.searchMatches[viewerState.searchIndex].page);
+    document.querySelector(".findings-overlay .pdf-search-mark")?.scrollIntoView({ block: "center", inline: "center" });
+  }
+
+  window.previewPdfSearch = searchPreviewPdf;
+  window.previewPdfSearchMove = movePreviewPdfSearch;
+  window.previewSetZoom = (factor) => setZoom(viewerState.zoom * factor);
+  window.previewRerender = renderCurrentPages;
 
   //
   // ─── Left sidebar cleanup ──────────────────────────────────────────────
@@ -811,7 +918,7 @@
     viewerState.currentPage = Math.max(1, Math.min(n, total));
     const input = document.getElementById("page-number-input");
     if (input) input.value = viewerState.currentPage;
-    renderCurrentPages();
+    return renderCurrentPages();
   }
   function setViewMode(mode) {
     viewerState.viewMode = mode;
