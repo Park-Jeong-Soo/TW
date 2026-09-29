@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDF English Reviewer</title>
-  <link rel="stylesheet" href="./styles.css?v=10" />
+  <link rel="stylesheet" href="./styles.css?v=11" />
   <script>
     // Preview mode: stub /api/* calls before app_v3.js runs its initial fetches.
     (function () {
@@ -43,7 +43,6 @@
       <button class="nav-btn" id="nav-workspaces">Workspaces</button>
       <button class="nav-btn" id="nav-team-standard">Team Manual Standard</button>
       <button class="nav-btn hidden" id="nav-glossary">Manual Glossary</button>
-      <button class="nav-btn" id="nav-engines">Review Engines</button>
     </nav>
     <div class="topbar-actions">
       <button class="secondary" id="open-upload-btn">Upload PDF</button>
@@ -413,27 +412,6 @@
       </div>
     </section>
 
-    <section class="engine-status-view hidden" id="engine-status-view">
-      <div class="page-shell narrow-shell">
-        <div class="page-heading">
-          <div>
-            <p class="eyebrow">LOCAL ENGINE AND SECURITY CHECK</p>
-            <h2>Review Engines</h2>
-            <p>Check local engine readiness and what each engine contributes to review results.</p>
-          </div>
-          <button class="primary" id="recheck-engines-btn">Recheck</button>
-        </div>
-        <div class="engine-overall-card" id="engine-overall-card">Checking local components…</div>
-        <div class="engine-check-grid" id="engine-check-grid"></div>
-        <div class="engine-policy-card">
-          <h3>Review policy</h3>
-          <p><strong>Custom Review:</strong> Runs only the selected external engines, Team Manual Standard, and selected external publishing standards.</p>
-          <p><strong>Review scope:</strong> Full Review uses the selected local style, standard, terminology, and Ollama context checks. Headings, labels, TOC leaders, trademark markers, and general whitespace are excluded.</p>
-          <p><strong>Context:</strong> Full Review requires Ollama Local and records metadata-only outcomes for every reviewed unit, including zero-finding results.</p>
-          <p class="hint">The Reviewer does not download or install engines. See SETUP_GUIDE.md for approved offline setup steps.</p>
-        </div>
-      </div>
-    </section>
   </main>
 
   <div class="modal-backdrop hidden" id="glossary-modal">
@@ -566,7 +544,7 @@
       </div>
     </section>
   </div>
-  <script src="./app_v3.js?v=10"></script>
-  <script src="./demo.js?v=13"></script>
+  <script src="./app_v3.js?v=11"></script>
+  <script src="./demo.js?v=14"></script>
 </body>
 </html>

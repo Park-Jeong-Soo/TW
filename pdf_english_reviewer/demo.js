@@ -495,7 +495,12 @@
       const pageHeight = page.view[3]; // [x0, y0, x1, y1]
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
-      const bodyCandidates = content.items.filter((item) => (item.str || "").trim().split(/\s+/).length >= 6);
+      const bodyCandidates = content.items.filter((item) => {
+        const value = (item.str || "").trim();
+        return value.split(/\s+/).length >= 4
+          && !/^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]/i.test(value)
+          && !/^\d+(?:\.\d+)*\s+[A-Za-z]/.test(value);
+      });
       const sizes = (bodyCandidates.length ? bodyCandidates : content.items).map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
       const bodySize = sizes[Math.floor(sizes.length / 2)] || 10;
       const figureCaptions = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
@@ -511,7 +516,7 @@
         if (yBottom < MARGIN_PT) continue;                    // in bottom footer
         if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
 
-        if (titleRule && isTitleText(item, bodySize, figureCaptions, titlePrefixes)) {
+        if (titleRule && isTitleText(item, bodySize, figureCaptions, titlePrefixes, content.items)) {
           const suggestion = titleCaseSuggestion(item.str);
           if (suggestion !== item.str) findings.push({
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
@@ -569,7 +574,21 @@
       ? titleCaseText(text)
       : titleCaseText(text.slice(0, descriptionStart + 1)) + text.slice(descriptionStart + 1);
   }
-  function isTitleText(item, bodySize, figureCaptions, titlePrefixes = []) {
+  function isProminentHeading(item, bodySize, pageItems) {
+    if (!pageItems.length) return false;
+    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
+    if (size < bodySize * 0.98) return false;
+    const y = item.transform?.[5];
+    if (!Number.isFinite(y)) return false;
+    const baselines = pageItems.filter((other) => other !== item && other.str?.trim())
+      .map((other) => other.transform?.[5]).filter(Number.isFinite);
+    const above = Math.min(...baselines.filter((baseline) => baseline > y + 2).map((baseline) => baseline - y));
+    const below = Math.min(...baselines.filter((baseline) => baseline < y - 2).map((baseline) => y - baseline));
+    const wordCount = item.str.trim().split(/\s+/).length;
+    if (size >= bodySize * 1.12) return above >= bodySize * 1.45 && below >= bodySize * 1.35;
+    return wordCount <= 7 && above >= bodySize * 1.7 && below >= bodySize * 1.7;
+  }
+  function isTitleText(item, bodySize, figureCaptions, titlePrefixes = [], pageItems = []) {
     const value = (item.str || "").trim();
     if (!value) return false;
     if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
@@ -578,12 +597,13 @@
     const x = item.transform?.[4], y = item.transform?.[5];
     const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
     const headingStyle = /bold|semibold|heavy/i.test(item.fontName || "") && size >= bodySize * 1.05;
-    const numberedHeading = /^\d+(?:\.\d+)*[.:]?\s+[A-Za-z]/.test(value) && (headingStyle || size >= bodySize * 1.3);
+    const prominentHeading = isProminentHeading(item, bodySize, pageItems);
+    const numberedHeading = /^\d+(?:\.\d+)*[.:]?\s+[A-Za-z]/.test(value) && (headingStyle || prominentHeading);
     if (titlePrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
       && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
       && x - prefix.transform?.[4] < (prefix.width || 100) + 60
-      && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str) || headingStyle))) return true;
-    if ((headingStyle || numberedHeading) && value.split(/\s+/).length >= 2 && !/[.!?;:]$/.test(value)) return true;
+      && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str) || headingStyle || prominentHeading))) return true;
+    if ((headingStyle || prominentHeading || numberedHeading) && value.length >= 3 && !/[.!?;:]$/.test(value)) return true;
     // Only marked callouts near a figure caption; nearby prose is not a callout.
     if (!/^\([A-Z]\)\s+[A-Za-z]/.test(value) || value.split(/\s+/).length > 5 || size > bodySize * 0.9) return false;
     return figureCaptions.some((caption) => {
@@ -1201,22 +1221,6 @@
       renderRuleEditor();
     });
   }
-
-  //
-  // ─── Engines tab ──────────────────────────────────────────────────────
-  //
-  window.loadEngineStatus = function () {
-    const overall = document.getElementById("engine-overall-card");
-    const grid = document.getElementById("engine-check-grid");
-    if (overall) {
-      overall.innerHTML = `
-        <div style="padding:16px 20px;text-align:center;color:#6b7280;font-size:13px;line-height:1.6;">
-          <strong>Backend required.</strong> Engine readiness (PyMuPDF, Ollama, Vale) is probed by the FastAPI backend.
-          Preview mode uses only the rule editor in <strong>Team Manual Standard</strong>.
-        </div>`;
-    }
-    if (grid) grid.innerHTML = "";
-  };
 
   //
   // ─── utils ─────────────────────────────────────────────────────────────

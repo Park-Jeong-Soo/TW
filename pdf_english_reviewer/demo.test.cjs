@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
-const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,titleCaseText,titleCaseSuggestion,isTitleText,runRulesOnPdf};})();');
+const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,titleCaseText,titleCaseSuggestion,isTitleText,isProminentHeading,runRulesOnPdf};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
   {id:'chicago-03-intro-clause'}, {id:'chicago-08-define-abbrev'},
@@ -115,6 +115,11 @@ assert.equal(context.testApi.visibleFindings().length,1);
 elements.get('issue-search').value='Team Manual Standard';
 assert.equal(context.testApi.visibleFindings().length,2);
 const appSource=require('node:fs').readFileSync('pdf_english_reviewer/app_v3.js','utf8');
+const htmlSource=fs.readFileSync('pdf_english_reviewer/index.html','utf8');
+assert.ok(!htmlSource.includes('id="nav-engines"'));
+assert.ok(!htmlSource.includes('id="engine-status-view"'));
+assert.ok(!appSource.includes('$("nav-engines").addEventListener'));
+assert.ok(appSource.includes('async function loadEngineStatus('),'review readiness checks remain available');
 const start=appSource.indexOf('function visibleIssues() {');
 const end=appSource.indexOf('\nfunction canImportIssueAsTeamCandidate',start);
 assert.ok(start>=0&&end>start);
@@ -144,7 +149,18 @@ const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async
   mockItem('Figure 4: the flow of air. the pressure remains stable.',50,165),
   mockItem('5 KHz',50,160),
 ]})})};
-context.testApi.runRulesOnPdf(pdf).then(findings=>{
+const opaqueFontPdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
+  mockItem('the manual for the control system',50,700,18,'g_d0_f1'),
+  mockItem('operating the inlet valve',50,660,12,'g_d0_f2'),
+  mockItem('The ordinary body sentence has enough words to establish size.',50,620,10,'g_d0_f3'),
+  mockItem('Another ordinary body sentence contains several more words.',50,608,10,'g_d0_f3'),
+  mockItem('The system follows the sequence described in this section.',50,596,10,'g_d0_f3'),
+  mockItem('overview',50,550,12,'g_d0_f2'),
+  mockItem('Further body text explains the features in plain language.',50,510,10,'g_d0_f3'),
+  mockItem('a larger body sentence appears here.',50,490,12,'g_d0_f3'),
+  mockItem('More body text continues without a heading at this point.',50,478,10,'g_d0_f3'),
+]})})};
+Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf)]).then(([findings,opaqueFindings])=>{
   const titles=findings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));
   assert.ok(titles.some(f=>f.suggestion==='The Results Of the Test'));
@@ -158,5 +174,10 @@ context.testApi.runRulesOnPdf(pdf).then(findings=>{
   assert.ok(!titles.some(f=>f.text==='a larger body sentence should stay lowercase.'));
   assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
-  console.log('migration, 20 Chicago rules, title case, filters, PDF review: passed');
+  const opaqueTitles=opaqueFindings.filter(f=>f.ruleId==='team-title-case');
+  assert.ok(opaqueTitles.some(f=>f.suggestion==='The Manual for the Control System'),'large unnumbered main title');
+  assert.ok(opaqueTitles.some(f=>f.suggestion==='Operating the Inlet Valve'),'opaque-font subtitle');
+  assert.ok(opaqueTitles.some(f=>f.suggestion==='Overview'),'one-word section heading');
+  assert.ok(!opaqueTitles.some(f=>f.text==='a larger body sentence appears here.'),'enlarged body prose is ignored');
+  console.log('migration, 20 Chicago rules, headings, filters, PDF review: passed');
 }).catch(error=>{console.error(error);process.exitCode=1;});

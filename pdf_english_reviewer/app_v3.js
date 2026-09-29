@@ -1270,7 +1270,6 @@ async function loadEngineStatus(probe = false) {
     } else {
       note.textContent = "Custom Review ready — runs only the selected engines and standards.";
     }
-    renderEngineStatusPage(preflight);
     return status;
   } catch (error) {
     showToast(error.message);
@@ -1286,38 +1285,6 @@ function scheduleEngineStatusPoll() {
     await loadEngineStatus(true);
     scheduleEngineStatusPoll();
   }, 12000);
-}
-
-function engineRoleDescription(check) {
-  const key = String(check.key || check.label || "").toLowerCase();
-  if (key.includes("ollama") || key.includes("model")) return "Local AI context review for sentence-level technical wording.";
-  if (key.includes("vale")) return "Local style linting for TeamManual terminology, units, captions, warnings, and procedures.";
-  if (key.includes("storage")) return "Local storage required for PDFs, OCR, renders, exports, and saved review state.";
-  if (key.includes("cloud") || key.includes("web") || key.includes("tool")) return "Security guardrail that blocks unapproved external data transfer.";
-  if (key.includes("binding") || key.includes("host")) return "Loopback-only access so review data stays on this PC.";
-  return "Supports local review readiness and safe execution.";
-}
-
-function renderEngineStatusPage(preflight) {
-  if (!preflight) return;
-  const overall = $("engine-overall-card");
-  overall.className = `engine-overall-card ${preflight.full_review_ready ? "ready" : "blocked"}`;
-  overall.textContent = preflight.full_review_ready
-    ? `Full Review Ready · Approved model: ${preflight.requested_model}`
-    : "Full Review Blocked · Basic Viewer remains available";
-  $("engine-check-grid").innerHTML = preflight.checks
-    .filter((check) => check.key !== "languagetool")
-    .map((check) => `
-    <article class="engine-check-card">
-      <h3>
-        <span>${escapeHtml(check.label)}</span>
-        <span class="${check.ready ? "check-ready" : "check-blocked"}">${check.ready ? "READY" : check.status.toUpperCase()}</span>
-      </h3>
-      <p>${escapeHtml(check.detail)}</p>
-      <p class="engine-role"><strong>Role:</strong> ${escapeHtml(engineRoleDescription(check))}</p>
-      ${!check.ready && check.fix ? `<p class="fix"><strong>How to fix:</strong> ${escapeHtml(check.fix)}</p>` : ""}
-    </article>
-  `).join("");
 }
 
 async function loadDocument(documentId) {
@@ -1574,7 +1541,6 @@ function showView(view) {
   $("glossary-view").classList.toggle("hidden", view !== "glossary");
   $("team-standard-view").classList.toggle("hidden", view !== "team-standard");
   $("workspaces-view").classList.toggle("hidden", view !== "workspaces");
-  $("engine-status-view").classList.toggle("hidden", view !== "engines");
   $("upload-panel").classList.toggle("hidden", !reviewerVisible || Boolean(state.documentId));
   $("workspace").classList.toggle("hidden", !reviewerVisible || !state.documentId);
   document.querySelectorAll(".nav-btn").forEach((button) => button.classList.remove("active"));
@@ -1585,7 +1551,6 @@ function showView(view) {
   if (view === "glossary") loadGlossary();
   if (view === "team-standard") loadTeamStandardRules();
   if (view === "workspaces") loadWorkspaces();
-  if (view === "engines") loadEngineStatus(true);
 }
 
 
@@ -2146,19 +2111,6 @@ function attachEventHandlers() {
   $("nav-workspaces").addEventListener("click", () => showView("workspaces"));
   $("nav-team-standard").addEventListener("click", () => showView("team-standard"));
   $("nav-glossary").addEventListener("click", () => showView("glossary"));
-  $("nav-engines").addEventListener("click", () => showView("engines"));
-  $("recheck-engines-btn").addEventListener("click", async () => {
-    const button = $("recheck-engines-btn");
-    button.disabled = true;
-    button.textContent = "Checking…";
-    try {
-      await loadEngineStatus(true);
-      showToast("Local engine and security status refreshed.");
-    } finally {
-      button.disabled = false;
-      button.textContent = "Recheck";
-    }
-  });
   $("manage-glossary-btn").addEventListener("click", async () => {
     if (!FEATURES.manualGlossaryUi) return;
     showView("glossary");

@@ -209,24 +209,11 @@ button { border: 1px solid transparent; border-radius: 8px; padding: 10px 13px; 
 .empty-issues { padding: 36px 15px; color: var(--muted); text-align: center; font-size: 12px; line-height: 1.6; }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 20; max-width: 320px; padding: 12px 14px; border-radius: 9px; background: #1d2c39; color: white; box-shadow: var(--shadow); font-size: 12px; }
 
-.glossary-view, .team-standard-view, .workspaces-view, .engine-status-view { min-height: calc(100vh - 76px); padding: 36px; }
+.glossary-view, .team-standard-view, .workspaces-view { min-height: calc(100vh - 76px); padding: 36px; }
 .review-mode-note { padding: 8px; border-radius: 7px; background: #f4f6f8; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .review-mode-note.full { background: var(--green-soft); color: var(--green); }
 .review-mode-note.basic { background: var(--amber-soft); color: #704b08; }
 .part-review-note { padding: 8px; border: 1px solid #c9d8e8; border-radius: 7px; background: #f5f9fe; color: #536b83; font-size: 9px; line-height: 1.45; }
-.engine-overall-card { margin-bottom: 16px; padding: 17px 20px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--navy); font-weight: 800; box-shadow: var(--shadow); }
-.engine-overall-card.ready { border-color: #9fd2b5; background: var(--green-soft); color: var(--green); }
-.engine-overall-card.blocked { border-color: #e4c777; background: var(--amber-soft); color: #704b08; }
-.engine-check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.engine-check-card { padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: white; }
-.engine-check-card h3 { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
-.engine-check-card p { margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
-.engine-check-card .check-ready { color: var(--green); }
-.engine-check-card .check-blocked { color: var(--red); }
-.engine-check-card .fix { color: #704b08; }
-.engine-policy-card { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: white; }
-.engine-policy-card h3 { margin-bottom: 10px; font-size: 15px; }
-.engine-policy-card p { margin-top: 7px; color: #536171; font-size: 12px; line-height: 1.55; }
 .subtab-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
 .engine-info-grid, .summary-grid, .settings-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 12px 0 18px; }
 .engine-info-card, .metric-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: var(--shadow); }
@@ -242,7 +229,6 @@ button { border: 1px solid transparent; border-radius: 8px; padding: 10px 13px; 
 .dense-table td, .dense-table th { vertical-align: top; }
 .pagination-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 10px 0; }
 .import-preview { min-height: 120px; max-height: 280px; overflow: auto; white-space: pre-wrap; background: #17212c; color: #e7edf5; border-radius: 8px; padding: 12px; font-size: 11px; }
-@media (max-width: 850px) { .engine-check-grid { grid-template-columns: 1fr; } }
 .page-shell { width: min(1480px, 100%); margin: 0 auto; }
 .narrow-shell { width: min(1040px, 100%); }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
