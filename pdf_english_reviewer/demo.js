@@ -23,7 +23,6 @@
   const RULES_MIGRATION_KEY = "tw-demo-rules-migration-v5";
   const RULES_ADDITION_KEY = "tw-demo-rules-addition-v6";
   const RULES_EXPANSION_KEY = "tw-demo-rules-expansion-v7";
-  const RULES_TEAM_UPDATE_KEY = "tw-demo-rules-team-update-v8";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -45,6 +44,7 @@
     { id: "typo-alot",    category: "typo", name: "alot → a lot",        pattern: "\\balot\\b",       flags: "gi", replacement: "a lot",   severity: "minor", enabled: true },
     { id: "typo-thier",   category: "typo", name: "thier → their",       pattern: "\\bthier\\b",      flags: "gi", replacement: "their",   severity: "minor", enabled: true },
     // Spacing.
+    { id: "space-unit",   category: "spacing", name: "Number-unit spacing", pattern: "\\b(\\d+(?:\\.\\d+)?)(mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "space-double", category: "spacing", name: "Double space",        pattern: "  +",             flags: "g", replacement: " ", severity: "minor", enabled: true },
   ];
 
@@ -176,8 +176,6 @@
   const TEAM_RULES = [
     { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, captions, and callouts",
       pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table|Callout)\\s+\\w+[.:]\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
-    { id: "team-unit-spacing", category: "spacing", name: "Team Manual Standard — Space between a number and its unit",
-      pattern: "(?<![\\w.])(-?\\d+(?:\\.\\d+)?)(mm|cm|km|kg|mg|nm|μm|µm|um|ms|μs|µs|us|ns|kHz|MHz|GHz|MPa|kPa|Pa|kW|mA|mV|dB|rpm|°C|°F|m|g|V|A|W|s)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...TEAM_RULES];
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
@@ -303,18 +301,6 @@
         rules.push(...EXPANDED_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_EXPANSION_KEY, "done");
-      }
-      if (localStorage.getItem(RULES_TEAM_UPDATE_KEY) !== "done") {
-        const title = rules.find((rule) => rule.id === "team-title-case");
-        if (title) Object.assign(title, {
-          name: TEAM_RULES[0].name, pattern: TEAM_RULES[0].pattern,
-          replacement: TEAM_RULES[0].replacement,
-        });
-        const legacyUnit = rules.find((rule) => rule.id === "space-unit");
-        if (legacyUnit) legacyUnit.enabled = false; // Keep the stored row, avoid duplicate findings.
-        if (!rules.some((rule) => rule.id === "team-unit-spacing")) rules.push(TEAM_RULES[1]);
-        saveRules(rules);
-        localStorage.setItem(RULES_TEAM_UPDATE_KEY, "done");
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
@@ -528,12 +514,9 @@
         const yBottom = bbox[1];
         const yTop = bbox[1] + bbox[3];
         if (yBottom < MARGIN_PT) continue;                    // in bottom footer
-        const inTopMargin = yTop > pageHeight - MARGIN_PT;
-        const fontSize = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
-        // Large headings may sit in the top margin; ordinary running headers stay excluded.
+        if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
 
-        if (titleRule && (!inTopMargin || fontSize >= bodySize * 1.12)
-          && isTitleText(item, bodySize, figureCaptions, titlePrefixes, content.items)) {
+        if (titleRule && isTitleText(item, bodySize, figureCaptions, titlePrefixes, content.items)) {
           const suggestion = titleCaseSuggestion(item.str);
           if (suggestion !== item.str) findings.push({
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
@@ -541,8 +524,6 @@
             text: item.str, context: item.str, suggestion, bbox, status: "pending",
           });
         }
-
-        if (inTopMargin) continue;
 
         for (const { rule, re } of compiled) {
           re.lastIndex = 0;
@@ -567,33 +548,6 @@
           }
         }
       }
-    const unitRule = rules.find((rule) => rule.id === "team-unit-spacing");
-    if (unitRule) {
-      const unitPattern = new RegExp(unitRule.pattern, unitRule.flags || "g");
-      for (let i = 0; i < content.items.length - 1; i++) {
-        const left = content.items[i], right = content.items[i + 1];
-        if (!/\d$/.test(left.str || "") || !/^\S/.test(right.str || "")) continue;
-        const leftBox = itemBbox(left), rightBox = itemBbox(right);
-        const gap = rightBox[0] - (leftBox[0] + leftBox[2]);
-        if (Math.abs(left.transform?.[5] - right.transform?.[5]) > 2 || gap < -2 || gap > bodySize * 0.15) continue;
-        if (leftBox[1] < MARGIN_PT || rightBox[1] < MARGIN_PT
-          || leftBox[1] + leftBox[3] > pageHeight - MARGIN_PT
-          || rightBox[1] + rightBox[3] > pageHeight - MARGIN_PT) continue;
-        unitPattern.lastIndex = 0;
-        const match = unitPattern.exec(left.str + right.str);
-        if (!match || match.index >= left.str.length || match.index + match[0].length <= left.str.length) continue;
-        findings.push({
-          id: newId(), page: p, ruleId: unitRule.id, ruleName: unitRule.name,
-          category: unitRule.category, severity: unitRule.severity,
-          text: match[0], context: left.str + right.str,
-          suggestion: applyReplacement(unitRule.replacement, match),
-          bbox: [leftBox[0], Math.min(leftBox[1], rightBox[1]),
-            rightBox[0] + rightBox[2] - leftBox[0],
-            Math.max(leftBox[1] + leftBox[3], rightBox[1] + rightBox[3]) - Math.min(leftBox[1], rightBox[1])],
-          status: "pending",
-        });
-      }
-    }
     }
     return findings;
   }
@@ -631,9 +585,8 @@
     const above = Math.min(...baselines.filter((baseline) => baseline > y + 2).map((baseline) => baseline - y));
     const below = Math.min(...baselines.filter((baseline) => baseline < y - 2).map((baseline) => y - baseline));
     const wordCount = item.str.trim().split(/\s+/).length;
-    if (size >= bodySize * 1.35) return above >= bodySize * 1.2 || below >= bodySize * 1.2;
-    if (size >= bodySize * 1.1) return above >= bodySize * 1.3 && below >= bodySize * 1.15;
-    return wordCount <= 7 && above >= bodySize * 1.5 && below >= bodySize * 1.5;
+    if (size >= bodySize * 1.12) return above >= bodySize * 1.45 && below >= bodySize * 1.35;
+    return wordCount <= 7 && above >= bodySize * 1.7 && below >= bodySize * 1.7;
   }
   function isTitleText(item, bodySize, figureCaptions, titlePrefixes = [], pageItems = []) {
     const value = (item.str || "").trim();
@@ -645,7 +598,7 @@
     const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
     const headingStyle = /bold|semibold|heavy/i.test(item.fontName || "") && size >= bodySize * 1.05;
     const prominentHeading = isProminentHeading(item, bodySize, pageItems);
-    const numberedHeading = /^\d+(?:\.\d+)+[.:]?\s+[A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)+/.test(value);
+    const numberedHeading = /^\d+(?:\.\d+)*[.:]?\s+[A-Za-z]/.test(value) && (headingStyle || prominentHeading);
     if (titlePrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
       && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
       && x - prefix.transform?.[4] < (prefix.width || 100) + 60

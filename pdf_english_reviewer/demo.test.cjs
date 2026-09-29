@@ -14,17 +14,16 @@ const context = {console, crypto:{randomUUID:()=>String(Math.random())}, window:
   localStorage:{getItem(k){return data.get(k)||null},setItem(k,v){data.set(k,v)},removeItem(k){data.delete(k)}}};
 vm.runInNewContext(code,context);
 const rules=context.testApi.getRules();
-assert.equal(rules.length,38);
+assert.equal(rules.length,37);
 assert.equal(rules.filter(r=>/^chicago-2[1-5]-/.test(r.id)).length,5);
 assert.equal(rules.filter(r=>/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id)).length,10);
 assert.equal(rules.filter(r=>/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)).length,20);
 assert.equal(rules.filter(r=>r.id==='team-title-case').length,1);
-assert.equal(rules.filter(r=>r.id==='team-unit-spacing').length,1);
 assert.equal(new Set(rules.map(r=>r.id)).size,rules.length);
 for(const removed of ['chicago-03-intro-clause','chicago-08-define-abbrev','chicago-14-consistent-compound']) assert.ok(!rules.some(r=>r.id===removed));
 assert.ok(!rules.some(r=>/^Chicago (?:6\.26|7\.89|10\.3)\b/.test(r.name)));
 assert.equal(rules.find(r=>r.id==='custom').enabled,false);
-assert.equal(context.testApi.getRules().length,38);
+assert.equal(context.testApi.getRules().length,37);
 for(const [id,input,expected] of [
   ['chicago-21-colon-space','Note:Check','Note: Check'],
   ['chicago-22-em-dash-space','one — two','one—two'],
@@ -74,23 +73,12 @@ const website=rules.find(r=>r.id==='chicago-32-website');
 assert.equal('Web site'.replace(new RegExp(website.pattern,website.flags),website.replacement),'Website');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id))));
 data.delete('tw-demo-rules-addition-v6');
-assert.equal(context.testApi.getRules().length,38,'v6 adds rules to an existing v5 rule set');
-assert.equal(context.testApi.getRules().length,38,'v7 addition runs only once');
+assert.equal(context.testApi.getRules().length,37,'v6 adds rules to an existing v5 rule set');
+assert.equal(context.testApi.getRules().length,37,'v7 addition runs only once');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)&&r.id!=='team-title-case')));
 data.delete('tw-demo-rules-expansion-v7');
-assert.equal(context.testApi.getRules().length,38,'v7 adds rules while preserving existing rules');
-assert.equal(context.testApi.getRules().length,38,'v7 migration is idempotent');
-const unitRule=rules.find(r=>r.id==='team-unit-spacing');
-for(const [input,expected] of [['5mm','5 mm'],['3.2kg','3.2 kg'],['20ms','20 ms'],['5°C','5 °C']]) assert.equal(input.replace(new RegExp(unitRule.pattern,unitRule.flags),unitRule.replacement),expected);
-for(const input of ['5 mm','20%','version 1.2','A5mm']) assert.equal(input.replace(new RegExp(unitRule.pattern,unitRule.flags),unitRule.replacement),input);
-data.set('tw-demo-rules-v4',JSON.stringify([...rules.filter(r=>r.id!=='team-unit-spacing').map(r=>r.id==='team-title-case'?{...r,name:'Title case for headings, figure labels, and figure/table captions'}:r),{id:'space-unit',enabled:true,name:'Number-unit spacing'}]));
-data.delete('tw-demo-rules-team-update-v8');
-const migrated=context.testApi.getRules();
-assert.equal(migrated.find(r=>r.id==='space-unit').enabled,false);
-assert.equal(migrated.find(r=>r.id==='team-title-case').name,'Team Manual Standard — Title Case for headings, captions, and callouts');
-assert.equal(migrated.filter(r=>r.id==='team-unit-spacing').length,1);
-assert.equal(migrated.find(r=>r.id==='custom').enabled,false);
-assert.equal(context.testApi.getRules().length,39,'team update runs once');
+assert.equal(context.testApi.getRules().length,37,'v7 adds rules while preserving existing rules');
+assert.equal(context.testApi.getRules().length,37,'v7 migration is idempotent');
 assert.equal(context.testApi.titleCaseText('Figure 2: the airflow and iPhone control'),'Figure 2: The Airflow and iPhone Control');
 assert.equal(context.testApi.titleCaseText('the air and water system'),'The Air and Water System');
 assert.equal(context.testApi.titleCaseText('Results because the sample changed as time passed'),'Results because the Sample Changed as Time Passed');
@@ -160,18 +148,13 @@ const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async
   mockItem('Callout B: inlet pressure',50,170),
   mockItem('Figure 4: the flow of air. the pressure remains stable.',50,165),
   mockItem('5 KHz',50,160),
-  {...mockItem('5',50,140),width:6}, {...mockItem('mm',56,140),width:20},
-  mockItem('5mm',50,130), mockItem('5 mm',50,120),
 ]})})};
 const opaqueFontPdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
-  mockItem('running header text',50,770,10,'g_d0_f3'),
-  mockItem('the top page title',50,744,18,'g_d0_f1'),
   mockItem('the manual for the control system',50,700,18,'g_d0_f1'),
-  mockItem('operating the inlet valve',50,645,12,'g_d0_f2'),
-  mockItem('The ordinary body sentence has enough words to establish size.',50,632,10,'g_d0_f3'),
-  mockItem('Another ordinary body sentence contains several more words.',50,620,10,'g_d0_f3'),
-  mockItem('The system follows the sequence described in this section.',50,608,10,'g_d0_f3'),
-  mockItem('2.3 the pump and valve',50,570,10,'g_d0_f3'),
+  mockItem('operating the inlet valve',50,660,12,'g_d0_f2'),
+  mockItem('The ordinary body sentence has enough words to establish size.',50,620,10,'g_d0_f3'),
+  mockItem('Another ordinary body sentence contains several more words.',50,608,10,'g_d0_f3'),
+  mockItem('The system follows the sequence described in this section.',50,596,10,'g_d0_f3'),
   mockItem('overview',50,550,12,'g_d0_f2'),
   mockItem('Further body text explains the features in plain language.',50,510,10,'g_d0_f3'),
   mockItem('a larger body sentence appears here.',50,490,12,'g_d0_f3'),
@@ -191,15 +174,10 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(!titles.some(f=>f.text==='a larger body sentence should stay lowercase.'));
   assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
-  assert.equal(findings.filter(f=>f.ruleId==='team-unit-spacing'&&f.suggestion==='5 mm').length,2,'inline and split PDF text detected once each');
-  assert.ok(!findings.some(f=>f.ruleId==='team-unit-spacing'&&f.text==='5 mm'));
   const opaqueTitles=opaqueFindings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(opaqueTitles.some(f=>f.suggestion==='The Manual for the Control System'),'large unnumbered main title');
-  assert.ok(opaqueTitles.some(f=>f.suggestion==='The Top Page Title'),'title in top margin');
-  assert.ok(!opaqueTitles.some(f=>f.text==='running header text'),'running header stays excluded');
   assert.ok(opaqueTitles.some(f=>f.suggestion==='Operating the Inlet Valve'),'opaque-font subtitle');
   assert.ok(opaqueTitles.some(f=>f.suggestion==='Overview'),'one-word section heading');
-  assert.ok(opaqueTitles.some(f=>f.suggestion==='2.3 The Pump and Valve'),'numbered heading without distinctive font');
   assert.ok(!opaqueTitles.some(f=>f.text==='a larger body sentence appears here.'),'enlarged body prose is ignored');
-  console.log('migration, headings, unit spacing, filters, PDF review: passed');
+  console.log('migration, 20 Chicago rules, headings, filters, PDF review: passed');
 }).catch(error=>{console.error(error);process.exitCode=1;});
