@@ -113,8 +113,9 @@ assert.ok(migrated.find(r=>r.id==='space-unit').name.startsWith('Team Manual Sta
 assert.equal(context.testApi.getRules().length,58,'v8 migration is idempotent');
 assert.equal(context.testApi.titleCaseText('Figure 2: the airflow and iPhone control'),'Figure 2: The Airflow and iPhone Control');
 assert.equal(context.testApi.titleCaseText('the air and water system'),'The Air and Water System');
+assert.equal(context.testApi.titleCaseText('the flow of air in and on the device with or inside the chamber before shutdown'),'The Flow of Air in and on the Device with or inside the Chamber before Shutdown');
 assert.equal(context.testApi.titleCaseText('Results because the sample changed as time passed'),'Results because the Sample Changed as Time Passed');
-assert.equal(context.testApi.titleCaseSuggestion('Figure 4: the flow of air. the pressure remains stable.'),'Figure 4: The Flow Of Air. the pressure remains stable.');
+assert.equal(context.testApi.titleCaseSuggestion('Figure 4: the flow of air. the pressure remains stable.'),'Figure 4: The Flow of Air. the pressure remains stable.');
 const mockItem=(str,x,y,size=10,fontName='BodyRegular')=>({str,transform:[size,0,0,size,x,y],width:150,height:size,fontName});
 const caption=mockItem('Figure 2: the air and water system',50,200);
 assert.equal(context.testApi.isTitleText(caption,10,[caption]),true);
@@ -122,6 +123,7 @@ assert.equal(context.testApi.isTitleText(mockItem('(A) air flow direction',80,25
 assert.equal(context.testApi.isTitleText(mockItem('(A) this list item is prose',80,250,10),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the method was tested.',80,250),10,[caption]),false);
+assert.equal(context.testApi.isTitleText(mockItem('the body line without a period',80,250,10.5,'HeadingBold'),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the method was tested. further work continues',80,250,14,'HeadingBold'),10,[caption]),false);
 const prosePart=mockItem('the method was tested',80,230,14,'HeadingBold');
 assert.equal(context.testApi.isTitleText(prosePart,10,[caption],[],[prosePart,mockItem('. further work continues',230,230)]),false);
@@ -197,6 +199,7 @@ const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async
   mockItem('the results of the test',50,400,14,'HeadingBold'),
   mockItem('the method was tested. further work continues',50,375,14,'HeadingBold'),
   mockItem('a larger body sentence should stay lowercase.',50,350,14),
+  mockItem('the flow of air inside the device',50,320,10.5,'HeadingBold'),
   mockItem('nearby prose remains lowercase',80,270,8),
   mockItem('(A) air flow direction',80,250,8),caption,
   mockItem('Figure 3:',50,190),mockItem('the split caption and its details',110,190),
@@ -222,15 +225,16 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(engineElements.get('engine-status-list').innerHTML.includes('Unavailable'));
   const titles=findings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));
-  assert.ok(titles.some(f=>f.suggestion==='The Results Of the Test'));
+  assert.ok(titles.some(f=>f.suggestion==='The Results of the Test'));
   assert.ok(titles.some(f=>f.suggestion==='(A) Air Flow Direction'));
   assert.ok(titles.some(f=>f.suggestion==='Figure 2: The Air and Water System'));
   assert.ok(titles.some(f=>f.suggestion==='The Split Caption and Its Details'));
   assert.ok(titles.some(f=>f.suggestion==='Table 1: The Output and the Input'));
   assert.ok(titles.some(f=>f.suggestion==='Callout B: Inlet Pressure'));
-  assert.ok(titles.some(f=>f.suggestion==='Figure 4: The Flow Of Air. the pressure remains stable.'));
+  assert.ok(titles.some(f=>f.suggestion==='Figure 4: The Flow of Air. the pressure remains stable.'));
   assert.ok(!titles.some(f=>f.text==='ordinary prose remains lowercase.'));
   assert.ok(!titles.some(f=>f.text==='a larger body sentence should stay lowercase.'));
+  assert.ok(!titles.some(f=>f.text==='the flow of air inside the device'));
   assert.ok(!titles.some(f=>f.text==='the method was tested. further work continues'));
   assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));

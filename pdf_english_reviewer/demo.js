@@ -59,7 +59,8 @@
     numbers_abbreviations: "#f43f5e", hyphenation_terminology: "#eab308",
   };
 
-  // Representative Chicago Manual of Style rules (pilot).
+  // Hand-curated Chicago Manual of Style rules (pilot). These are local defaults,
+  // not downloaded from Chicago or pinned to a single manual edition.
   // Regex-implementable rules are enabled by default; NLP/parser/context-only
   // rules are added as disabled with a placeholder pattern so users see them
   // in the editor and can enable or refine.
@@ -547,12 +548,13 @@
       viewerState.textPages.set(p, content.items);
       const bodyCandidates = content.items.filter((item) => {
         const value = (item.str || "").trim();
-        return value.split(/\s+/).length >= 4
+        const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
+        return (value.split(/\s+/).length >= 4 || isBodyFontSize(size))
           && !/^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]/i.test(value)
           && !/^\d+(?:\.\d+)*\s+[A-Za-z]/.test(value);
       });
       const sizes = (bodyCandidates.length ? bodyCandidates : content.items).map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
-      const bodySize = sizes[Math.floor(sizes.length / 2)] || 10;
+      const bodySize = sizes.some(isBodyFontSize) ? 10.5 : (sizes[Math.floor(sizes.length / 2)] || 10);
       const figureCaptions = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
       const titlePrefixes = content.items.filter((item) => /^(?:(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]|\d+(?:\.\d+)*[.:]?)$/i.test((item.str || "").trim()));
       for (const item of content.items) {
@@ -602,7 +604,21 @@
     return findings;
   }
 
-  const TITLE_SMALL_WORDS = new Set(["a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet", "as", "if", "because", "although", "though", "while", "when", "whereas", "unless", "until", "since", "once", "whether", "than", "that"]);
+  // Team style: keep articles, conjunctions, and prepositions lowercase within titles.
+  const TITLE_SMALL_WORDS = new Set([
+    "a", "an", "the",
+    "and", "but", "or", "nor", "for", "so", "yet", "although", "as", "because",
+    "before", "either", "if", "neither", "once", "provided", "since", "than", "that",
+    "though", "till", "unless", "until", "when", "whenever", "where", "whereas",
+    "wherever", "whether", "while",
+    "about", "above", "across", "after", "against", "along", "amid", "among", "around",
+    "at", "behind", "below", "beneath", "beside", "besides", "between", "beyond", "by",
+    "concerning", "despite", "down", "during", "except", "from", "in", "inside", "into",
+    "like", "near", "of", "off", "on", "onto", "out", "outside", "over", "past", "per",
+    "regarding", "round", "through", "throughout", "to", "toward", "towards", "under",
+    "underneath", "unlike", "unto", "up", "upon", "via", "with", "within", "without",
+  ]);
+  function isBodyFontSize(size) { return Math.abs(size - 10.5) <= 0.15; }
   function titleCaseText(text) {
     let wordIndex = 0;
     const captionPrefixLength = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text)?.[0].length || 0;
@@ -661,7 +677,9 @@
     if (titlePrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
       && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
       && x - prefix.transform?.[4] < (prefix.width || 100) + 60
-      && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str) || headingStyle || prominentHeading))) return true;
+      && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str)
+        || (!isBodyFontSize(size) && (headingStyle || prominentHeading))))) return true;
+    if (isBodyFontSize(size)) return false;
     if ((headingStyle || prominentHeading || numberedHeading) && value.length >= 3 && !/[.!?;:]$/.test(value)) return true;
     // Only marked callouts near a figure caption; nearby prose is not a callout.
     if (!/^\([A-Z]\)\s+[A-Za-z]/.test(value) || value.split(/\s+/).length > 5 || size > bodySize * 0.9) return false;
