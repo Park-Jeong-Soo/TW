@@ -593,6 +593,15 @@
     if (!value) return false;
     if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
     if (/^Callout\s+\w+[.:]\s+\S/i.test(value)) return true;
+    // PDF extraction can split one line into several items. Ignore section-number periods.
+    const baseline = item.transform?.[5];
+    const line = pageItems.length && Number.isFinite(baseline)
+      ? pageItems.filter((part) => part.str?.trim() && Math.abs((part.transform?.[5] ?? NaN) - baseline) < 2)
+        .sort((a, b) => (a.transform?.[4] ?? 0) - (b.transform?.[4] ?? 0))
+        .map((part) => part.str.trim()).join(" ")
+      : value;
+    const isCaptionLine = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+\S/i.test(line);
+    if (!isCaptionLine && line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return false;
     if (value.split(/\s+/).length > 12) return false;
     const x = item.transform?.[4], y = item.transform?.[5];
     const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
@@ -639,6 +648,7 @@
     const container = document.getElementById("pdf-document");
     if (!container || !viewerState.pdf) return;
     container.innerHTML = "";
+    container.className = `pdf-document ${viewerState.viewMode === "two" ? "two-page" : "one-page"}`;
     const pdf = viewerState.pdf;
     const total = pdf.numPages;
     const pages = viewerState.viewMode === "two"
@@ -647,31 +657,35 @@
 
     for (const pageNum of pages) {
       const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.3 * viewerState.zoom });
+      const original = page.getViewport({ scale: 1 });
+      const viewerWidth = document.getElementById("pdf-canvas-wrap")?.clientWidth || 800;
+      const layout = window.a4PageLayout(original.width, original.height, viewerWidth, viewerState.zoom, viewerState.viewMode === "two");
+      const viewport = page.getViewport({ scale: layout.contentScale });
       const wrap = document.createElement("div");
       wrap.className = "pdf-page-wrap";
       wrap.dataset.page = pageNum;
-      wrap.style.cssText = "display:inline-block;margin:12px auto;position:relative;";
+      wrap.style.cssText = `display:inline-block;position:relative;width:${layout.paperWidth}px;`;
       const canvas = document.createElement("canvas");
-      canvas.width = viewport.width; canvas.height = viewport.height;
-      canvas.style.display = "block"; canvas.style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)"; canvas.style.background = "#fff";
+      canvas.width = Math.ceil(layout.paperWidth); canvas.height = Math.ceil(layout.paperHeight);
+      canvas.style.cssText = `display:block;width:${layout.paperWidth}px;height:${layout.paperHeight}px;box-shadow:0 2px 12px rgba(0,0,0,0.08);background:#fff;`;
       wrap.appendChild(canvas);
       const overlay = document.createElement("div");
       overlay.className = "findings-overlay";
-      overlay.style.cssText = `position:absolute;left:0;top:0;width:${viewport.width}px;height:${viewport.height}px;pointer-events:none;`;
+      overlay.style.cssText = `position:absolute;left:0;top:0;width:${layout.paperWidth}px;height:${layout.paperHeight}px;pointer-events:none;`;
       wrap.appendChild(overlay);
       const label = document.createElement("div");
       label.textContent = `Page ${pageNum} / ${total}`;
       label.style.cssText = "font-size:11px;color:#6b7280;margin-top:6px;text-align:center;";
       wrap.appendChild(label);
       container.appendChild(wrap);
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      drawFindingsForPage(overlay, pageNum, viewport);
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport,
+        transform: [1, 0, 0, 1, layout.offsetX, layout.offsetY] }).promise;
+      drawFindingsForPage(overlay, pageNum, viewport, layout.offsetX, layout.offsetY);
     }
     setText("zoom-label", Math.round(viewerState.zoom * 100) + "%");
   }
 
-  function drawFindingsForPage(overlay, pageNum, viewport) {
+  function drawFindingsForPage(overlay, pageNum, viewport, offsetX = 0, offsetY = 0) {
     overlay.innerHTML = "";
     const activeCat = getFilterValue("category-filter");
     const findings = viewerState.findings.filter((f) => f.page === pageNum);
@@ -682,7 +696,7 @@
       const [px, py, pw, ph] = f.bbox;
       const [vx1, vy1] = viewport.convertToViewportPoint(px, py + ph);
       const [vx2, vy2] = viewport.convertToViewportPoint(px + pw, py);
-      const x = Math.min(vx1, vx2), y = Math.min(vy1, vy2);
+      const x = Math.min(vx1, vx2) + offsetX, y = Math.min(vy1, vy2) + offsetY;
       const w = Math.abs(vx2 - vx1), h = Math.abs(vy2 - vy1);
       const isActive = f.id === viewerState.activeFindingId;
       const isAccepted = f.status === "accepted";

@@ -354,7 +354,9 @@ function updatePageIndicator() {
 }
 
 function pageBaseWidth() {
-  return state.viewMode === "two" ? 430 : 760;
+  const page = state.document?.pages?.[state.currentPage - 1] || { width: 595.28, height: 841.89 };
+  return window.a4PageLayout(Number(page.width), Number(page.height), $("pdf-canvas-wrap")?.clientWidth || 800,
+    1, state.viewMode === "two").paperWidth;
 }
 
 function captureLocation() {
@@ -387,17 +389,19 @@ function renderDocumentPages(preserveLocation = true) {
     return;
   }
   const previous = preserveLocation ? captureLocation() : null;
-  const baseWidth = pageBaseWidth() * state.zoom;
+  const viewerWidth = $("pdf-canvas-wrap").clientWidth || 800;
   target.className = `pdf-document ${state.viewMode === "two" ? "two-page" : "one-page"} ${state.textSelectionMode ? "text-selection-mode" : ""}`;
   target.innerHTML = state.document.pages.map((page) => {
-    const pageWidth = Math.round(baseWidth);
-    const pageHeight = Math.round(pageWidth * (Number(page.height) / Number(page.width)));
+    const layout = window.a4PageLayout(Number(page.width), Number(page.height), viewerWidth,
+      state.zoom, state.viewMode === "two");
     return `
-      <article class="pdf-page-shell" data-page="${page.page}" style="width:${pageWidth}px;height:${pageHeight}px">
+      <article class="pdf-page-shell" data-page="${page.page}" style="width:${layout.paperWidth}px;height:${layout.paperHeight}px">
         <div class="page-placeholder">Page ${page.page}</div>
-        <img alt="PDF page ${page.page}" />
-        <div class="page-text-layer"></div>
-        <div class="page-highlight-layer"></div>
+        <div class="pdf-page-content" style="left:${layout.offsetX}px;top:${layout.offsetY}px;width:${layout.contentWidth}px;height:${layout.contentHeight}px">
+          <img alt="PDF page ${page.page}" />
+          <div class="page-text-layer"></div>
+          <div class="page-highlight-layer"></div>
+        </div>
         <span class="page-number-badge">${page.page}</span>
       </article>
     `;
@@ -465,8 +469,7 @@ async function loadPageTextLayer(pageNumber) {
   try {
     const result = await api(`/api/documents/${state.documentId}/page/${pageNumber}/text-layer`);
     if (!pageElement.isConnected) return;
-    const displayWidth = pageElement.clientWidth;
-    const displayHeight = pageElement.clientHeight;
+    const displayHeight = layer.clientHeight;
     layer.innerHTML = result.words.map((word) => {
       const left = word.x0 / result.width * 100;
       const top = word.y0 / result.height * 100;
@@ -578,7 +581,8 @@ function fitPage() {
   const availableWidth = $("pdf-canvas-wrap").clientWidth - 72;
   const availableHeight = $("pdf-canvas-wrap").clientHeight - 60;
   const baseWidth = pageBaseWidth();
-  const baseHeight = baseWidth * (page.height / page.width);
+  const baseHeight = window.a4PageLayout(Number(page.width), Number(page.height),
+    $("pdf-canvas-wrap").clientWidth || 800, 1, state.viewMode === "two").paperHeight;
   setZoom(Math.min(availableWidth / baseWidth, availableHeight / baseHeight));
 }
 

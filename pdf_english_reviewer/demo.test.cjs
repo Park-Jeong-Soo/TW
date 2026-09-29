@@ -90,7 +90,11 @@ assert.equal(context.testApi.isTitleText(mockItem('(A) air flow direction',80,25
 assert.equal(context.testApi.isTitleText(mockItem('(A) this list item is prose',80,250,10),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the method was tested.',80,250),10,[caption]),false);
+assert.equal(context.testApi.isTitleText(mockItem('the method was tested. further work continues',80,250,14,'HeadingBold'),10,[caption]),false);
+const prosePart=mockItem('the method was tested',80,230,14,'HeadingBold');
+assert.equal(context.testApi.isTitleText(prosePart,10,[caption],[],[prosePart,mockItem('. further work continues',230,230)]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,700,14,'HeadingBold'),10,[]),true);
+assert.equal(context.testApi.isTitleText(mockItem('1.2 the results of the test',50,700,14,'HeadingBold'),10,[]),true);
 assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,700,12),10,[]),false);
 assert.equal(context.testApi.isTitleText(mockItem('Figure 2 shows the results',50,400),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the data show a steady increase',50,400,14),10,[caption]),false);
@@ -140,6 +144,7 @@ const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async
   mockItem('ordinary prose remains lowercase.',50,500),
   mockItem('1.2 the system and its parts',50,450,14),
   mockItem('the results of the test',50,400,14,'HeadingBold'),
+  mockItem('the method was tested. further work continues',50,375,14,'HeadingBold'),
   mockItem('a larger body sentence should stay lowercase.',50,350,14),
   mockItem('nearby prose remains lowercase',80,270,8),
   mockItem('(A) air flow direction',80,250,8),caption,
@@ -172,6 +177,7 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(titles.some(f=>f.suggestion==='Figure 4: The Flow Of Air. the pressure remains stable.'));
   assert.ok(!titles.some(f=>f.text==='ordinary prose remains lowercase.'));
   assert.ok(!titles.some(f=>f.text==='a larger body sentence should stay lowercase.'));
+  assert.ok(!titles.some(f=>f.text==='the method was tested. further work continues'));
   assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
   const opaqueTitles=opaqueFindings.filter(f=>f.ruleId==='team-title-case');
