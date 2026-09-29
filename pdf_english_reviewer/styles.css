@@ -65,7 +65,7 @@ button { border: 1px solid transparent; border-radius: 8px; padding: 10px 13px; 
 .danger:hover { background: var(--red-soft); }
 .wide { width: 100%; }
 
-.workspace { display: grid; grid-template-columns: 280px minmax(460px, 1fr) 370px; height: calc(100vh - 76px); min-height: 0; overflow: hidden; }
+.workspace { display: grid; grid-template-columns: 280px minmax(460px, 1fr) 405px; height: calc(100vh - 76px); min-height: 0; overflow: hidden; }
 .workspace > * { min-height: 0; }
 .left-sidebar, .issues-panel { overflow-y: auto; background: #fff; }
 .left-sidebar { border-right: 1px solid var(--line); padding: 20px; }
@@ -321,7 +321,7 @@ legend { padding: 0 5px; color: #374553; font-size: 11px; font-weight: 750; }
 
 @media (max-width: 1200px) {
   body { min-width: 900px; }
-  .workspace { grid-template-columns: 245px minmax(400px, 1fr) 330px; }
+  .workspace { grid-template-columns: 245px minmax(400px, 1fr) 350px; }
   .left-sidebar { padding: 14px; }
   .glossary-toolbar { grid-template-columns: repeat(3, 1fr); }
   .topbar { padding: 0 16px; }
