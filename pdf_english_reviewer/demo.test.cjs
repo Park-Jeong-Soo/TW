@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
-const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,titleCaseText,titleCaseSuggestion,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf};})();');
+const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,renderRuleRow,titleCaseText,titleCaseSuggestion,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
   {id:'chicago-03-intro-clause'}, {id:'chicago-08-define-abbrev'},
@@ -26,6 +26,7 @@ assert.equal(rules.filter(r=>r.id==='team-title-case').length,1);
 assert.equal(rules.filter(r=>r.id==='team-table-header-case').length,1);
 const titleRuleName='Team Manual Standard-Title Case for headings, figure labels, table labels, and callout';
 assert.equal(rules.find(r=>r.id==='team-title-case').name,titleRuleName);
+assert.ok(context.testApi.renderRuleRow(rules.find(r=>r.id==='team-title-case')).includes(titleRuleName));
 assert.equal(new Set(rules.map(r=>r.id)).size,rules.length);
 for(const removed of ['chicago-03-intro-clause','chicago-08-define-abbrev','chicago-14-consistent-compound']) assert.ok(!rules.some(r=>r.id===removed));
 assert.ok(!rules.some(r=>/^Chicago (?:6\.26|7\.89|10\.3)\b/.test(r.name)));
@@ -126,16 +127,20 @@ const migrated=context.testApi.getRules();
 assert.equal(migrated.length,80,'v8 adds exactly 20 rules');
 assert.ok(migrated.find(r=>r.id==='space-unit').name.startsWith('Team Manual Standard'));
 assert.equal(context.testApi.getRules().length,80,'v8 migration is idempotent');
-data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>r.id!=='team-table-header-case').map(r=>r.id==='team-title-case'?{...r,name:'Team Manual Standard — Title Case for headings, captions, and callouts'}:r)));
+data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>r.id!=='team-table-header-case').map(r=>r.id==='team-title-case'?{...r,name:'obsolete heading rule'}:r)));
 data.delete('tw-demo-rules-table-header-v9');
 const tableMigrated=context.testApi.getRules();
 assert.equal(tableMigrated.length,80,'table-header rule is added once to saved rules');
 assert.equal(tableMigrated.find(r=>r.id==='team-title-case').name,titleRuleName);
 assert.equal(context.testApi.getRules().length,80,'table-header migration is idempotent');
-data.set('tw-demo-rules-v4',JSON.stringify(rules.map(r=>r.id==='team-title-case'?{...r,name:'Team Manual Standard — Title Case for headings, figure/table titles, and callouts'}:r)));
-data.delete('tw-demo-rules-title-label-v11');
-assert.equal(context.testApi.getRules().find(r=>r.id==='team-title-case').name,titleRuleName,'saved default name is upgraded');
-assert.equal(context.testApi.getRules().find(r=>r.id==='team-title-case').name,titleRuleName,'name migration is idempotent');
+data.set('tw-demo-rules-v4',JSON.stringify(rules.map(r=>r.id==='team-title-case'?{...r,name:'obsolete heading rule',enabled:false}:r)));
+data.set('tw-demo-rules-title-label-v11','done');
+const renamedRule=context.testApi.getRules().find(r=>r.id==='team-title-case');
+assert.equal(renamedRule.name,titleRuleName,'saved rule name is repaired even when older migrations are complete');
+assert.equal(renamedRule.enabled,false,'saved enabled state is preserved');
+assert.equal(JSON.parse(data.get('tw-demo-rules-v4')).find(r=>r.id==='team-title-case').name,titleRuleName,'renamed rule is persisted');
+assert.ok(context.testApi.renderRuleRow(renamedRule).includes(titleRuleName),'rule editor displays repaired name');
+assert.equal(context.testApi.getRules().find(r=>r.id==='team-title-case').name,titleRuleName,'name repair is idempotent');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:7[6-9]|8[0-7])-/.test(r.id))));
 data.delete('tw-demo-rules-cmos17-v9');
 assert.equal(context.testApi.getRules().length,80,'first demo_v3 rule batch migrates once');
@@ -156,6 +161,9 @@ for(const size of [10,10.5]) {
     assert.equal(context.testApi.isTitleText(mockItem(label,50,200,size,'HeadingBold'),10,[caption]),false,`${size} pt ${label}`);
   }
 }
+const scaledBodyLabel=mockItem('Figure 6: scaled body label',50,200,14,'HeadingBold');
+scaledBodyLabel.height=10.5;
+assert.equal(context.testApi.isTitleText(scaledBodyLabel,10,[caption]),false,'PDF-reported 10.5 pt height is excluded');
 assert.equal(context.testApi.isTitleText(mockItem('(A) air flow direction',80,250,8),10,[caption]),true);
 assert.equal(context.testApi.isTitleText(mockItem('(A) this list item is prose',80,250,10),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),false);
@@ -261,9 +269,9 @@ const opaqueFontPdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextCon
   mockItem('a larger body sentence appears here.',50,490,12,'g_d0_f3'),
   mockItem('More body text continues without a heading at this point.',50,478,10,'g_d0_f3'),
 ]})})};
-const tableTitle=mockItem('Table 2: operating parameters',50,700,10.5);
-const tableHeaderA=mockItem('operating point',50,665,10.5,'HeaderBold');
-const tableHeaderB=mockItem('supply voltage',280,665,10.5,'HeaderBold');
+const tableTitle=mockItem('Table 2: operating parameters',50,700,12);
+const tableHeaderA=mockItem('operating point',50,665,12,'HeaderBold');
+const tableHeaderB=mockItem('supply voltage',280,665,12,'HeaderBold');
 const tableBodyA=mockItem('nominal value',50,640,12,'BodyBold');
 const tableBodyB=mockItem('measured voltage',280,640,12,'BodyBold');
 const tableItems=[tableTitle,tableHeaderA,tableHeaderB,tableBodyA,tableBodyB,
@@ -274,7 +282,14 @@ assert.ok(tableRows.headerItems.has(tableHeaderA)&&tableRows.headerItems.has(tab
 assert.ok(tableRows.tableItems.has(tableBodyA)&&tableRows.tableItems.has(tableBodyB));
 assert.equal(context.testApi.isTitleText(tableBodyA,10.5,[],[],tableItems,tableRows.tableItems),false);
 const tablePdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:tableItems})})};
-Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf),context.testApi.runRulesOnPdf(tablePdf),engineStatusPromise]).then(([findings,opaqueFindings,tableFindings])=>{
+const smallTablePdf=(size)=>({numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
+  mockItem('Table 3: compact parameters',50,700,size),
+  mockItem('measured point',50,665,size,'HeaderBold'),
+  mockItem('supply current',280,665,size,'HeaderBold'),
+  mockItem('test value',50,640,size,'BodyBold'),
+  mockItem('read value',280,640,size,'BodyBold'),
+]})})});
+Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf),context.testApi.runRulesOnPdf(tablePdf),context.testApi.runRulesOnPdf(smallTablePdf(10)),context.testApi.runRulesOnPdf(smallTablePdf(10.5)),engineStatusPromise]).then(([findings,opaqueFindings,tableFindings,smallTable10Findings,smallTable105Findings])=>{
   assert.ok(engineElements.get('engine-status-list').innerHTML.includes('Unavailable'));
   const titles=findings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));
@@ -300,11 +315,14 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(opaqueTitles.some(f=>f.suggestion==='Overview'),'one-word section heading');
   assert.ok(!opaqueTitles.some(f=>f.text==='a larger body sentence appears here.'),'enlarged body prose is ignored');
   const tableTitleFindings=tableFindings.filter(f=>f.ruleId==='team-title-case');
-  assert.ok(!tableTitleFindings.some(f=>f.text==='Table 2: operating parameters'),'10.5 pt table label is excluded');
+  assert.ok(tableTitleFindings.some(f=>f.suggestion==='Table 2: Operating Parameters'));
   assert.ok(tableTitleFindings.some(f=>f.suggestion==='A Separate Heading'));
   assert.ok(!tableTitleFindings.some(f=>['operating point','supply voltage','nominal value','measured voltage'].includes(f.text)));
   const tableHeaderFindings=tableFindings.filter(f=>f.ruleId==='team-table-header-case');
   assert.deepEqual(Array.from(tableHeaderFindings,f=>f.suggestion).sort(),['Operating Point','Supply Voltage']);
   assert.ok(!tableHeaderFindings.some(f=>['nominal value','measured voltage'].includes(f.text)));
+  for(const smallFindings of [smallTable10Findings,smallTable105Findings]) {
+    assert.ok(!smallFindings.some(f=>['team-title-case','team-table-header-case'].includes(f.ruleId)),'10 and 10.5 pt table labels and headers are excluded');
+  }
   console.log('migration, 20 Chicago rules, headings, table headers, filters, PDF review: passed');
 }).catch(error=>{console.error(error);process.exitCode=1;});

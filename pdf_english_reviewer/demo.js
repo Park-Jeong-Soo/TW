@@ -27,7 +27,6 @@
   const TABLE_HEADER_RULE_KEY = "tw-demo-rules-table-header-v9";
   const RULES_CMOS17_KEY = "tw-demo-rules-cmos17-v9";
   const RULES_CMOS17_V2_KEY = "tw-demo-rules-cmos17-v10";
-  const TITLE_LABEL_RULE_KEY = "tw-demo-rules-title-label-v11";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -198,7 +197,7 @@
     { id: "chicago-73-internet", category: "capitalization", name: "Chicago — Lowercase generic internet (review proper names)", pattern: "\\bInternet\\b", flags: "g", replacement: "internet", severity: "minor", enabled: false },
     { id: "chicago-74-seasons", category: "capitalization", name: "Chicago — Lowercase generic seasons (review titles)", pattern: "\\b(Spring|Summer|Autumn|Fall|Winter)\\b", flags: "g", replacement: "(lowercase generic season)", severity: "minor", enabled: false },
     { id: "chicago-75-titles", category: "capitalization", name: "Chicago — Lowercase generic office titles after the name (review context)", pattern: "\\b(President|Secretary|Director) of (?:the|a)\\b", flags: "g", replacement: "(lowercase office title)", severity: "minor", enabled: false },
-    // ── CMOS 17 rules — copied from demo_v3.js; its cited CMOS 17 source file is absent from this repository ──
+    // ── CMOS 17-labelled rules imported from an earlier duplicate script; cited source file is absent ──
     // Numbers
     { id: "chicago-76-from-number-range",   category: "numbers_abbreviations", name: "Chicago 9.60 — Use 'to' not a dash after 'from' in a number range",
       pattern: "\\bfrom\\s+(\\d+)\\s*[-–]\\s*(\\d+)\\b", flags: "g", replacement: "from $1 to $2", severity: "minor", enabled: true },
@@ -413,10 +412,6 @@
         if (!rules.some((rule) => rule.id === "team-table-header-case")) {
           rules.push({ ...TEAM_RULES.find((rule) => rule.id === "team-table-header-case") });
         }
-        const titleRule = rules.find((rule) => rule.id === "team-title-case");
-        if (titleRule?.name === "Team Manual Standard — Title Case for headings, captions, and callouts") {
-          titleRule.name = TEAM_RULES.find((rule) => rule.id === "team-title-case").name;
-        }
         saveRules(rules);
         localStorage.setItem(TABLE_HEADER_RULE_KEY, "done");
       }
@@ -432,16 +427,11 @@
         saveRules(rules);
         localStorage.setItem(RULES_CMOS17_V2_KEY, "done");
       }
-      if (localStorage.getItem(TITLE_LABEL_RULE_KEY) !== "done") {
-        const titleRule = rules.find((rule) => rule.id === "team-title-case");
-        if (titleRule && [
-          "Team Manual Standard — Title Case for headings, captions, and callouts",
-          "Team Manual Standard — Title Case for headings, figure/table titles, and callouts",
-        ].includes(titleRule.name)) {
-          titleRule.name = TEAM_RULES.find((rule) => rule.id === "team-title-case").name;
-          saveRules(rules);
-        }
-        localStorage.setItem(TITLE_LABEL_RULE_KEY, "done");
+      const titleRuleName = TEAM_RULES.find((rule) => rule.id === "team-title-case").name;
+      const titleRules = rules.filter((rule) => rule.id === "team-title-case");
+      if (titleRules.some((rule) => rule.name !== titleRuleName)) {
+        titleRules.forEach((rule) => { rule.name = titleRuleName; });
+        saveRules(rules);
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
@@ -671,7 +661,7 @@
         if (yBottom < MARGIN_PT) continue;                    // in bottom footer
         if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
 
-        if (tableHeaderRule && headerItems.has(item)) {
+        if (tableHeaderRule && headerItems.has(item) && !isExcludedTitleItem(item)) {
           const suggestion = titleCaseText(item.str);
           if (suggestion !== item.str) findings.push({
             id: newId(), page: p, ruleId: tableHeaderRule.id, ruleName: tableHeaderRule.name,
@@ -729,8 +719,13 @@
     "regarding", "round", "through", "throughout", "to", "toward", "towards", "under",
     "underneath", "unlike", "unto", "up", "upon", "via", "with", "within", "without",
   ]);
+  function itemFontSize(item) { return Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0); }
   function isBodyFontSize(size) { return Math.abs(size - 10.5) <= 0.15; }
   function isExcludedTitleFontSize(size) { return Math.abs(size - 10) <= 0.15 || isBodyFontSize(size); }
+  function isExcludedTitleItem(item) {
+    return isExcludedTitleFontSize(itemFontSize(item))
+      || (Number.isFinite(item.height) && isExcludedTitleFontSize(item.height));
+  }
   function titleCaseText(text) {
     let wordIndex = 0;
     const titlePrefixLength = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text)?.[0].length || 0;
@@ -805,8 +800,8 @@
     const value = (item.str || "").trim();
     if (!value) return false;
     if (tableItems.has(item)) return false;
-    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
-    if (isExcludedTitleFontSize(size)) return false;
+    const size = itemFontSize(item);
+    if (isExcludedTitleItem(item)) return false;
     if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
     if (/^Callout\s+\w+[.:]\s+\S/i.test(value)) return true;
     // PDF extraction can split one line into several items. Ignore section-number periods.
