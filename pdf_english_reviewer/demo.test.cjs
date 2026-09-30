@@ -24,7 +24,8 @@ assert.equal(rules.filter(r=>/^chicago-(?:8[8-9]|9[0-6])-/.test(r.id)).length,9)
 assert.ok(rules.some(r=>r.id==='space-unit'&&r.name.startsWith('Team Manual Standard')));
 assert.equal(rules.filter(r=>r.id==='team-title-case').length,1);
 assert.equal(rules.filter(r=>r.id==='team-table-header-case').length,1);
-assert.ok(rules.find(r=>r.id==='team-title-case').name.includes('figure/table titles'));
+const titleRuleName='Team Manual Standard-Title Case for headings, figure labels, table labels, and callout';
+assert.equal(rules.find(r=>r.id==='team-title-case').name,titleRuleName);
 assert.equal(new Set(rules.map(r=>r.id)).size,rules.length);
 for(const removed of ['chicago-03-intro-clause','chicago-08-define-abbrev','chicago-14-consistent-compound']) assert.ok(!rules.some(r=>r.id===removed));
 assert.ok(!rules.some(r=>/^Chicago (?:6\.26|7\.89|10\.3)\b/.test(r.name)));
@@ -129,8 +130,12 @@ data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>r.id!=='team-table-he
 data.delete('tw-demo-rules-table-header-v9');
 const tableMigrated=context.testApi.getRules();
 assert.equal(tableMigrated.length,80,'table-header rule is added once to saved rules');
-assert.ok(tableMigrated.find(r=>r.id==='team-title-case').name.includes('figure/table titles'));
+assert.equal(tableMigrated.find(r=>r.id==='team-title-case').name,titleRuleName);
 assert.equal(context.testApi.getRules().length,80,'table-header migration is idempotent');
+data.set('tw-demo-rules-v4',JSON.stringify(rules.map(r=>r.id==='team-title-case'?{...r,name:'Team Manual Standard — Title Case for headings, figure/table titles, and callouts'}:r)));
+data.delete('tw-demo-rules-title-label-v11');
+assert.equal(context.testApi.getRules().find(r=>r.id==='team-title-case').name,titleRuleName,'saved default name is upgraded');
+assert.equal(context.testApi.getRules().find(r=>r.id==='team-title-case').name,titleRuleName,'name migration is idempotent');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:7[6-9]|8[0-7])-/.test(r.id))));
 data.delete('tw-demo-rules-cmos17-v9');
 assert.equal(context.testApi.getRules().length,80,'first demo_v3 rule batch migrates once');
@@ -144,8 +149,13 @@ assert.equal(context.testApi.titleCaseText('the flow of air in and on the device
 assert.equal(context.testApi.titleCaseText('Results because the sample changed as time passed'),'Results because the Sample Changed as Time Passed');
 assert.equal(context.testApi.titleCaseSuggestion('Figure 4: the flow of air. the pressure remains stable.'),'Figure 4: The Flow of Air. the pressure remains stable.');
 const mockItem=(str,x,y,size=10,fontName='BodyRegular')=>({str,transform:[size,0,0,size,x,y],width:150,height:size,fontName});
-const caption=mockItem('Figure 2: the air and water system',50,200);
+const caption=mockItem('Figure 2: the air and water system',50,200,12);
 assert.equal(context.testApi.isTitleText(caption,10,[caption]),true);
+for(const size of [10,10.5]) {
+  for(const label of ['1.2 the system and its parts','Figure 2: the air and water system','Table 1: the output and the input','Callout B: inlet pressure']) {
+    assert.equal(context.testApi.isTitleText(mockItem(label,50,200,size,'HeadingBold'),10,[caption]),false,`${size} pt ${label}`);
+  }
+}
 assert.equal(context.testApi.isTitleText(mockItem('(A) air flow direction',80,250,8),10,[caption]),true);
 assert.equal(context.testApi.isTitleText(mockItem('(A) this list item is prose',80,250,10),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('air flow direction',80,250,8),10,[caption]),false);
@@ -160,7 +170,7 @@ assert.equal(context.testApi.isTitleText(mockItem('the results of the test',50,7
 assert.equal(context.testApi.isTitleText(mockItem('Figure 2 shows the results',50,400),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the data show a steady increase',50,400,14),10,[caption]),false);
 assert.equal(context.testApi.isTitleText(mockItem('the data show a steady increase.',50,400,14),10,[caption]),false);
-assert.equal(context.testApi.isTitleText(mockItem('the split caption and its details',110,190),10,[],[mockItem('Figure 3:',50,190)]),true);
+assert.equal(context.testApi.isTitleText(mockItem('the split caption and its details',110,190,12),10,[],[mockItem('Figure 3:',50,190,12)]),true);
 assert.equal(context.testApi.isTitleText(mockItem('ordinary paragraph',110,150),10,[],[mockItem('Figure 3:',50,190)]),false);
 context.testApi.ruleFilters.enabled='true';
 context.testApi.ruleFilters.category='capitalization';
@@ -229,13 +239,16 @@ const pdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async
   mockItem('the flow of air inside the device',50,320,10.5,'HeadingBold'),
   mockItem('nearby prose remains lowercase',80,270,8),
   mockItem('(A) air flow direction',80,250,8),caption,
-  mockItem('Figure 3:',50,190),mockItem('the split caption and its details',110,190),
-  mockItem('Table 1: the output and the input',50,180),
-  mockItem('Callout B: inlet pressure',50,170),
-  mockItem('Figure 4: the flow of air. the pressure remains stable.',50,165),
+  mockItem('Figure 3:',50,190,12),mockItem('the split caption and its details',110,190,12),
+  mockItem('Table 1: the output and the input',50,180,12),
+  mockItem('Callout B: inlet pressure',50,170,12),
+  mockItem('Figure 4: the flow of air. the pressure remains stable.',50,165,12),
   mockItem('5 KHz',50,160),
   mockItem('10mm',50,150),
   mockItem('May 9th',50,140),
+  mockItem('Figure 5: small label',50,120,10),
+  mockItem('Table 3: compact label',50,110,10.5),
+  mockItem('Callout C: small label',50,100,10),
 ]})})};
 const opaqueFontPdf={numPages:1,getPage:async()=>({view:[0,0,600,800],getTextContent:async()=>({items:[
   mockItem('the manual for the control system',50,700,18,'g_d0_f1'),
@@ -277,6 +290,7 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(!titles.some(f=>f.text==='the flow of air inside the device'));
   assert.ok(!titles.some(f=>f.text==='the method was tested. further work continues'));
   assert.ok(!titles.some(f=>f.text==='nearby prose remains lowercase'));
+  assert.ok(!titles.some(f=>['Figure 5: small label','Table 3: compact label','Callout C: small label'].includes(f.text)));
   assert.ok(findings.some(f=>f.ruleId==='chicago-44-khz-case'&&f.suggestion==='5 kHz'));
   assert.ok(findings.some(f=>f.ruleId==='space-unit'&&f.suggestion==='10 mm'));
   assert.ok(findings.some(f=>f.ruleId==='chicago-67-month-day-cardinal'&&f.suggestion==='May 9'));
@@ -286,7 +300,7 @@ Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(op
   assert.ok(opaqueTitles.some(f=>f.suggestion==='Overview'),'one-word section heading');
   assert.ok(!opaqueTitles.some(f=>f.text==='a larger body sentence appears here.'),'enlarged body prose is ignored');
   const tableTitleFindings=tableFindings.filter(f=>f.ruleId==='team-title-case');
-  assert.ok(tableTitleFindings.some(f=>f.suggestion==='Table 2: Operating Parameters'));
+  assert.ok(!tableTitleFindings.some(f=>f.text==='Table 2: operating parameters'),'10.5 pt table label is excluded');
   assert.ok(tableTitleFindings.some(f=>f.suggestion==='A Separate Heading'));
   assert.ok(!tableTitleFindings.some(f=>['operating point','supply voltage','nominal value','measured voltage'].includes(f.text)));
   const tableHeaderFindings=tableFindings.filter(f=>f.ruleId==='team-table-header-case');

@@ -27,6 +27,7 @@
   const TABLE_HEADER_RULE_KEY = "tw-demo-rules-table-header-v9";
   const RULES_CMOS17_KEY = "tw-demo-rules-cmos17-v9";
   const RULES_CMOS17_V2_KEY = "tw-demo-rules-cmos17-v10";
+  const TITLE_LABEL_RULE_KEY = "tw-demo-rules-title-label-v11";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -259,7 +260,7 @@
   const TEAM_RULES = [
     { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
       pattern: "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
-    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, figure/table titles, and callouts",
+    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard-Title Case for headings, figure labels, table labels, and callout",
       pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table|Callout)\\s+\\w+[.:]\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
@@ -430,6 +431,17 @@
         rules.push(...CMOS17_V2_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_CMOS17_V2_KEY, "done");
+      }
+      if (localStorage.getItem(TITLE_LABEL_RULE_KEY) !== "done") {
+        const titleRule = rules.find((rule) => rule.id === "team-title-case");
+        if (titleRule && [
+          "Team Manual Standard — Title Case for headings, captions, and callouts",
+          "Team Manual Standard — Title Case for headings, figure/table titles, and callouts",
+        ].includes(titleRule.name)) {
+          titleRule.name = TEAM_RULES.find((rule) => rule.id === "team-title-case").name;
+          saveRules(rules);
+        }
+        localStorage.setItem(TITLE_LABEL_RULE_KEY, "done");
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
@@ -718,6 +730,7 @@
     "underneath", "unlike", "unto", "up", "upon", "via", "with", "within", "without",
   ]);
   function isBodyFontSize(size) { return Math.abs(size - 10.5) <= 0.15; }
+  function isExcludedTitleFontSize(size) { return Math.abs(size - 10) <= 0.15 || isBodyFontSize(size); }
   function titleCaseText(text) {
     let wordIndex = 0;
     const titlePrefixLength = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text)?.[0].length || 0;
@@ -792,6 +805,8 @@
     const value = (item.str || "").trim();
     if (!value) return false;
     if (tableItems.has(item)) return false;
+    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
+    if (isExcludedTitleFontSize(size)) return false;
     if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
     if (/^Callout\s+\w+[.:]\s+\S/i.test(value)) return true;
     // PDF extraction can split one line into several items. Ignore section-number periods.
@@ -805,7 +820,6 @@
     if (!isLabeledTitleLine && line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return false;
     if (value.split(/\s+/).length > 12) return false;
     const x = item.transform?.[4], y = item.transform?.[5];
-    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
     const headingStyle = /bold|semibold|heavy/i.test(item.fontName || "") && size >= bodySize * 1.05;
     const prominentHeading = isProminentHeading(item, bodySize, pageItems);
     const numberedHeading = /^\d+(?:\.\d+)*[.:]?\s+[A-Za-z]/.test(value) && (headingStyle || prominentHeading);
@@ -813,8 +827,7 @@
       && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
       && x - prefix.transform?.[4] < (prefix.width || 100) + 60
       && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str)
-        || (!isBodyFontSize(size) && (headingStyle || prominentHeading))))) return true;
-    if (isBodyFontSize(size)) return false;
+        || (headingStyle || prominentHeading)))) return true;
     if ((headingStyle || prominentHeading || numberedHeading) && value.length >= 3 && !/[.!?;:]$/.test(value)) return true;
     // Only marked callouts near a figure title; nearby prose is not a callout.
     if (!/^\([A-Z]\)\s+[A-Za-z]/.test(value) || value.split(/\s+/).length > 5 || size > bodySize * 0.9) return false;
@@ -1444,7 +1457,7 @@
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Replacement (use $1, $2 for capture groups)
             <input name="replacement" value="${escapeHtml(r.replacement || "")}" ${layoutRule ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
-          ${layoutRule ? '<p style="margin:0;color:#6b7280;font-size:12px;">This rule uses PDF layout to identify headings, figure/table titles, or table headers. Pattern and replacement are shown for reference.</p>' : ''}
+          ${layoutRule ? '<p style="margin:0;color:#6b7280;font-size:12px;">This rule uses PDF layout to identify headings, figure labels, table labels, callouts, or table headers. Pattern and replacement are shown for reference.</p>' : ''}
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Severity
             <select name="severity" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
               <option value="minor" ${r.severity === "minor" ? "selected" : ""}>Minor (yellow)</option>
