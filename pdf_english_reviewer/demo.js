@@ -24,6 +24,9 @@
   const RULES_ADDITION_KEY = "tw-demo-rules-addition-v6";
   const RULES_EXPANSION_KEY = "tw-demo-rules-expansion-v7";
   const RULES_EXPANSION_2026_KEY = "tw-demo-rules-expansion-v8";
+  const TABLE_HEADER_RULE_KEY = "tw-demo-rules-table-header-v9";
+  const RULES_CMOS17_KEY = "tw-demo-rules-cmos17-v9";
+  const RULES_CMOS17_V2_KEY = "tw-demo-rules-cmos17-v10";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -194,12 +197,72 @@
     { id: "chicago-73-internet", category: "capitalization", name: "Chicago — Lowercase generic internet (review proper names)", pattern: "\\bInternet\\b", flags: "g", replacement: "internet", severity: "minor", enabled: false },
     { id: "chicago-74-seasons", category: "capitalization", name: "Chicago — Lowercase generic seasons (review titles)", pattern: "\\b(Spring|Summer|Autumn|Fall|Winter)\\b", flags: "g", replacement: "(lowercase generic season)", severity: "minor", enabled: false },
     { id: "chicago-75-titles", category: "capitalization", name: "Chicago — Lowercase generic office titles after the name (review context)", pattern: "\\b(President|Secretary|Director) of (?:the|a)\\b", flags: "g", replacement: "(lowercase office title)", severity: "minor", enabled: false },
+    // ── CMOS 17 rules — copied from demo_v3.js; its cited CMOS 17 source file is absent from this repository ──
+    // Numbers
+    { id: "chicago-76-from-number-range",   category: "numbers_abbreviations", name: "Chicago 9.60 — Use 'to' not a dash after 'from' in a number range",
+      pattern: "\\bfrom\\s+(\\d+)\\s*[-–]\\s*(\\d+)\\b", flags: "g", replacement: "from $1 to $2", severity: "minor", enabled: true },
+    { id: "chicago-77-between-number-range", category: "numbers_abbreviations", name: "Chicago 9.60 — Use 'and' not a dash after 'between' in a number range",
+      pattern: "\\bbetween\\s+(\\d+)\\s*[-–]\\s*(\\d+)\\b", flags: "g", replacement: "between $1 and $2", severity: "minor", enabled: true },
+    // Academic degrees without periods (CMOS 17 §10.21)
+    { id: "chicago-78-phd-no-periods",  category: "numbers_abbreviations", name: "Chicago 10.21 — PhD without periods",
+      pattern: "\\bPh\\.D\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "PhD", severity: "minor", enabled: true },
+    { id: "chicago-79-md-no-periods",   category: "numbers_abbreviations", name: "Chicago 10.21 — MD without periods",
+      pattern: "\\bM\\.D\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "MD", severity: "minor", enabled: true },
+    { id: "chicago-80-ba-no-periods",   category: "numbers_abbreviations", name: "Chicago 10.21 — BA without periods",
+      pattern: "\\bB\\.A\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "BA", severity: "minor", enabled: true },
+    { id: "chicago-81-ma-no-periods",   category: "numbers_abbreviations", name: "Chicago 10.21 — MA without periods",
+      pattern: "\\bM\\.A\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "MA", severity: "minor", enabled: true },
+    { id: "chicago-82-bs-no-periods",   category: "numbers_abbreviations", name: "Chicago 10.21 — BS without periods",
+      pattern: "\\bB\\.S\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "BS", severity: "minor", enabled: true },
+    { id: "chicago-83-ms-no-periods",   category: "numbers_abbreviations", name: "Chicago 10.21 — MS without periods",
+      pattern: "\\bM\\.S\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "MS", severity: "minor", enabled: true },
+    { id: "chicago-84-jd-no-periods",   category: "numbers_abbreviations", name: "Chicago 10.21 — JD without periods",
+      pattern: "\\bJ\\.D\\.(?=\\s|[),;:]|$)", flags: "g", replacement: "JD", severity: "minor", enabled: true },
+    // Punctuation
+    { id: "chicago-85-comma-before-etc", category: "punctuation", name: "Chicago 6.20 — Comma before etc. in a series",
+      pattern: "([A-Za-z0-9])\\s+etc\\.", flags: "g", replacement: "$1, etc.", severity: "minor", enabled: true },
+    // Disabled / heuristic — require user review
+    { id: "chicago-86-ordinal-2d",       category: "numbers_abbreviations", name: "Chicago 9.6 — Use 2nd/22nd not 2d/22d for ordinals (review: 12d is exception)",
+      pattern: "\\b(\\d*2)d\\b", flags: "g", replacement: "$12nd", severity: "minor", enabled: false },
+    { id: "chicago-87-thousands-comma",  category: "numbers_abbreviations", name: "Chicago 9.55 — Comma separator in 4-digit numbers (heuristic; review page nums/years)",
+      pattern: "\\b([1-9])(\\d{3})\\b(?!,)", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false },
+    // ── CMOS 17 rules (batch 2) — from chapters 1–5, 8, 11–15 ──────────────────
+    // §13.61: [sic] must be in square brackets
+    { id: "chicago-88-sic-brackets",     category: "punctuation", name: "Chicago 13.61 — [sic] in square brackets",
+      pattern: "(?<!\\[)\\bsic\\b(?!\\])", flags: "gi", replacement: "[sic]", severity: "minor", enabled: true },
+    // §14.29: Chicago 17 discourages ibid. — prefer shortened citation
+    { id: "chicago-89-ibid-discouraged", category: "grammar", name: "Chicago 14.29 — ibid. discouraged; use shortened citation instead",
+      pattern: "\\bibid\\.?", flags: "gi", replacement: "(use shortened citation — CMOS 14.30)", severity: "minor", enabled: false },
+    // §14.47: cf. means "compare", not "see"
+    { id: "chicago-90-cf-period",        category: "numbers_abbreviations", name: "Chicago 14.47 — cf. requires period; use only to mean 'compare'",
+      pattern: "\\bcf\\b(?!\\.)", flags: "g", replacement: "cf.", severity: "minor", enabled: true },
+    // §6.20 / §14.76: et al. must have period
+    { id: "chicago-91-et-al-period",     category: "numbers_abbreviations", name: "Chicago 6.20 / 14.76 — et al. requires period",
+      pattern: "\\bet al\\b(?!\\.)", flags: "gi", replacement: "et al.", severity: "minor", enabled: true },
+    // §8.4: Space between initials in personal names (e.g., E.B. White → E. B. White)
+    { id: "chicago-92-initials-space",   category: "spacing", name: "Chicago 8.4 — Space between initials in personal names",
+      pattern: "\\b([A-Z]\\.)([A-Z]\\.)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+    // §5.49: Possessive pronouns take no apostrophe (hers, theirs, yours, ours)
+    { id: "chicago-93-possessive-pronoun", category: "grammar", name: "Chicago 5.49 — Possessive pronouns need no apostrophe",
+      pattern: "\\b(her|their|your|our)'s\\b", flags: "gi", replacement: "$1s", severity: "minor", enabled: true },
+    // §10.42: vs. requires period in regular text (v. in legal citations)
+    { id: "chicago-94-vs-period",        category: "numbers_abbreviations", name: "Chicago 10.42 — vs. requires period in regular text",
+      pattern: "\\bvs\\b(?!\\.)", flags: "g", replacement: "vs.", severity: "minor", enabled: true },
+    // §15.25: Author-date parenthetical citation — no comma between author name and year
+    { id: "chicago-95-author-date-comma", category: "numbers_abbreviations", name: "Chicago 15.25 — No comma between author name and year in parenthetical citation",
+      pattern: "\\(([A-Z][a-z]+(?:\\s+et al\\.)?),\\s*((?:19|20)\\d{2}[a-z]?)\\)", flags: "g", replacement: "($1 $2)", severity: "minor", enabled: false },
+    // §5.243: Double negative construction (heuristic; disabled for review)
+    { id: "chicago-96-double-negative",  category: "grammar", name: "Chicago 5.243 — Double negative construction (heuristic)",
+      pattern: "\\b(don't|doesn't|didn't|won't|wouldn't|can't|couldn't|isn't|aren't)\\b[^.!?]{0,60}\\b(nothing|nobody|nowhere|no one|never)\\b",
+      flags: "gi", replacement: "(double negative — rewrite)", severity: "major", enabled: false },
   ];
   const TEAM_RULES = [
     { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
       pattern: "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
-    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, captions, and callouts",
+    { id: "team-title-case", category: "capitalization", name: "Team Manual Standard — Title Case for headings, figure/table titles, and callouts",
       pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table|Callout)\\s+\\w+[.:]\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
+    { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
+      pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...TEAM_RULES];
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
@@ -207,6 +270,8 @@
   const ADDED_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:2[6-9]|3[0-5])-/.test(rule.id));
   const EXPANDED_RULES = [...CHICAGO_RULES.filter((rule) => /^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(rule.id)), ...TEAM_RULES];
   const EXPANDED_2026_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:5[6-9]|6\d|7[0-5])-/.test(rule.id));
+  const CMOS17_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:7[6-9]|8[0-7])-/.test(rule.id));
+  const CMOS17_V2_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:8[8-9]|9[0-6])-/.test(rule.id));
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -342,6 +407,29 @@
         }
         saveRules(rules);
         localStorage.setItem(RULES_EXPANSION_2026_KEY, "done");
+      }
+      if (localStorage.getItem(TABLE_HEADER_RULE_KEY) !== "done") {
+        if (!rules.some((rule) => rule.id === "team-table-header-case")) {
+          rules.push({ ...TEAM_RULES.find((rule) => rule.id === "team-table-header-case") });
+        }
+        const titleRule = rules.find((rule) => rule.id === "team-title-case");
+        if (titleRule?.name === "Team Manual Standard — Title Case for headings, captions, and callouts") {
+          titleRule.name = TEAM_RULES.find((rule) => rule.id === "team-title-case").name;
+        }
+        saveRules(rules);
+        localStorage.setItem(TABLE_HEADER_RULE_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CMOS17_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...CMOS17_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_CMOS17_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CMOS17_V2_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...CMOS17_V2_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_CMOS17_V2_KEY, "done");
       }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
@@ -533,7 +621,8 @@
     const rules = getRules().filter((r) => r.enabled);
     if (!rules.length) return [];
     const titleRule = rules.find((r) => r.id === "team-title-case");
-    const compiled = rules.filter((r) => r.id !== "team-title-case").map((r) => {
+    const tableHeaderRule = rules.find((r) => r.id === "team-table-header-case");
+    const compiled = rules.filter((r) => !["team-title-case", "team-table-header-case"].includes(r.id)).map((r) => {
       try { return { rule: r, re: new RegExp(r.pattern, r.flags || "g") }; }
       catch { return null; }
     }).filter(Boolean);
@@ -555,7 +644,9 @@
       });
       const sizes = (bodyCandidates.length ? bodyCandidates : content.items).map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
       const bodySize = sizes.some(isBodyFontSize) ? 10.5 : (sizes[Math.floor(sizes.length / 2)] || 10);
-      const figureCaptions = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
+      const figureTitles = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
+      const tableTitles = content.items.filter((item) => /^Table\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
+      const { headerItems, tableItems } = detectTableRows(content.items, tableTitles, bodySize);
       const titlePrefixes = content.items.filter((item) => /^(?:(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]|\d+(?:\.\d+)*[.:]?)$/i.test((item.str || "").trim()));
       for (const item of content.items) {
         if (!item.str || !item.str.trim()) continue;
@@ -568,7 +659,15 @@
         if (yBottom < MARGIN_PT) continue;                    // in bottom footer
         if (yTop > pageHeight - MARGIN_PT) continue;          // in top header
 
-        if (titleRule && isTitleText(item, bodySize, figureCaptions, titlePrefixes, content.items)) {
+        if (tableHeaderRule && headerItems.has(item)) {
+          const suggestion = titleCaseText(item.str);
+          if (suggestion !== item.str) findings.push({
+            id: newId(), page: p, ruleId: tableHeaderRule.id, ruleName: tableHeaderRule.name,
+            category: tableHeaderRule.category, severity: tableHeaderRule.severity,
+            text: item.str, context: item.str, suggestion, bbox, status: "pending",
+          });
+        }
+        if (titleRule && isTitleText(item, bodySize, figureTitles, titlePrefixes, content.items, tableItems)) {
           const suggestion = titleCaseSuggestion(item.str);
           if (suggestion !== item.str) findings.push({
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
@@ -621,10 +720,10 @@
   function isBodyFontSize(size) { return Math.abs(size - 10.5) <= 0.15; }
   function titleCaseText(text) {
     let wordIndex = 0;
-    const captionPrefixLength = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text)?.[0].length || 0;
-    let captionStarted = false;
+    const titlePrefixLength = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+/i.exec(text)?.[0].length || 0;
+    let titleStarted = false;
     return text.replace(/[A-Za-z][A-Za-z'’]*/g, (word, offset) => {
-      if (captionPrefixLength && offset >= captionPrefixLength && !captionStarted) { wordIndex = 0; captionStarted = true; }
+      if (titlePrefixLength && offset >= titlePrefixLength && !titleStarted) { wordIndex = 0; titleStarted = true; }
       if (/^[A-Z]{2,}$/.test(word) || /[a-z][A-Z]/.test(word)) { wordIndex++; return word; }
       const lower = word.toLowerCase();
       const result = wordIndex > 0 && TITLE_SMALL_WORDS.has(lower) ? lower : lower[0].toUpperCase() + lower.slice(1);
@@ -654,9 +753,45 @@
     if (size >= bodySize * 1.12) return above >= bodySize * 1.45 && below >= bodySize * 1.35;
     return wordCount <= 7 && above >= bodySize * 1.7 && below >= bodySize * 1.7;
   }
-  function isTitleText(item, bodySize, figureCaptions, titlePrefixes = [], pageItems = []) {
+  function detectTableRows(pageItems, tableTitles, bodySize) {
+    const headerItems = new Set();
+    const tableItems = new Set();
+    for (const title of tableTitles) {
+      const titleY = title.transform?.[5];
+      const titleX = title.transform?.[4];
+      if (!Number.isFinite(titleY) || !Number.isFinite(titleX)) continue;
+      const nextTitleY = Math.max(...tableTitles.filter((other) => other !== title && other.transform?.[5] < titleY)
+        .map((other) => other.transform[5]));
+      const lowerY = Math.max(titleY - 500, Number.isFinite(nextTitleY) ? nextTitleY + bodySize : -Infinity);
+      const rows = [];
+      for (const item of pageItems) {
+        const y = item.transform?.[5], x = item.transform?.[4];
+        if (!item.str?.trim() || !Number.isFinite(x) || !Number.isFinite(y)
+          || y > titleY - bodySize * 1.1 || y < lowerY || x < titleX - 30 || x > titleX + 600
+          || /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]/i.test(item.str.trim())) continue;
+        let row = rows.find((candidate) => Math.abs(candidate.y - y) < 2);
+        if (!row) { row = { y, items: [] }; rows.push(row); }
+        row.items.push(item);
+      }
+      rows.sort((a, b) => b.y - a.y);
+      const gridRows = rows.filter((row) => {
+        const cells = row.items.sort((a, b) => a.transform[4] - b.transform[4]);
+        return cells.length >= 2 && cells.some((cell, index) => index > 0
+          && cell.transform[4] - cells[index - 1].transform[4] > Math.max(40, (cells[index - 1].width || 0) * 0.8));
+      });
+      if (!gridRows.length) continue;
+      for (const row of gridRows) row.items.forEach((item) => tableItems.add(item));
+      const firstRow = gridRows[0];
+      const distinctHeaderStyle = firstRow.items.some((item) => /bold|semibold|heavy/i.test(item.fontName || "")
+        || Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0) > bodySize * 1.03);
+      if (distinctHeaderStyle && firstRow.y > titleY - 120) firstRow.items.forEach((item) => headerItems.add(item));
+    }
+    return { headerItems, tableItems };
+  }
+  function isTitleText(item, bodySize, figureTitles, titlePrefixes = [], pageItems = [], tableItems = new Set()) {
     const value = (item.str || "").trim();
     if (!value) return false;
+    if (tableItems.has(item)) return false;
     if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
     if (/^Callout\s+\w+[.:]\s+\S/i.test(value)) return true;
     // PDF extraction can split one line into several items. Ignore section-number periods.
@@ -666,8 +801,8 @@
         .sort((a, b) => (a.transform?.[4] ?? 0) - (b.transform?.[4] ?? 0))
         .map((part) => part.str.trim()).join(" ")
       : value;
-    const isCaptionLine = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+\S/i.test(line);
-    if (!isCaptionLine && line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return false;
+    const isLabeledTitleLine = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+\S/i.test(line);
+    if (!isLabeledTitleLine && line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return false;
     if (value.split(/\s+/).length > 12) return false;
     const x = item.transform?.[4], y = item.transform?.[5];
     const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
@@ -681,10 +816,10 @@
         || (!isBodyFontSize(size) && (headingStyle || prominentHeading))))) return true;
     if (isBodyFontSize(size)) return false;
     if ((headingStyle || prominentHeading || numberedHeading) && value.length >= 3 && !/[.!?;:]$/.test(value)) return true;
-    // Only marked callouts near a figure caption; nearby prose is not a callout.
+    // Only marked callouts near a figure title; nearby prose is not a callout.
     if (!/^\([A-Z]\)\s+[A-Za-z]/.test(value) || value.split(/\s+/).length > 5 || size > bodySize * 0.9) return false;
-    return figureCaptions.some((caption) => {
-      const cx = caption.transform?.[4], cy = caption.transform?.[5];
+    return figureTitles.some((title) => {
+      const cx = title.transform?.[4], cy = title.transform?.[5];
       return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(cx) && Number.isFinite(cy)
         && y > cy && y - cy < 180 && Math.abs(x - cx) < 400;
     });
@@ -1279,6 +1414,7 @@
   function openRuleModal(existing) {
     const modal = document.getElementById("rule-modal");
     const r = existing || { id: "custom-" + Date.now(), category: "custom", name: "", pattern: "", flags: "g", replacement: "", severity: "minor", enabled: true };
+    const layoutRule = r.id === "team-title-case" || r.id === "team-table-header-case";
     modal.style.display = "flex";
     modal.innerHTML = `
       <div style="background:#fff;border-radius:10px;padding:24px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
@@ -1300,15 +1436,15 @@
             </select>
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Pattern (JavaScript regex, without / /)
-            <input name="pattern" value="${escapeHtml(r.pattern)}" required ${r.id === "team-title-case" ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+            <input name="pattern" value="${escapeHtml(r.pattern)}" required ${layoutRule ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Flags
             <input name="flags" value="${escapeHtml(r.flags || "g")}" placeholder="g, gi, gm…" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Replacement (use $1, $2 for capture groups)
-            <input name="replacement" value="${escapeHtml(r.replacement || "")}" ${r.id === "team-title-case" ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+            <input name="replacement" value="${escapeHtml(r.replacement || "")}" ${layoutRule ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
-          ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">This rule uses PDF layout to identify headings, captions, and figure labels. Pattern and replacement are shown for reference.</p>' : ''}
+          ${layoutRule ? '<p style="margin:0;color:#6b7280;font-size:12px;">This rule uses PDF layout to identify headings, figure/table titles, or table headers. Pattern and replacement are shown for reference.</p>' : ''}
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Severity
             <select name="severity" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
               <option value="minor" ${r.severity === "minor" ? "selected" : ""}>Minor (yellow)</option>
