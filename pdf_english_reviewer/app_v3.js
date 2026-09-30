@@ -1486,7 +1486,7 @@ async function runReview(mode) {
         secure_part_review: false,
         ollama_model: "qwen2.5:7b",
         review_mode: "corrections_and_refinements",
-        max_pages: Math.min(300, state.document.page_count),
+        max_pages: state.document.page_count,
         language: "en-US",
       }),
     });

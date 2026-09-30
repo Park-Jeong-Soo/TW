@@ -260,7 +260,7 @@
     { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
       pattern: "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "team-title-case", category: "capitalization", name: "Team Manual Standard-Title Case for headings, figure labels, table labels, and callout",
-      pattern: "^(?:\\d+(?:\\.\\d+)*\\s+|(?:Figure|Fig\\.|Table|Callout)\\s+\\w+[.:]\\s+).+", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
+      pattern: "^(?:Figure|Fig\\.|Table)\\s+\\d+[.:]\\s+.+$", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
   ];
@@ -427,10 +427,13 @@
         saveRules(rules);
         localStorage.setItem(RULES_CMOS17_V2_KEY, "done");
       }
-      const titleRuleName = TEAM_RULES.find((rule) => rule.id === "team-title-case").name;
+      const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
-      if (titleRules.some((rule) => rule.name !== titleRuleName)) {
-        titleRules.forEach((rule) => { rule.name = titleRuleName; });
+      if (titleRules.some((rule) => rule.name !== titleRuleDefault.name || rule.pattern !== titleRuleDefault.pattern)) {
+        titleRules.forEach((rule) => {
+          rule.name = titleRuleDefault.name;
+          rule.pattern = titleRuleDefault.pattern;
+        });
         saveRules(rules);
       }
       return rules;
@@ -630,26 +633,19 @@
     }).filter(Boolean);
 
     const findings = [];
-    const maxPages = Math.min(pdf.numPages, 50);
-    for (let p = 1; p <= maxPages; p++) {
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (p === 1 || p % 10 === 0 || p === pdf.numPages) {
+        setText("review-status", `Reviewing page ${p} / ${pdf.numPages}…`);
+      }
       const page = await pdf.getPage(p);
       const pageHeight = page.view[3]; // [x0, y0, x1, y1]
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
       viewerState.textPages.set(p, content.items);
-      const bodyCandidates = content.items.filter((item) => {
-        const value = (item.str || "").trim();
-        const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
-        return (value.split(/\s+/).length >= 4 || isBodyFontSize(size))
-          && !/^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]/i.test(value)
-          && !/^\d+(?:\.\d+)*\s+[A-Za-z]/.test(value);
-      });
-      const sizes = (bodyCandidates.length ? bodyCandidates : content.items).map((item) => Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0)).filter((size) => size > 0).sort((a, b) => a - b);
-      const bodySize = sizes.some(isBodyFontSize) ? 10.5 : (sizes[Math.floor(sizes.length / 2)] || 10);
-      const figureTitles = content.items.filter((item) => /^(?:Figure|Fig\.)\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
+      const bodySize = 10.5; // Table grid geometry only; heading detection does not infer body size.
       const tableTitles = content.items.filter((item) => /^Table\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
       const { headerItems, tableItems } = detectTableRows(content.items, tableTitles, bodySize);
-      const titlePrefixes = content.items.filter((item) => /^(?:(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]|\d+(?:\.\d+)*[.:]?)$/i.test((item.str || "").trim()));
+      const labelPrefixes = content.items.filter((item) => /^(?:Figure|Fig\.|Table)\s+\d+[.:]$/i.test((item.str || "").trim()));
       for (const item of content.items) {
         if (!item.str || !item.str.trim()) continue;
         const bbox = itemBbox(item);
@@ -669,7 +665,7 @@
             text: item.str, context: item.str, suggestion, bbox, status: "pending",
           });
         }
-        if (titleRule && isTitleText(item, bodySize, figureTitles, titlePrefixes, content.items, tableItems)) {
+        if (titleRule && isTitleText(item, content.items, tableItems, labelPrefixes)) {
           const suggestion = titleCaseSuggestion(item.str);
           if (suggestion !== item.str) findings.push({
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
@@ -747,19 +743,19 @@
       ? titleCaseText(text)
       : titleCaseText(text.slice(0, descriptionStart + 1)) + text.slice(descriptionStart + 1);
   }
-  function isProminentHeading(item, bodySize, pageItems) {
+  function isProminentHeading(item, pageItems) {
     if (!pageItems.length) return false;
-    const size = Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0);
-    if (size < bodySize * 0.98) return false;
+    const size = itemFontSize(item);
+    if (!size) return false;
     const y = item.transform?.[5];
     if (!Number.isFinite(y)) return false;
     const baselines = pageItems.filter((other) => other !== item && other.str?.trim())
       .map((other) => other.transform?.[5]).filter(Number.isFinite);
+    if (!baselines.length) return false;
     const above = Math.min(...baselines.filter((baseline) => baseline > y + 2).map((baseline) => baseline - y));
     const below = Math.min(...baselines.filter((baseline) => baseline < y - 2).map((baseline) => y - baseline));
-    const wordCount = item.str.trim().split(/\s+/).length;
-    if (size >= bodySize * 1.12) return above >= bodySize * 1.45 && below >= bodySize * 1.35;
-    return wordCount <= 7 && above >= bodySize * 1.7 && below >= bodySize * 1.7;
+    const minGap = Math.max(14, size * 1.35);
+    return above >= minGap && below >= minGap;
   }
   function detectTableRows(pageItems, tableTitles, bodySize) {
     const headerItems = new Set();
@@ -796,41 +792,29 @@
     }
     return { headerItems, tableItems };
   }
-  function isTitleText(item, bodySize, figureTitles, titlePrefixes = [], pageItems = [], tableItems = new Set()) {
+  function classifyTextRole(item, pageItems = [], tableItems = new Set(), labelPrefixes = []) {
     const value = (item.str || "").trim();
-    if (!value) return false;
-    if (tableItems.has(item)) return false;
-    const size = itemFontSize(item);
-    if (isExcludedTitleItem(item)) return false;
-    if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return true;
-    if (/^Callout\s+\w+[.:]\s+\S/i.test(value)) return true;
-    // PDF extraction can split one line into several items. Ignore section-number periods.
+    if (!value || tableItems.has(item)) return "other";
     const baseline = item.transform?.[5];
     const line = pageItems.length && Number.isFinite(baseline)
       ? pageItems.filter((part) => part.str?.trim() && Math.abs((part.transform?.[5] ?? NaN) - baseline) < 2)
         .sort((a, b) => (a.transform?.[4] ?? 0) - (b.transform?.[4] ?? 0))
         .map((part) => part.str.trim()).join(" ")
       : value;
-    const isLabeledTitleLine = /^(?:Figure|Fig\.|Table|Callout)\s+\w+[.:]\s+\S/i.test(line);
-    if (!isLabeledTitleLine && line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return false;
-    if (value.split(/\s+/).length > 12) return false;
+    if (isExcludedTitleItem(item)) return /\.\s*$/.test(line) ? "body" : "other";
+    if (/^(?:Figure|Fig\.|Table)\s+\d+[.:]\s+\S/i.test(value)) return "label";
     const x = item.transform?.[4], y = item.transform?.[5];
-    const headingStyle = /bold|semibold|heavy/i.test(item.fontName || "") && size >= bodySize * 1.05;
-    const prominentHeading = isProminentHeading(item, bodySize, pageItems);
-    const numberedHeading = /^\d+(?:\.\d+)*[.:]?\s+[A-Za-z]/.test(value) && (headingStyle || prominentHeading);
-    if (titlePrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
+    if (labelPrefixes.some((prefix) => Number.isFinite(x) && Number.isFinite(y)
       && Math.abs(y - prefix.transform?.[5]) < 3 && x > prefix.transform?.[4]
-      && x - prefix.transform?.[4] < (prefix.width || 100) + 60
-      && (/^(?:Figure|Fig\.|Table|Callout)\b/i.test(prefix.str)
-        || (headingStyle || prominentHeading)))) return true;
-    if ((headingStyle || prominentHeading || numberedHeading) && value.length >= 3 && !/[.!?;:]$/.test(value)) return true;
-    // Only marked callouts near a figure title; nearby prose is not a callout.
-    if (!/^\([A-Z]\)\s+[A-Za-z]/.test(value) || value.split(/\s+/).length > 5 || size > bodySize * 0.9) return false;
-    return figureTitles.some((title) => {
-      const cx = title.transform?.[4], cy = title.transform?.[5];
-      return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(cx) && Number.isFinite(cy)
-        && y > cy && y - cy < 180 && Math.abs(x - cx) < 400;
-    });
+      && x - prefix.transform?.[4] < (prefix.width || 100) + 60)) return "label";
+    // Ignore periods in a section number such as 1.2, but not periods in prose.
+    if (line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return "other";
+    if (!/bold|semibold|heavy/i.test(item.fontName || "")) return "other";
+    return isProminentHeading(item, pageItems) ? "heading" : "other";
+  }
+  function isTitleText(item, pageItems = [], tableItems = new Set(), labelPrefixes = []) {
+    const role = classifyTextRole(item, pageItems, tableItems, labelPrefixes);
+    return role === "heading" || role === "label";
   }
 
   function applyReplacement(template, match) {
@@ -1452,7 +1436,8 @@
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Replacement (use $1, $2 for capture groups)
             <input name="replacement" value="${escapeHtml(r.replacement || "")}" ${layoutRule ? "readonly" : ""} style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
           </label>
-          ${layoutRule ? '<p style="margin:0;color:#6b7280;font-size:12px;">This rule uses PDF layout to identify headings, figure labels, table labels, callouts, or table headers. Pattern and replacement are shown for reference.</p>' : ''}
+          ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Heading: Bold/Semibold/Heavy, spaced from nearby lines, and no period. Body: 10 or 10.5 pt (±0.15 pt) ending in a period. Figure/Table labels: recognized outside those font sizes. Callouts follow the heading criteria. This rule uses PDF layout; the pattern is shown for reference.</p>' : ''}
+          ${r.id === "team-table-header-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Table headers are identified from PDF layout and checked separately. The pattern is shown for reference.</p>' : ''}
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Severity
             <select name="severity" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
               <option value="minor" ${r.severity === "minor" ? "selected" : ""}>Minor (yellow)</option>
