@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
-const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,renderRuleRow,titleCaseText,titleCaseSuggestion,classifyTextRole,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf,addHighlightComment};})();');
+const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,renderRuleRow,titleCaseText,titleCaseSuggestion,classifyTextRole,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf,addHighlightComment,saveReviewDecisions,restoreReviewDecisions};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
   {id:'chicago-03-intro-clause'}, {id:'chicago-08-define-abbrev'},
@@ -21,20 +21,31 @@ const annotationDoc={
   context:{obj:value=>value,register:value=>value},
 };
 assert.equal(context.testApi.addHighlightComment(annotationDoc,{
-  page:2,bbox:[100,200,80,12],severity:'major',ruleName:'Spacing',text:'5mm',suggestion:'5 mm',status:'pending',
+  page:2,bbox:[100,200,80,12],category:'spacing',severity:'major',ruleName:'Spacing',text:'5mm',suggestion:'5 mm',status:'accepted',reviewerComment:'Use a space.',
 }),true);
 assert.equal(annotations.length,1);
 assert.equal(annotations[0].Subtype,'Highlight');
 assert.deepEqual(Array.from(annotations[0].Rect),[100,200,180,212]);
 assert.deepEqual(Array.from(annotations[0].QuadPoints),[100,212,180,212,100,200,180,200]);
 assert.ok(annotations[0].Contents.text.includes('Suggestion: 5 mm'));
+assert.ok(annotations[0].Contents.text.includes('Explanation: Spacing'));
+assert.ok(annotations[0].Contents.text.includes('Reviewer comment: Use a space.'));
+assert.ok(annotations[0].T.text.includes('[accepted]'));
 assert.equal(context.testApi.addHighlightComment(annotationDoc,{page:3,bbox:[100,200,80,12]}),false);
 assert.equal(context.testApi.addHighlightComment(annotationDoc,{page:1,bbox:[700,200,80,12]}),false);
+const savedFinding={page:2,ruleId:'space-unit',text:'5mm',bbox:[100,200,80,12],status:'accepted',reviewerComment:'Use a space.'};
+context.testApi.viewerState.workspaceId='workspace-1';
+context.testApi.viewerState.findings=[savedFinding];
+context.testApi.saveReviewDecisions();
+const restored=context.testApi.restoreReviewDecisions([{...savedFinding,status:'pending',reviewerComment:''}],'workspace-1');
+assert.equal(restored[0].status,'accepted');
+assert.equal(restored[0].reviewerComment,'Use a space.');
 const exportStart=source.indexOf('  async function exportReport() {');
 const exportEnd=source.indexOf('\n  function hexToRgb(',exportStart);
 assert.ok(exportStart>=0&&exportEnd>exportStart);
 const exported=[];
 const alerts=[];
+const downloaded=[];
 const exportContext={
   viewerState:{filename:'manual.pdf',pdf:{getData:async()=>new Uint8Array([1])},findings:[
     {id:'accepted',status:'accepted'},
@@ -46,11 +57,12 @@ const exportContext={
   addHighlightComment:(_doc,finding)=>{exported.push(finding.id);return true;},
   URL:{createObjectURL:()=> 'blob:review',revokeObjectURL:()=>{}},
   Blob, setTimeout:()=>{}, alert:message=>alerts.push(message), console,
-  document:{body:{appendChild:()=>{}},createElement:()=>({click:()=>{},remove:()=>{}})},
+  document:{body:{appendChild:()=>{}},createElement:()=>({click(){downloaded.push(this.download);},remove:()=>{}})},
 };
 vm.runInNewContext(source.slice(exportStart,exportEnd)+'\nglobalThis.exportReport=exportReport;',exportContext);
 const exportPromise=exportContext.exportReport().then(async()=>{
   assert.deepEqual(exported,['accepted'],'only accepted suggestions become PDF comments');
+  assert.deepEqual(downloaded,['manual_annotated_review.pdf']);
   exportContext.viewerState.findings=[{id:'pending',status:'pending'}];
   await exportContext.exportReport();
   assert.deepEqual(exported,['accepted'],'pending suggestions do not create comments');
