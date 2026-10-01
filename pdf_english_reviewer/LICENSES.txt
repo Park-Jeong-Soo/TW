@@ -1,0 +1,4 @@
+wink-bundle.min.js bundles:
+  wink-nlp 2.4.0                  MIT License  https://github.com/winkjs/wink-nlp
+  wink-eng-lite-web-model 1.8.1   MIT License  https://github.com/winkjs/wink-eng-lite-web-model
+Rebuild: cd web/build && npm install && npm run build
