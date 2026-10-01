@@ -4,7 +4,7 @@
 // - Runs simple rule matching (typo, spacing) against PDF text layer
 // - Excludes text within 2.5cm top/bottom margin (header/footer)
 // - Team Manual Standard tab becomes a rule editor (add/edit/delete/toggle)
-// - Export PDF report of suggestions via jsPDF
+// - Export the original PDF with highlight comments for suggestions
 
 (function () {
   //
@@ -16,7 +16,7 @@
     `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build`,
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`,
   ];
-  const JSPDF_URL = "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+  const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
 
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
   const RULES_STORAGE_KEY = "tw-demo-rules-v4";
@@ -303,11 +303,15 @@
   }
   ensurePdfjs().catch((err) => console.warn("[demo] PDF.js preload failed:", err));
 
-  let jspdfReady = null;
-  async function ensureJsPdf() {
-    if (jspdfReady) return jspdfReady;
-    jspdfReady = loadScript(JSPDF_URL);
-    return jspdfReady;
+  let pdfLibReady = null;
+  async function ensurePdfLib() {
+    if (window.PDFLib?.PDFDocument) return;
+    if (!pdfLibReady) pdfLibReady = loadScript(PDFLIB_URL).catch((err) => {
+      pdfLibReady = null;
+      throw err;
+    });
+    await pdfLibReady;
+    if (!window.PDFLib?.PDFDocument) throw new Error("PDF annotation library is unavailable.");
   }
 
   //
@@ -1017,7 +1021,7 @@
         return;
       }
       if (target === "generated-files") {
-        alert("No generated files in preview mode (annotated PDF/CSV export are backend features). Use Export PDF Report from the top bar for a suggestion summary.");
+        alert("Use Export PDF Report in the Reviewer tab to download the original PDF with highlight comments.");
         return;
       }
       if (target === "original" || target === "all") {
@@ -1193,7 +1197,7 @@
   }
 
   //
-  // ─── Export PDF report ────────────────────────────────────────────────
+  // ─── Export original PDF with highlight comments ──────────────────────
   //
   function setupExportButton() {
     const btn = document.getElementById("download-pdf-btn");
@@ -1206,52 +1210,28 @@
   }
 
   async function exportReport() {
-    if (!viewerState.findings.length) { alert("No suggestions to export."); return; }
+    const findings = viewerState.findings.filter((f) => f.status === "accepted");
+    if (!viewerState.pdf) { alert("Open a PDF before exporting."); return; }
+    if (!findings.length) { alert("Accept a suggestion before exporting PDF comments."); return; }
     try {
-      await ensureJsPdf();
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      const marginX = 40, marginTop = 50;
-      let y = marginTop;
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-      doc.text("PDF English Reviewer — Suggestions Report", marginX, y); y += 22;
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120);
-      doc.text(`File: ${viewerState.filename}`, marginX, y); y += 14;
-      doc.text(`Generated: ${new Date().toLocaleString()}`, marginX, y); y += 14;
-
-      const total = viewerState.findings.length;
-      const accepted = viewerState.findings.filter((f) => f.status === "accepted").length;
-      const rejected = viewerState.findings.filter((f) => f.status === "rejected").length;
-      const pending = total - accepted - rejected;
-      doc.text(`Total: ${total} · Accepted: ${accepted} · Ignored: ${rejected} · Pending: ${pending}`, marginX, y);
-      y += 22;
-
-      doc.setTextColor(0);
-      const findings = viewerState.findings.slice().sort((a, b) => a.page - b.page);
-      for (let i = 0; i < findings.length; i++) {
-        const f = findings[i];
-        if (y > pageHeight - 80) { doc.addPage(); y = marginTop; }
-        const style = SEVERITY_STYLES[f.severity] || SEVERITY_STYLES.minor;
-        // severity color bar
-        const [r, g, b] = hexToRgb(style.border);
-        doc.setFillColor(r, g, b);
-        doc.rect(marginX, y - 8, 3, 44, "F");
-        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(0);
-        doc.text(`${i + 1}. ${f.ruleName}`, marginX + 10, y);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100);
-        doc.text(`Page ${f.page} · ${f.category} · ${style.label} · ${f.status}`, marginX + 10, y + 12);
-        doc.setTextColor(0);
-        const before = `Before: "${f.text}"`;
-        const after = `Suggest: "${f.suggestion || "(review manually)"}"`;
-        doc.text(before, marginX + 10, y + 26, { maxWidth: pageWidth - marginX * 2 - 10 });
-        doc.text(after, marginX + 10, y + 38, { maxWidth: pageWidth - marginX * 2 - 10 });
-        y += 56;
+      await ensurePdfLib();
+      const original = await viewerState.pdf.getData();
+      const doc = await window.PDFLib.PDFDocument.load(original);
+      let annotated = 0;
+      for (const finding of findings) {
+        if (addHighlightComment(doc, finding)) annotated++;
       }
+      if (!annotated) throw new Error("No accepted suggestions have valid PDF highlight coordinates.");
+      const bytes = await doc.save();
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
       const safeName = viewerState.filename.replace(/\.pdf$/i, "").replace(/[^\w.-]+/g, "_");
-      doc.save(`${safeName}_review_report.pdf`);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeName || "review"}_annotated.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err) {
       console.error("[demo] export failed:", err);
       alert("Export failed: " + err.message);
@@ -1260,6 +1240,32 @@
   function hexToRgb(hex) {
     const m = /^#?([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$/i.exec(hex);
     return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+  }
+  function addHighlightComment(doc, finding) {
+    const [x, y, w, h] = finding.bbox || [];
+    if (!Number.isInteger(finding.page) || finding.page < 1 || finding.page > doc.getPageCount()
+      || ![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) return false;
+    const page = doc.getPage(finding.page - 1);
+    const crop = page.getCropBox();
+    const left = Math.max(x, crop.x);
+    const bottom = Math.max(y, crop.y);
+    const right = Math.min(x + w, crop.x + crop.width);
+    const top = Math.min(y + h, crop.y + crop.height);
+    if (left >= right || bottom >= top) return false;
+    const style = SEVERITY_STYLES[finding.severity] || SEVERITY_STYLES.minor;
+    const color = hexToRgb(style.border).map((channel) => channel / 255);
+    const comment = `${finding.ruleName || "Suggestion"}\nOriginal: ${finding.text || ""}\nSuggestion: ${finding.suggestion || "Review manually"}`;
+    const { PDFHexString } = window.PDFLib;
+    const annotation = doc.context.obj({
+      Type: "Annot", Subtype: "Highlight",
+      Rect: [left, bottom, right, top],
+      QuadPoints: [left, top, right, top, left, bottom, right, bottom],
+      C: color, CA: 0.35, F: 4,
+      T: PDFHexString.fromText("PDF English Reviewer"),
+      Contents: PDFHexString.fromText(comment),
+    });
+    page.node.addAnnot(doc.context.register(annotation));
+    return true;
   }
 
   //

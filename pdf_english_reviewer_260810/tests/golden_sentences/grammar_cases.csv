@@ -1,0 +1,3 @@
+﻿case_id,input_text,expected_rule_id,expected_category,expected_severity,should_flag
+CMOS_001,Use e.g. this option.,STYLE_EG_IE_COMMA_001,grammar,minor,true
+

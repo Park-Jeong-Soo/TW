@@ -1,0 +1,9 @@
+case_id,input_text,standard,expected_rule_id,should_flag
+NIST_001,Set the distance to 10mm.,NIST,NIST_UNIT_SPACE_001,true
+NIST_002,Set the distance to 10 mm.,NIST,NIST_UNIT_SPACE_001,false
+NIST_003,Use a frequency of 20KHZ.,NIST,NIST_PREFIX_CASE_001,true
+IEEE_001,See Equation 1.,IEEE,IEEE_EQ_REFERENCE_001,true
+IEEE_002,See Eq. (1).,IEEE,IEEE_EQ_REFERENCE_001,false
+MS_001,Click on Settings.,Microsoft,MS_UI_LABEL_001,true
+AMS_001,Use x=y in the proof.,AMS,AMS_OPERATOR_SPACE_001,true
+TEAM_001,Set the distance to 10mm.,TeamManual,UNIT_SPACE_001,true

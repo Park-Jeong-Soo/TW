@@ -1,0 +1,41 @@
+﻿version: 1
+rules:
+  - id: UNIT_SPACE_001
+    title: Space between number and unit
+    category: consistency
+    severity: minor
+    engine: team_rule
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)(?P<unit>mm|cm|m|kg|V|Hz|kHz|MHz|MPa|kPa)\b'
+    suggestion: '{number} {unit}'
+    rationale: Technical manuals should use a space between numbers and units.
+    source:
+      type: internal
+      name: TeamManual
+      note: Company technical manual standard.
+    examples:
+      bad:
+        - Set the distance to 10mm.
+      good:
+        - Set the distance to 10 mm.
+    exceptions:
+      - Model names
+      - File names
+      - UI labels
+    enabled: true
+  - id: STYLE_EG_IE_COMMA_001
+    title: Comma after e.g. and i.e.
+    category: grammar
+    severity: minor
+    engine: team_rule
+    pattern:
+      type: regex
+      value: '\b(?P<abbr>e\.g\.|i\.e\.)(?!,)'
+    suggestion: '{abbr},'
+    rationale: Use a comma after e.g. and i.e. in running text.
+    source:
+      type: reference-derived
+      name: Chicago Manual of Style
+      note: Internal rule derived from external reference.
+    enabled: true

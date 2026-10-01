@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
-const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,renderRuleRow,titleCaseText,titleCaseSuggestion,classifyTextRole,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf};})();');
+const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,renderRuleRow,titleCaseText,titleCaseSuggestion,classifyTextRole,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf,addHighlightComment};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
   {id:'chicago-03-intro-clause'}, {id:'chicago-08-define-abbrev'},
@@ -13,6 +13,49 @@ const context = {console, crypto:{randomUUID:()=>String(Math.random())}, window:
   addEventListener(){}, getElementById(id){return elements.get(id)||null}},
   localStorage:{getItem(k){return data.get(k)||null},setItem(k,v){data.set(k,v)},removeItem(k){data.delete(k)}}};
 vm.runInNewContext(code,context);
+const annotations=[];
+context.window.PDFLib={PDFHexString:{fromText:text=>({text})}};
+const annotationDoc={
+  getPageCount:()=>2,
+  getPage:()=>({getCropBox:()=>({x:0,y:0,width:600,height:800}),node:{addAnnot:ref=>annotations.push(ref)}}),
+  context:{obj:value=>value,register:value=>value},
+};
+assert.equal(context.testApi.addHighlightComment(annotationDoc,{
+  page:2,bbox:[100,200,80,12],severity:'major',ruleName:'Spacing',text:'5mm',suggestion:'5 mm',status:'pending',
+}),true);
+assert.equal(annotations.length,1);
+assert.equal(annotations[0].Subtype,'Highlight');
+assert.deepEqual(Array.from(annotations[0].Rect),[100,200,180,212]);
+assert.deepEqual(Array.from(annotations[0].QuadPoints),[100,212,180,212,100,200,180,200]);
+assert.ok(annotations[0].Contents.text.includes('Suggestion: 5 mm'));
+assert.equal(context.testApi.addHighlightComment(annotationDoc,{page:3,bbox:[100,200,80,12]}),false);
+assert.equal(context.testApi.addHighlightComment(annotationDoc,{page:1,bbox:[700,200,80,12]}),false);
+const exportStart=source.indexOf('  async function exportReport() {');
+const exportEnd=source.indexOf('\n  function hexToRgb(',exportStart);
+assert.ok(exportStart>=0&&exportEnd>exportStart);
+const exported=[];
+const alerts=[];
+const exportContext={
+  viewerState:{filename:'manual.pdf',pdf:{getData:async()=>new Uint8Array([1])},findings:[
+    {id:'accepted',status:'accepted'},
+    {id:'pending',status:'pending'},
+    {id:'rejected',status:'rejected'},
+  ]},
+  ensurePdfLib:async()=>{},
+  window:{PDFLib:{PDFDocument:{load:async()=>({save:async()=>new Uint8Array([2])})}}},
+  addHighlightComment:(_doc,finding)=>{exported.push(finding.id);return true;},
+  URL:{createObjectURL:()=> 'blob:review',revokeObjectURL:()=>{}},
+  Blob, setTimeout:()=>{}, alert:message=>alerts.push(message), console,
+  document:{body:{appendChild:()=>{}},createElement:()=>({click:()=>{},remove:()=>{}})},
+};
+vm.runInNewContext(source.slice(exportStart,exportEnd)+'\nglobalThis.exportReport=exportReport;',exportContext);
+const exportPromise=exportContext.exportReport().then(async()=>{
+  assert.deepEqual(exported,['accepted'],'only accepted suggestions become PDF comments');
+  exportContext.viewerState.findings=[{id:'pending',status:'pending'}];
+  await exportContext.exportReport();
+  assert.deepEqual(exported,['accepted'],'pending suggestions do not create comments');
+  assert.ok(alerts.some(message=>message.includes('Accept a suggestion')));
+});
 const rules=context.testApi.getRules();
 assert.equal(rules.length,80);
 assert.equal(rules.filter(r=>/^chicago-2[1-5]-/.test(r.id)).length,5);
@@ -297,7 +340,7 @@ const longPdf={numPages:301,getPage:async(pageNumber)=>{
   reviewedPages.push(pageNumber);
   return {view:[0,0,600,800],getTextContent:async()=>({items:pageNumber===301?[mockItem('5 KHz',50,100)]:[]})};
 }};
-Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf),context.testApi.runRulesOnPdf(tablePdf),context.testApi.runRulesOnPdf(smallTablePdf(10)),context.testApi.runRulesOnPdf(smallTablePdf(10.5)),context.testApi.runRulesOnPdf(longPdf),engineStatusPromise]).then(([findings,opaqueFindings,tableFindings,smallTable10Findings,smallTable105Findings,longFindings])=>{
+Promise.all([context.testApi.runRulesOnPdf(pdf),context.testApi.runRulesOnPdf(opaqueFontPdf),context.testApi.runRulesOnPdf(tablePdf),context.testApi.runRulesOnPdf(smallTablePdf(10)),context.testApi.runRulesOnPdf(smallTablePdf(10.5)),context.testApi.runRulesOnPdf(longPdf),engineStatusPromise,exportPromise]).then(([findings,opaqueFindings,tableFindings,smallTable10Findings,smallTable105Findings,longFindings])=>{
   assert.ok(engineElements.get('engine-status-list').innerHTML.includes('Unavailable'));
   const titles=findings.filter(f=>f.ruleId==='team-title-case');
   assert.ok(titles.some(f=>f.suggestion==='1.2 The System and Its Parts'));

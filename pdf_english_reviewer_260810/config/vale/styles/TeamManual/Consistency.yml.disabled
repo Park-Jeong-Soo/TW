@@ -1,0 +1,4 @@
+﻿extends: existence
+message: "TeamManual Consistency placeholder rule."
+level: suggestion
+tokens: []

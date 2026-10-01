@@ -1,0 +1,71 @@
+version: 1
+rules:
+  - id: IEEE_EQ_REFERENCE_001
+    title: Format equation references
+    category: format
+    rule_category: Equation references
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?:[Ee]quation|[Ee]q\.?)\s+(?P<number>\d+)\b'
+    suggestion: 'Eq. ({number})'
+    rationale: Equation references should use the form Eq. (n).
+    reference: IEEE Engineering Style, equation references
+    source: {type: standard-library, name: IEEE, note: IEEE Engineering Style-derived internal rule.}
+    examples:
+      bad: [See Equation 1.]
+      good: [See Eq. (1).]
+    enabled: true
+  - id: IEEE_MATH_FUNCTION_001
+    title: Format mathematical functions
+    category: format
+    rule_category: Mathematical functions
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<function>sin|cos|tan|exp|log)\s+\('
+    suggestion: '{function}('
+    rationale: Standard mathematical function names are upright and written without an extra space before the argument.
+    reference: IEEE Engineering Style, mathematical functions
+    source: {type: standard-library, name: IEEE, note: IEEE Engineering Style-derived internal rule.}
+    examples:
+      bad: [sin (x)]
+      good: [sin(x)]
+    enabled: true
+  - id: IEEE_EQ_PUNCTUATION_001
+    title: Punctuate equation references
+    category: format
+    rule_category: Equation punctuation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\bEq\. \((?P<number>\d+)\)(?![.,;:])'
+    suggestion: 'Eq. ({number}).'
+    rationale: Equation references that end a sentence should carry sentence punctuation.
+    reference: IEEE Engineering Style, equation punctuation
+    source: {type: standard-library, name: IEEE, note: IEEE Engineering Style-derived internal rule.}
+    examples:
+      bad: [See Eq. (1)]
+      good: [See Eq. (1).]
+    enabled: true
+  - id: IEEE_VECTOR_NOTATION_001
+    title: Use consistent vector notation
+    category: format
+    rule_category: Vector notation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\bvec\((?P<variable>[A-Za-z])\)'
+    suggestion: 'vector {variable}'
+    rationale: Use a consistent vector notation instead of informal ASCII notation.
+    reference: IEEE Engineering Style, vector notation
+    source: {type: standard-library, name: IEEE, note: IEEE Engineering Style-derived internal rule.}
+    examples:
+      bad: [vec(x)]
+      good: [vector x]
+    enabled: true
+

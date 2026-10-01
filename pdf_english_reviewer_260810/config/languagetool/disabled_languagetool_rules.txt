@@ -1,0 +1,5 @@
+﻿# One LanguageTool rule ID per line
+# Example:
+# EN_QUOTES
+# WHITESPACE_RULE
+

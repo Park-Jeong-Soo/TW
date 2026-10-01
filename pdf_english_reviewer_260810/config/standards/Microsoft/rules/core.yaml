@@ -1,0 +1,71 @@
+version: 1
+rules:
+  - id: MS_HEADING_CAP_001
+    title: Capitalize section labels
+    category: typo
+    rule_category: Headings
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\bsection\s+(?P<number>\d+(?:\.\d+)*)'
+    suggestion: 'Section {number}'
+    rationale: Section labels should use consistent capitalization in headings and references.
+    reference: Microsoft Writing Style Guide, capitalization
+    source: {type: standard-library, name: Microsoft, note: Microsoft Writing Style Guide-derived internal rule.}
+    examples:
+      bad: [section 2]
+      good: [Section 2]
+    enabled: true
+  - id: MS_UI_LABEL_001
+    title: Prefer direct UI verbs
+    category: consistency
+    rule_category: UI terminology
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b[Cc]lick on\b'
+    suggestion: 'select'
+    rationale: Use concise, direct UI verbs in procedures.
+    reference: Microsoft Writing Style Guide, UI text and procedures
+    source: {type: standard-library, name: Microsoft, note: Microsoft Writing Style Guide-derived internal rule.}
+    examples:
+      bad: [Click on Settings.]
+      good: [Select Settings.]
+    enabled: true
+  - id: MS_LIST_PARALLEL_001
+    title: Use parallel list phrasing
+    category: consistency
+    rule_category: Lists
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b[Mm]ake sure to\b'
+    suggestion: 'Ensure that'
+    rationale: List items and procedure steps should use parallel, concise phrasing.
+    reference: Microsoft Writing Style Guide, lists
+    source: {type: standard-library, name: Microsoft, note: Microsoft Writing Style Guide-derived internal rule.}
+    examples:
+      bad: [Make sure to connect the cable.]
+      good: [Ensure that the cable is connected.]
+    enabled: true
+  - id: MS_PROCEDURE_IMPERATIVE_001
+    title: Use imperative instructions
+    category: consistency
+    rule_category: Procedures
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b[Pp]lease\s+(?P<verb>select|open|close|press|enter|click)\b'
+    suggestion: '{verb}'
+    rationale: Procedure steps should use direct imperative wording.
+    reference: Microsoft Writing Style Guide, procedures
+    source: {type: standard-library, name: Microsoft, note: Microsoft Writing Style Guide-derived internal rule.}
+    examples:
+      bad: [Please select Start.]
+      good: [Select Start.]
+    enabled: true
+

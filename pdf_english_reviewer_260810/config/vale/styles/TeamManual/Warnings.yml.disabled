@@ -1,0 +1,4 @@
+﻿extends: existence
+message: "TeamManual Warnings placeholder rule."
+level: suggestion
+tokens: []

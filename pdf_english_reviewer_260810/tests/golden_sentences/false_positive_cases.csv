@@ -1,0 +1,3 @@
+﻿case_id,input_text,expected_rule_id,expected_category,expected_severity,should_flag
+FP_001,Set the distance to 10 mm.,UNIT_SPACE_001,consistency,minor,false
+

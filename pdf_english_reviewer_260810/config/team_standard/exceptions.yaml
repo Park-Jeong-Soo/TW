@@ -1,0 +1,352 @@
+version: 1
+exceptions:
+- rule_id: NIST_UNIT_SPACE_001
+  match_type: exact_text
+  value: NX20 300mm |
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:04.382543+00:00'
+- rule_id: UNIT_SPACE_001
+  match_type: exact_text
+  value: NX20 300mm |
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:10.892445+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: NX20 300mm |
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:17.042522+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: modules and/or AFM
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:30.408216+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: tip and/or sample.
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:39.597295+00:00'
+- rule_id: NIST_UNIT_SPACE_001
+  match_type: exact_text
+  value: NX20 300mm, NX20,
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:44.752779+00:00'
+- rule_id: UNIT_SPACE_001
+  match_type: exact_text
+  value: NX20 300mm, NX20,
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:50.160511+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: NX20 300mm, NX20,
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:02:53.576928+00:00'
+- rule_id: NIST_PERCENT_001
+  match_type: exact_text
+  value: humidity 20–60% RH
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:03:34.111846+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: x 30mm Operating
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:03:45.972284+00:00'
+- rule_id: NIST_PERCENT_001
+  match_type: exact_text
+  value: ± 0.1% Enable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:03:50.363852+00:00'
+- rule_id: NIST_UNIT_SPACE_001
+  match_type: exact_text
+  value: BNC 3m Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:04:14.216869+00:00'
+- rule_id: NIST_UNIT_SPACE_001
+  match_type: exact_text
+  value: SMA 30cm Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:04:19.791078+00:00'
+- rule_id: UNIT_SPACE_001
+  match_type: exact_text
+  value: BNC 3m Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:04:26.890045+00:00'
+- rule_id: UNIT_SPACE_001
+  match_type: exact_text
+  value: SMA 30cm Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:04:32.544790+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: BNC 3m Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:04:42.479251+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: SMA 30cm Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:04:46.038927+00:00'
+- rule_id: NIST_UNIT_SPACE_001
+  match_type: exact_text
+  value: ISH 30cm Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:05:07.128451+00:00'
+- rule_id: UNIT_SPACE_001
+  match_type: exact_text
+  value: ISH 30cm Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:05:20.038827+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: ISH 30cm Cable
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:05:22.993464+00:00'
+- rule_id: NIST_UNIT_SPACE_001
+  match_type: exact_text
+  value: NX20 300mm)
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:05:28.215871+00:00'
+- rule_id: UNIT_SPACE_001
+  match_type: exact_text
+  value: NX20 300mm)
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:05:31.095336+00:00'
+- rule_id: TeamManual.Units
+  match_type: exact_text
+  value: NX20 300mm)
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:05:33.700868+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: tip and/or sample
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:06:36.149860+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: the NX/FX AFM
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:07:33.096088+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: the NX/FX electronics.
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:07:38.148834+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: Voltage On/Off GND
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:07:43.383031+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: n/O
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:07:56.590441+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: NX/FX Bias
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:07:59.876400+00:00'
+- rule_id: TeamManual.Terms
+  match_type: exact_text
+  value: IN AUX2 OUT
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:08:13.206836+00:00'
+- rule_id: NIST_PERCENT_001
+  match_type: exact_text
+  value: 1 V 50% 0.5 V
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:08:17.254483+00:00'
+- rule_id: TeamManual.Terms
+  match_type: exact_text
+  value: AUX2 OUT
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:08:21.057321+00:00'
+- rule_id: fixed_figure_title_case
+  match_type: exact_text
+  value: Amplify both AC and DC Bias
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:09:00.663901+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: m/e
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:09:09.093952+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: t/c
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:09:11.287686+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: e/p
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:09:13.026152+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: https://parksystems.com/manuals-software
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:09:18.048866+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: m/p
+  scope: project
+  project: Piezoelectric Properties
+  reason: Approved exception for this rule.
+  created_at: '2026-07-13T07:09:22.001088+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: g/1
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T07:35:53.162092+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: 4/1
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T07:35:56.702237+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: https://doi.org/10.1063/1.105227
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T07:35:59.601629+00:00'
+- rule_id: MORFOLOGIK_RULE_EN_US
+  match_type: exact_text
+  value: total F vdW F el
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T07:36:42.389919+00:00'
+- rule_id: ENGLISH_WORD_REPEAT_RULE
+  match_type: exact_text
+  value: Offset Offset
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T07:38:21.655616+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: 8/0
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:09:17.522604+00:00'
+- rule_id: AMS_OPERATOR_SPACE_001
+  match_type: exact_text
+  value: https://doi.org/10.1007/s100510050219
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:09:20.670536+00:00'
+- rule_id: MORFOLOGIK_RULE_EN_US
+  match_type: exact_text
+  value: el
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:09:28.867872+00:00'
+- rule_id: UPPERCASE_SENTENCE_START
+  match_type: exact_text
+  value: z
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:09:29.996194+00:00'
+- rule_id: ENGLISH_WORD_REPEAT_RULE
+  match_type: exact_text
+  value: Start Start
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:09:46.538252+00:00'
+- rule_id: ENGLISH_WORD_REPEAT_RULE
+  match_type: exact_text
+  value: Phase Phase
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:10:25.756958+00:00'
+- rule_id: PHRASE_REPETITION
+  match_type: exact_text
+  value: Work Function Work function
+  scope: project
+  project: PFM
+  reason: Approved exception for this rule.
+  created_at: '2026-07-14T08:10:32.064454+00:00'

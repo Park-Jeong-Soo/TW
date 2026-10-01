@@ -1,0 +1,83 @@
+version: 1
+description: Chicago Pilot Batch 2 technical-manual cases.
+cases:
+  remove_space_before_question_or_exclamation_mark:
+    positive: ["Is the controller ready ?", "Stop the pump immediately !", "Does the value appear on the display\n ?"]
+    negative: ["Is the controller ready?", "Stop the pump immediately!", "Does the value appear on the display?"]
+    exceptions: ["?status=ready appears only in code examples.", "Do not edit the literal value ' ? ' in the parser test."]
+  use_comma_before_coordinating_conjunction_between_independent_clauses:
+    positive: ["The scan is complete and the report opens.", "The motor stops but the alarm remains active.", "The controller responds\nand the status light turns green."]
+    negative: ["The scan is complete, and the report opens.", "The motor stops, but the alarm remains active.", "Open the cover and remove the cartridge."]
+    exceptions: ["The board is clean and dry.", "The device starts and records data."]
+  avoid_comma_between_compound_predicate_verbs:
+    positive: ["Open the cover, and remove the cartridge.", "Select the file, and save the report.", "Connect the cable,\nand start the controller."]
+    negative: ["Open the cover and remove the cartridge.", "Select the file and save the report.", "Connect the cable and start the controller."]
+    exceptions: ["Open the cover, and the cartridge becomes visible.", "Press Start, and wait until the LED turns green."]
+  use_comma_between_coordinate_adjectives:
+    positive: ["Use a clean dry cloth.", "Insert the tool through the long narrow slot.", "The screen shows a clear accurate reading."]
+    negative: ["Use a clean, dry cloth.", "Insert the tool through the long, narrow slot.", "The screen shows a clear, accurate reading."]
+    exceptions: ["Install the small circuit board.", "Select the green status icon."]
+  use_period_for_indirect_questions:
+    positive: ["Confirm whether the device is ready?", "Check if the firmware is current?", "Verify whether the cable is connected\n?"]
+    negative: ["Confirm whether the device is ready.", "Check if the firmware is current.", "Is the device ready?"]
+    exceptions: ["Can you confirm whether the device is ready?", "Is the firmware current?"]
+  use_percent_symbol_in_technical_measurements:
+    positive: ["Set the humidity limit to 45 percent.", "The battery charge must be above 20 percent before update.", "If the value exceeds 95 percent\nstop the test."]
+    negative: ["Set the humidity limit to 45%.", "The battery charge must be above 20% before update.", "The report describes a large percentage of failures."]
+    exceptions: ["The Percent column appears in the exported table.", "Write the word percent in quoted marketing text."]
+  use_lowercase_periods_for_am_pm:
+    positive: ["Start the calibration at 5:30 PM.", "Run the backup at 7 AM.", "The test starts at 9:15\nP.M."]
+    negative: ["Start the calibration at 5:30 p.m.", "Run the backup at 7 a.m.", "Use the 24-hour time 17:30."]
+    exceptions: ["The PM field stores the project manager initials.", "AM modulation is outside the scope of this manual."]
+  avoid_ambiguous_noon_midnight_time:
+    positive: ["The daily reset occurs at 12:00 AM.", "Start the inspection at 12:00 p.m.", "The schedule pauses at 12:00\nP.M."]
+    negative: ["The daily reset occurs at midnight.", "Start the inspection at noon.", "The schedule pauses at 12:30 p.m."]
+    exceptions: ["The legacy database stores noon as a literal value.", "The UI field label is Midnight."]
+  repeat_ordinal_ending_in_ranges:
+    positive: ["Check the 24-25th rows.", "Review the 1-2nd pages.", "Inspect the 3\n-4th terminals."]
+    negative: ["Check the 24th-25th rows.", "Review the 1st-2nd pages.", "Inspect terminals 3-4."]
+    exceptions: ["Use pins 24-25 for the signal pair.", "The range 1-2 mm is valid."]
+  avoid_apostrophe_for_plural_numbers_and_abbreviations:
+    positive: ["The folder contains several PDF's.", "The log stores the 1990's timestamps as sample data.", "Export all ID's\nbefore reset."]
+    negative: ["The folder contains several PDFs.", "The log stores the 1990s timestamps as sample data.", "Export all IDs before reset."]
+    exceptions: ["The variable x's value is unavailable.", "Use apostrophes for lowercase letter plurals when needed for clarity."]
+  avoid_hyphen_in_or_so_approximation:
+    positive: ["Wait five-or-so minutes before retrying.", "The process takes 10-or-so seconds.", "Run the pump for two-or-so\ncycles."]
+    negative: ["Wait five or so minutes before retrying.", "The process takes 10 or so seconds.", "Run the pump for two or so cycles."]
+    exceptions: ["The product name Five Or So is quoted from the source.", "Use the literal tag FIVE_OR_SO in the test fixture."]
+  avoid_hyphen_in_and_a_half_measurement:
+    positive: ["Wait two-and-a-half hours before startup.", "Rotate the knob three-and-a-half turns.", "Pause for one-and-a-half\nminutes."]
+    negative: ["Wait two and a half hours before startup.", "Rotate the knob three and a half turns.", "Pause for one and a half minutes."]
+    exceptions: ["Use a two-and-a-half-hour interval.", "The part name is Two-and-a-Half Bracket."]
+  avoid_casual_slash_abbreviations:
+    positive: ["Install the bracket w/ the supplied screws.", "Run the test w/o the adapter.", "Ship the kit w/\nthe protective cap installed."]
+    negative: ["Install the bracket with the supplied screws.", "Run the test without the adapter.", "Use input/output for the slash pair."]
+    exceptions: ["The code sample uses WITH_FLAG exactly as entered.", "The legacy UI option is labeled No Adapter."]
+  avoid_all_caps_for_emphasis:
+    positive: ["The connector is VERY hot after operation.", "IMPORTANT values must be backed up before reset.", "NEVER\nremove the cover during operation."]
+    negative: ["The connector is very hot after operation.", "Important values must be backed up before reset.", "Never remove the cover during operation."]
+    exceptions: ["CAUTION: HOT SURFACE.", "Press the RESET button."]
+  use_chicago_singular_possessive_s:
+    positive: ["James' controller is offline.", "Harris' procedure appears in the appendix.", "Charles'\nmanual is archived."]
+    negative: ["James's controller is offline.", "Harris's procedure appears in the appendix.", "The modules' ports are labeled."]
+    exceptions: ["The controllers' settings are synchronized.", "The product name is Harris' Legacy Adapter."]
+  use_that_for_restrictive_relative_clauses:
+    positive: ["Use the module which controls pressure.", "Open the file which contains the log.", "Select the option which\nstarts calibration."]
+    negative: ["Use the module that controls pressure.", "Open the file that contains the log.", "Use the module, which controls pressure, only for calibration."]
+    exceptions: ["Use the module, which controls pressure, only for calibration.", "The setting, which is optional, remains disabled."]
+  avoid_double_negative:
+    positive: ["Do not press no buttons during startup.", "The device cannot detect nothing in standby mode.", "Do not remove no\ncovers during operation."]
+    negative: ["Do not press any buttons during startup.", "The device cannot detect anything in standby mode.", "Remove no covers during operation."]
+    exceptions: ["No user can disable the no-load test.", "The literal string is 'no nothing'."]
+  keep_neither_nor_parallel:
+    positive: ["The system neither records the signal nor the warning appears.", "The tool neither opens the file nor the log loads.", "The app neither checks the file\nnor the status appears."]
+    negative: ["The system records neither the signal nor the warning.", "The tool neither opens the file nor loads the log.", "The app checks neither the file nor the status."]
+    exceptions: ["Neither the signal nor the warning appears.", "Neither module nor controller is installed."]
+  keep_auxiliary_verb_forms_parallel:
+    positive: ["The system starts the scan, records data, and is displaying the result.", "The app checks the file, saves the log, and is opening the report.", "The controller loads the profile,\nchecks the sensor, and is storing the result."]
+    negative: ["The system starts the scan, records data, and displays the result.", "The app checks the file, saves the log, and opens the report.", "The controller loads the profile, checks the sensor, and stores the result."]
+    exceptions: ["The system is starting the scan, recording data, and displaying the result.", "The app checks the file, saves the log, and is ready."]
+  use_singular_verb_after_one_in_ratio:
+    positive: ["Only 1 in 8 modules have failed.", "Approximately 1 in 12 sensors have drifted.", "About 1 in 5 controllers\nhave a warning."]
+    negative: ["Only 1 in 8 modules has failed.", "Approximately 1 in 12 sensors has drifted.", "About 2 in 5 controllers have a warning."]
+    exceptions: ["The report quotes a plural-verb survey sentence.", "The table cell contains the label ratio status."]

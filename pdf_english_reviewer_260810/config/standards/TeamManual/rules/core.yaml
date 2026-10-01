@@ -1,0 +1,22 @@
+version: 1
+rules:
+  - id: TM_CAUTION_LABEL_001
+    title: Use uppercase caution labels
+    category: format
+    rule_category: Warning and caution rules
+    severity: major
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\bCaution:'
+    suggestion: 'CAUTION:'
+    rationale: Company manuals use uppercase caution labels for safety callouts.
+    reference: TeamManual, caution labels
+    source:
+      type: standard-library
+      name: TeamManual
+      note: Company technical manual publishing standard.
+    examples:
+      bad: ['Caution: Do not touch the stage.']
+      good: ['CAUTION: Do not touch the stage.']
+    enabled: true

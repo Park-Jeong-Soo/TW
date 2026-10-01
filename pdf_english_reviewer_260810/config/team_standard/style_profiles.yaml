@@ -1,0 +1,34 @@
+version: 1
+profiles:
+  technical_manual:
+    name: Technical Manual
+    default: true
+    enabled_standards: [Microsoft, IEEE, NIST]
+    enabled_engines: [vale, team_rule, glossary]
+    severity_threshold: minor
+  scientific_paper:
+    name: Scientific Paper
+    enabled_standards: [IEEE, NIST, AMS]
+    enabled_engines: [vale, team_rule, glossary]
+    severity_threshold: minor
+  user_manual:
+    name: User Manual
+    enabled_standards: [Microsoft, NIST]
+    enabled_engines: [vale, team_rule, glossary]
+    severity_threshold: minor
+  service_manual:
+    name: Service Manual
+    enabled_standards: [Microsoft, IEEE, NIST]
+    enabled_engines: [vale, team_rule, glossary]
+    severity_threshold: minor
+  internal_review:
+    name: Internal Review
+    enabled_standards: [Microsoft, IEEE, NIST, AMS]
+    enabled_engines: [vale, team_rule, glossary]
+    severity_threshold: minor
+  custom:
+    name: Custom
+    custom: true
+    enabled_standards: [Microsoft, IEEE, NIST]
+    enabled_engines: [vale, team_rule, glossary]
+    severity_threshold: minor

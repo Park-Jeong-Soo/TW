@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "document": {
+    "filename": "sample_manual_for_test.pdf",
+    "project_name": "NX-3DM",
+    "reviewer": "Manual Team",
+    "page_count": 1,
+    "review_status": "completed"
+  },
+  "project_dictionary": [
+    {
+      "term": "scan speed",
+      "preferred_term": "scan rate",
+      "kind": "preferred"
+    }
+  ],
+  "project_settings": {
+    "unit_spacing": true,
+    "arrow_style": "words"
+  },
+  "issues": [
+    {
+      "page": 1,
+      "category": "grammar",
+      "source_text": "are",
+      "replacement": "is",
+      "severity": "high",
+      "confidence": 0.91,
+      "status": "open",
+      "rule_reference": "basic_subject_verb_agreement"
+    },
+    {
+      "page": 1,
+      "category": "format",
+      "source_text": "20mm/s",
+      "replacement": "20 mm/s",
+      "severity": "low",
+      "confidence": 0.91,
+      "status": "open",
+      "rule_reference": "basic_number_unit_spacing"
+    },
+    {
+      "page": 1,
+      "category": "grammar",
+      "source_text": "have",
+      "replacement": "has",
+      "severity": "high",
+      "confidence": 0.91,
+      "status": "open",
+      "rule_reference": "basic_subject_verb_agreement"
+    },
+    {
+      "page": 1,
+      "category": "spelling",
+      "source_text": "teh",
+      "replacement": "the",
+      "severity": "high",
+      "confidence": 0.91,
+      "status": "open",
+      "rule_reference": "basic_common_typo"
+    },
+    {
+      "page": 1,
+      "category": "terminology",
+      "source_text": "scan speed",
+      "replacement": "scan rate",
+      "severity": "medium",
+      "confidence": 0.98,
+      "status": "open",
+      "rule_reference": "project_dictionary"
+    },
+    {
+      "page": 1,
+      "category": "format",
+      "source_text": "2 mm/s->20mm/s",
+      "replacement": "from 2 mm/s to 20 mm/s",
+      "severity": "medium",
+      "confidence": 0.91,
+      "status": "open",
+      "rule_reference": "basic_range_notation"
+    }
+  ]
+}

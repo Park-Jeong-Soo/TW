@@ -1,0 +1,7 @@
+No.,Page,Section,Category,Original Text,Suggested Text,Severity,Confidence,Status,Reviewer Comment
+1,1,,format,20mm/s,20 mm/s,low,0.91,open,
+2,1,,grammar,are,is,high,0.91,open,
+3,1,,grammar,have,has,high,0.91,open,
+4,1,,spelling,teh,the,high,0.91,open,
+5,1,,terminology,scan speed,scan rate,medium,0.98,open,
+6,1,,format,2 mm/s->20mm/s,from 2 mm/s to 20 mm/s,medium,0.91,open,

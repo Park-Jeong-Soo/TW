@@ -1,0 +1,4 @@
+﻿case_id,input_text,expected_rule_id,expected_category,expected_severity,should_flag
+TERM_001,Open smart scan t.,TeamManual.Terms,consistency,minor,true
+TERM_002,Open SmartScanT.,TeamManual.Terms,consistency,minor,false
+

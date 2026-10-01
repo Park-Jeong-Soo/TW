@@ -1,0 +1,105 @@
+version: 1
+rules:
+  - id: NIST_UNIT_SPACE_001
+    title: Add a space between numbers and SI units
+    category: consistency
+    rule_category: Number-unit spacing
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)(?P<unit>mm|cm|m|kg|V|Hz|kHz|MHz|GHz|MPa|kPa|Pa|kV|mA|A|N)\b'
+    suggestion: '{number} {unit}'
+    rationale: Values and SI unit symbols should be separated by a space.
+    reference: NIST SI style, values and unit symbols
+    source: {type: standard-library, name: NIST, note: NIST SI Style-derived internal rule.}
+    examples:
+      bad: [10mm]
+      good: [10 mm]
+    enabled: true
+  - id: NIST_PREFIX_CASE_001
+    title: Use correct SI prefix capitalization
+    category: consistency
+    rule_category: SI prefixes
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)\s*KHZ\b'
+    suggestion: '{number} kHz'
+    rationale: SI prefixes and unit symbols are case sensitive.
+    reference: NIST SI style, SI prefixes
+    source: {type: standard-library, name: NIST, note: NIST SI Style-derived internal rule.}
+    examples:
+      bad: [20KHZ]
+      good: [20 kHz]
+    enabled: true
+  - id: NIST_UNIT_CASE_001
+    title: Use correct SI unit capitalization
+    category: consistency
+    rule_category: Unit capitalization
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)\s*(?P<unit>Mpa|KV|MA)\b'
+    suggestion: '{number} MPa'
+    rationale: SI unit symbols are case sensitive; review the unit capitalization.
+    reference: NIST SI style, unit symbols
+    source: {type: standard-library, name: NIST, note: NIST SI Style-derived internal rule.}
+    examples:
+      bad: [10 Mpa]
+      good: [10 MPa]
+    enabled: true
+  - id: NIST_TEMPERATURE_001
+    title: Format Celsius temperatures
+    category: consistency
+    rule_category: Temperature notation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)\s*°\s+C\b'
+    suggestion: '{number} °C'
+    rationale: Use a space between the value and the degree Celsius symbol, and no space inside the unit symbol.
+    reference: NIST SI style, temperature notation
+    source: {type: standard-library, name: NIST, note: NIST SI Style-derived internal rule.}
+    examples:
+      bad: [25° C]
+      good: [25 °C]
+    enabled: true
+  - id: NIST_PERCENT_001
+    title: Add a space before percent symbol
+    category: consistency
+    rule_category: Percent notation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)%'
+    suggestion: '{number} %'
+    rationale: Treat the percent symbol as a unit symbol and separate it from the value.
+    reference: NIST SI style, percent symbol
+    source: {type: standard-library, name: NIST, note: NIST SI Style-derived internal rule.}
+    examples:
+      bad: [5%]
+      good: [5 %]
+    enabled: true
+  - id: NIST_SCI_NOTATION_001
+    title: Format scientific notation
+    category: consistency
+    rule_category: Scientific notation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<number>\d+(?:\.\d+)?)\s*[xX]\s*10\^(?P<exponent>-?\d+)'
+    suggestion: '{number} x 10^{exponent}'
+    rationale: Use consistent scientific notation typography.
+    reference: NIST SI style, scientific notation
+    source: {type: standard-library, name: NIST, note: NIST SI Style-derived internal rule.}
+    examples:
+      bad: [1.2x10^3]
+      good: [1.2 x 10^3]
+    enabled: true
+

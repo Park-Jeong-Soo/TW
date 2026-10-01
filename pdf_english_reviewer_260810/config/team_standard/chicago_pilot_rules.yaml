@@ -1,0 +1,428 @@
+version: 1
+source_standard: Chicago Manual of Style
+source_edition: "18"
+rules:
+  - rule_key: use_single_space_after_sentence_punctuation
+    display_name: Use one space after sentence-ending punctuation
+    category: punctuation
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: regex
+    matcher_status: implemented
+    source_section: "6.7"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Use one space, not two or more spaces, after sentence-ending punctuation.
+    message: Use one space after sentence-ending punctuation.
+    suggestion: Replace multiple spaces with one space.
+    positive_examples: ["Close the cover.  Restart the system."]
+    negative_examples: ["Close the cover. Restart the system."]
+    exception_examples: ["Close the cover. Restart the system."]
+    exceptions: ["aligned tables", "code blocks", "OCR text in which spacing represents layout"]
+    pilot_batch: 1
+    pilot_risk: low
+
+  - rule_key: use_serial_comma_in_simple_series
+    display_name: Use a serial comma in a simple series
+    category: punctuation
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: token
+    matcher_status: implemented
+    source_section: "6.19"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Insert a comma before the final coordinating conjunction in a simple series of three or more parallel items.
+    message: Consider adding a serial comma before the final item.
+    suggestion: Add a comma before and or or in a simple series.
+    positive_examples: ["The package includes a controller, a cable and a probe."]
+    negative_examples: ["The package includes a controller, a cable, and a probe."]
+    exception_examples: ["Connect the cable and start the controller."]
+    exceptions: ["two-item coordination", "official names or quoted text"]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: comma_after_introductory_dependent_clause
+    display_name: Add a comma after an introductory dependent clause
+    category: punctuation
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: parser
+    matcher_status: implemented
+    source_section: "6.26"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Add a comma after an introductory dependent clause before the main clause.
+    message: The introductory dependent clause may require a comma.
+    suggestion: Insert a comma at the end of the introductory clause.
+    positive_examples: ["After the scan is complete select Save."]
+    negative_examples: ["After the scan is complete, select Save."]
+    exception_examples: ["After setup, restart the system."]
+    exceptions: ["very short introductory elements", "headings and fragments"]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: avoid_comma_splice
+    display_name: Avoid a comma splice between independent clauses
+    category: punctuation
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: parser
+    matcher_status: implemented
+    source_section: "6.23"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Do not join two independent clauses with only a comma.
+    message: Two independent clauses may be joined by only a comma.
+    suggestion: Use a period, semicolon, or coordinating conjunction.
+    positive_examples: ["The scan is complete, the result appears in the workspace."]
+    negative_examples: ["The scan is complete, and the result appears in the workspace."]
+    exception_examples: ["Use low speed, high resolution."]
+    exceptions: ["short intentionally parallel clauses approved by team style", "quoted source text"]
+    pilot_batch: 1
+    pilot_risk: high
+
+  - rule_key: capitalize_complete_sentence_after_colon
+    display_name: Capitalize a complete sentence after a colon
+    category: capitalization
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: contextual
+    matcher_status: implemented
+    source_section: "6.67"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Capitalize the first word after a colon when the colon introduces a complete sentence.
+    message: Capitalize the first word after the colon if it begins a complete sentence.
+    suggestion: Capitalize the first word after the colon.
+    positive_examples: ["Note: the stage moves automatically."]
+    negative_examples: ["Note: The stage moves automatically."]
+    exception_examples: ["Path: c:\\temp\\reviewer"]
+    exceptions: ["phrases after colons", "code, paths, URLs, labels, and parameter-value pairs"]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: spell_out_number_at_sentence_start
+    display_name: Do not begin a sentence with a numeral
+    category: numbers_abbreviations
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: token
+    matcher_status: implemented
+    source_section: "9.5"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Spell out a number at the beginning of a sentence or revise the sentence.
+    message: Do not begin a sentence with a numeral.
+    suggestion: Spell out the number or revise the sentence.
+    positive_examples: ["3 modules are installed in the enclosure."]
+    negative_examples: ["Three modules are installed in the enclosure."]
+    exception_examples: ["1. Connect the cable."]
+    exceptions: ["numbered steps", "product names", "headings, table cells, equations"]
+    pilot_batch: 1
+    pilot_risk: low
+
+  - rule_key: use_leading_zero_before_decimal
+    display_name: Use a leading zero before a decimal fraction
+    category: numbers_abbreviations
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: regex
+    matcher_status: implemented
+    source_section: "9.21"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Use a zero before a decimal point for a value less than one when the quantity can equal or exceed one.
+    message: Add a leading zero before the decimal point.
+    suggestion: Change .5 to 0.5.
+    positive_examples: ["Set the gain to .5."]
+    negative_examples: ["Set the gain to 0.5."]
+    exception_examples: ["Open config.ini."]
+    exceptions: ["code, file names, version numbers"]
+    pilot_batch: 1
+    pilot_risk: low
+
+  - rule_key: define_abbreviation_at_first_use
+    display_name: Define an unfamiliar abbreviation at first use
+    category: numbers_abbreviations
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: document_consistency
+    matcher_status: implemented
+    source_section: "10.2-10.3"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Spell out an unfamiliar term at first use and place the abbreviation in parentheses.
+    message: This abbreviation may need to be defined at first use.
+    suggestion: Add the full term followed by the abbreviation in parentheses.
+    positive_examples: ["The AFM measures the sample surface."]
+    negative_examples: ["The atomic force microscope (AFM) measures the sample surface."]
+    exception_examples: ["The PDF opens in the viewer."]
+    exceptions: ["team-approved common abbreviations", "product names"]
+    matcher_config:
+      approved_abbreviations: [AC, API, CSV, DC, HTML, HTTP, HTTPS, ID, JSON, OCR, PDF, UI, URL, USB, XML]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: place_periods_and_commas_inside_closing_quotes
+    display_name: Place periods and commas inside closing quotation marks
+    category: numbers_abbreviations
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: token
+    matcher_status: implemented
+    source_section: "6.9"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: In American-style prose, place periods and commas before a closing quotation mark.
+    message: Move the period or comma inside the closing quotation mark.
+    suggestion: Place the punctuation before the closing quotation mark.
+    positive_examples: ['Select "Save", and close the window.']
+    negative_examples: ['Select "Save," and close the window.']
+    exception_examples: ['The literal value is "A,B."']
+    exceptions: ["literal code strings", "file names", "search queries"]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: use_consistent_vertical_list_punctuation
+    display_name: Use consistent punctuation in a vertical list
+    category: numbers_abbreviations
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: block
+    matcher_status: implemented
+    source_section: "6.141-6.142"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Use consistent capitalization and terminal punctuation among items at the same list level.
+    message: List items at the same level use inconsistent punctuation or capitalization.
+    suggestion: Apply one consistent list style.
+    positive_examples: ["- Connect the cable.\n- Turn on the controller\n- Start the software."]
+    negative_examples: ["- Connect the cable.\n- Turn on the controller.\n- Start the software."]
+    exception_examples: ["- Input:\n- Output value\n- Status code"]
+    exceptions: ["mixed list headings", "tables and definition lists"]
+    pilot_batch: 1
+    pilot_risk: low
+
+  - rule_key: hyphenate_compound_modifier_before_noun
+    display_name: Hyphenate a compound modifier before a noun when needed for clarity
+    category: hyphenation_terminology
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: parser
+    matcher_status: implemented
+    source_section: "7.91"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Hyphenate a multiword modifier before a noun when the hyphen prevents ambiguity.
+    message: This compound modifier may require a hyphen before the noun.
+    suggestion: Add a hyphen if the words jointly modify the following noun.
+    positive_examples: ["Use the high resolution image."]
+    negative_examples: ["Use the high-resolution image."]
+    exception_examples: ["Use the fully automated mode."]
+    exceptions: ["established open compounds", "proper names", "-ly adverb compounds"]
+    matcher_config:
+      compound_modifier_candidates:
+        high resolution: high-resolution
+        low frequency: low-frequency
+        real time: real-time
+        user defined: user-defined
+        factory set: factory-set
+    pilot_batch: 1
+    pilot_risk: high
+
+  - rule_key: do_not_hyphenate_ly_adverb_compound
+    display_name: Do not hyphenate an -ly adverb compound
+    category: hyphenation_terminology
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: token
+    matcher_status: implemented
+    source_section: "7.93"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Do not normally hyphenate an -ly adverb and the adjective or participle it modifies.
+    message: Remove the hyphen after the -ly adverb.
+    suggestion: Write the words as an open compound.
+    positive_examples: ["Use the fully-automated mode."]
+    negative_examples: ["Use the fully automated mode."]
+    exception_examples: ["Use the family-owned controller."]
+    exceptions: ["words ending in ly that are not adverbs", "approved product names"]
+    matcher_config:
+      safe_adverbs: [clearly, closely, easily, fully, highly, newly, poorly, properly, quickly, slowly]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: use_suspended_hyphen_in_shared_compounds
+    display_name: Use suspended hyphens in shared compounds
+    category: hyphenation_terminology
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: contextual
+    matcher_status: implemented
+    source_section: "7.95"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Use a suspended hyphen when two or more compound modifiers share the same final element.
+    message: Consider a suspended hyphen in this paired compound.
+    suggestion: Use forms such as low- and high-frequency signals.
+    positive_examples: ["Compare the low and high-frequency signals."]
+    negative_examples: ["Compare the low- and high-frequency signals."]
+    exception_examples: ["Compare the low voltage and high-frequency signals."]
+    exceptions: ["independent modifiers that do not share the same final element"]
+    pilot_batch: 1
+    pilot_risk: medium
+
+  - rule_key: use_consistent_compound_form
+    display_name: Use a consistent compound form
+    category: hyphenation_terminology
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: document_consistency
+    matcher_status: implemented
+    source_section: "7.2, 7.89-7.96"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Use one approved open, closed, or hyphenated form consistently throughout a document.
+    message: Multiple forms of the same compound appear in this document.
+    suggestion: Replace variants with the approved form.
+    positive_examples: ["The manual uses both real-time and realtime for the same concept."]
+    negative_examples: ["The manual consistently uses real-time."]
+    exception_examples: ["The setup procedure is complete."]
+    exceptions: ["different grammatical functions", "quoted text and official product names"]
+    matcher_config:
+      compound_variant_groups:
+        - preferred: real-time
+          variants: [real time, realtime]
+        - preferred: setup
+          variants: [set-up]
+        - preferred: touchscreen
+          variants: [touch screen, touch-screen]
+    pilot_batch: 1
+    pilot_risk: low
+
+  - rule_key: use_approved_ui_term_capitalization
+    display_name: Use approved capitalization for UI terms
+    category: hyphenation_terminology
+    severity: suggestion
+    initial_enabled: true
+    matcher_type: controlled_vocabulary
+    matcher_status: implemented
+    source_section: "7.82"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Match keys, menu items, buttons, tabs, and file formats to the approved UI vocabulary.
+    message: This UI term does not match the approved capitalization.
+    suggestion: Replace it with the approved UI term.
+    positive_examples: ["Select Smartscan from the menu."]
+    negative_examples: ["Select SmartScan from the menu."]
+    exception_examples: ["Run a smart scan when the UI is unavailable."]
+    exceptions: ["generic uses", "legacy UI versions"]
+    matcher_config:
+      approved_ui_terms:
+        SmartScan: [Smartscan, smartscan]
+        Review Results: [Review results, review results]
+        Team Manual Standard: [Team manual standard, Team Manual standard]
+    pilot_batch: 1
+    pilot_risk: low
+
+  - rule_key: ensure_subject_verb_agreement
+    display_name: Ensure subject-verb agreement
+    category: grammar
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: parser
+    matcher_status: implemented
+    source_section: "5.143"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Make the finite verb agree with its grammatical subject in person and number.
+    message: The subject and verb may not agree.
+    suggestion: Review the verb form for agreement with the subject.
+    positive_examples: ["The scan results is displayed."]
+    negative_examples: ["The scan results are displayed."]
+    exception_examples: ["The product series is displayed."]
+    exceptions: ["collective nouns", "product names that appear plural"]
+    pilot_batch: 1
+    pilot_risk: high
+
+  - rule_key: ensure_pronoun_antecedent_agreement
+    display_name: Ensure pronoun-antecedent agreement
+    category: grammar
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: parser
+    matcher_status: implemented
+    source_section: "5.35-5.37"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Make a pronoun agree clearly with its antecedent in number and reference.
+    message: The pronoun may not agree with or clearly refer to its antecedent.
+    suggestion: Revise the pronoun or antecedent.
+    positive_examples: ["The modules store its calibration value."]
+    negative_examples: ["The modules store their calibration values."]
+    exception_examples: ["The module stores its calibration value."]
+    exceptions: ["singular they", "cross-section references"]
+    pilot_batch: 1
+    pilot_risk: high
+
+  - rule_key: avoid_dangling_participial_phrase
+    display_name: Avoid a dangling participial phrase
+    category: grammar
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: parser
+    matcher_status: implemented
+    source_section: "5.119"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Ensure that an introductory participial phrase logically modifies the main-clause subject.
+    message: The introductory participial phrase may not modify the sentence subject.
+    suggestion: Name the actor immediately after the introductory phrase or revise the sentence.
+    positive_examples: ["After completing the scan, the result window appears."]
+    negative_examples: ["After completing the scan, the user sees the result window."]
+    exception_examples: ["After completing the scan, save the result."]
+    exceptions: ["absolute constructions", "conventional introductory phrases"]
+    pilot_batch: 1
+    pilot_risk: high
+
+  - rule_key: maintain_consistent_verb_tense
+    display_name: Maintain consistent verb tense
+    category: grammar
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: document_consistency
+    matcher_status: implemented
+    source_section: "5.140"
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Avoid an unjustified shift in verb tense within a connected passage.
+    message: The verb tense changes within a connected passage.
+    suggestion: Use a consistent tense unless the time reference changes.
+    positive_examples: ["The system starts the scan and displayed the result."]
+    negative_examples: ["The system starts the scan and displays the result."]
+    exception_examples: ["The system started the scan yesterday and displays the result today."]
+    exceptions: ["intentional changes in time reference", "chronological descriptions"]
+    pilot_batch: 1
+    pilot_risk: high
+
+  - rule_key: use_parallel_verb_forms_in_procedural_lists
+    display_name: Use parallel verb forms in procedural lists
+    category: grammar
+    severity: suggestion
+    initial_enabled: false
+    matcher_type: block
+    matcher_status: implemented
+    source_section: "5.217, 6.141-6.143"
+    source_note: Team technical-manual adaptation based on CMOS syntax and list guidance.
+    source_status: official_cmos_verified
+    source_role: supporting
+    description: Begin procedural steps at the same list level with parallel grammatical forms, normally imperative verbs.
+    message: Procedural list items do not use parallel grammatical forms.
+    suggestion: Begin each step with a parallel imperative verb form.
+    positive_examples: ["1. Connect the cable.\n2. The controller is turned on.\n3. Start the software."]
+    negative_examples: ["1. Connect the cable.\n2. Turn on the controller.\n3. Start the software."]
+    exception_examples: ["1. Input: cable\n2. Output: controller\n3. Status: ready"]
+    exceptions: ["mixed-content lists", "result statements separated from action steps"]
+    pilot_batch: 1
+    pilot_risk: medium

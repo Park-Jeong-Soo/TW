@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PDF English Reviewer: conservative CMOS rules for technical manuals.
+
+  This file intentionally contains only rules that can be checked with high
+  confidence. Context-sensitive CMOS guidance remains the responsibility of
+  the reviewer's contextual engine. Project exceptions (TOC dot leaders,
+  trademarks, general whitespace, and Figure caption scope) are enforced by
+  app/main.py.
+-->
+<rules lang="en"
+       xsi:noNamespaceSchemaLocation="../../../../../../../../../languagetool-core/src/main/resources/org/languagetool/rules/rules.xsd"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <category id="CMOS_TECHNICAL_MANUAL"
+              name="Chicago style for technical manuals"
+              type="grammar">
+        <rule id="CMOS_SERIAL_COMMA_SIMPLE"
+              name="Use a serial comma in a simple series">
+            <pattern>
+                <token postag="CD|JJ.*|NN.*|RB.*|VB.*" postag_regexp="yes"/>
+                <token>,</token>
+                <token postag="CD|JJ.*|NN.*|RB.*|VB.*" postag_regexp="yes"/>
+                <marker>
+                    <token regexp="yes">and|or</token>
+                </marker>
+                <token postag="CD|JJ.*|NN.*|RB.*|VB.*" postag_regexp="yes"/>
+            </pattern>
+            <message>Chicago style uses a serial comma before the final conjunction in a series of three or more parallel items.</message>
+            <suggestion>, <match no="4"/></suggestion>
+            <short>Use the CMOS serial comma.</short>
+            <example correction=", and">Use red, green <marker>and</marker> blue indicators.</example>
+            <example correction=", or">The status can be active, paused <marker>or</marker> stopped.</example>
+            <example>Use red, green, and blue indicators.</example>
+            <example>The motor starts and stops automatically.</example>
+        </rule>
+
+        <rulegroup id="CMOS_LATIN_ABBREVIATION_COMMA"
+                   name="Comma after e.g. or i.e.">
+            <rule>
+                <pattern>
+                    <marker>
+                        <token>e</token>
+                        <token spacebefore="no">.</token>
+                        <token spacebefore="no">g</token>
+                        <token spacebefore="no">.</token>
+                    </marker>
+                    <token>
+                        <exception postag=","/>
+                        <exception regexp="yes">\)|\]|\}|:|;|—|–</exception>
+                    </token>
+                </pattern>
+                <message>Chicago style places a comma after this abbreviation. In formal running text, consider spelling it out instead.</message>
+                <suggestion>e.g.,</suggestion>
+                <short>Add a comma after the abbreviation.</short>
+                <example correction="e.g.,">Select a mode (<marker>e.g.</marker> automatic mode).</example>
+                <example>Select a mode (e.g., automatic mode).</example>
+                <example>Do not add a comma when the abbreviation ends the note (e.g.)</example>
+            </rule>
+            <rule>
+                <pattern>
+                    <marker>
+                        <token>i</token>
+                        <token spacebefore="no">.</token>
+                        <token spacebefore="no">e</token>
+                        <token spacebefore="no">.</token>
+                    </marker>
+                    <token>
+                        <exception postag=","/>
+                        <exception regexp="yes">\)|\]|\}|:|;|—|–</exception>
+                    </token>
+                </pattern>
+                <message>Chicago style places a comma after this abbreviation. In formal running text, consider spelling it out instead.</message>
+                <suggestion>i.e.,</suggestion>
+                <short>Add a comma after the abbreviation.</short>
+                <example correction="i.e.,">Use the default setting (<marker>i.e.</marker> automatic).</example>
+                <example>Use the default setting (i.e., automatic).</example>
+                <example>Do not add a comma when the abbreviation ends the note (i.e.)</example>
+            </rule>
+        </rulegroup>
+
+        <rule id="CMOS_US_ABBREVIATION"
+              name="Use US without periods">
+            <pattern>
+                <marker>
+                    <token case_sensitive="yes">U</token>
+                    <token spacebefore="no">.</token>
+                    <token spacebefore="no" case_sensitive="yes">S</token>
+                    <token spacebefore="no">.</token>
+                </marker>
+            </pattern>
+            <message>Chicago style omits periods in the all-cap abbreviation for the United States.</message>
+            <suggestion>US</suggestion>
+            <short>Use “US” in Chicago style.</short>
+            <example correction="US">Follow the <marker>U.S.</marker> installation procedure.</example>
+            <example>Follow the US installation procedure.</example>
+        </rule>
+    </category>
+</rules>

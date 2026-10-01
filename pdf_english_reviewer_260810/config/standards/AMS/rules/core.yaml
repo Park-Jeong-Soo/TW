@@ -1,0 +1,71 @@
+version: 1
+rules:
+  - id: AMS_OPERATOR_SPACE_001
+    title: Add spacing around binary operators
+    category: format
+    rule_category: Operator spacing
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '(?P<left>[A-Za-z0-9])(?P<operator>[=+*/])(?P<right>[A-Za-z0-9])'
+    suggestion: '{left} {operator} {right}'
+    rationale: Binary mathematical operators should have consistent spacing in running text.
+    reference: AMS Mathematical Style, operator spacing
+    source: {type: standard-library, name: AMS, note: AMS Mathematical Style-derived internal rule.}
+    examples:
+      bad: [x=y]
+      good: [x = y]
+    enabled: true
+  - id: AMS_FUNCTION_NOTATION_001
+    title: Remove extra spacing in function notation
+    category: format
+    rule_category: Function notation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\b(?P<function>[fg])\s+\((?P<argument>[A-Za-z])\)'
+    suggestion: '{function}({argument})'
+    rationale: Function notation should keep the function name adjacent to its argument list.
+    reference: AMS Mathematical Style, function notation
+    source: {type: standard-library, name: AMS, note: AMS Mathematical Style-derived internal rule.}
+    examples:
+      bad: [f (x)]
+      good: [f(x)]
+    enabled: true
+  - id: AMS_DELIMITER_001
+    title: Remove extra spaces inside delimiters
+    category: format
+    rule_category: Delimiters
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '\(\s+(?P<inner>[A-Za-z0-9+\-*/= ]+?)\s+\)'
+    suggestion: '({inner})'
+    rationale: Mathematical delimiters should not contain unnecessary inner spaces.
+    reference: AMS Mathematical Style, delimiters
+    source: {type: standard-library, name: AMS, note: AMS Mathematical Style-derived internal rule.}
+    examples:
+      bad: [( x + y )]
+      good: [(x + y)]
+    enabled: true
+  - id: AMS_EQ_PUNCTUATION_001
+    title: Punctuate displayed equations
+    category: format
+    rule_category: Equation punctuation
+    severity: minor
+    engine: publishing_standard
+    pattern:
+      type: regex
+      value: '(?P<equation>[A-Za-z]\s*=\s*[^.,;:]+)$'
+    suggestion: '{equation}.'
+    rationale: Displayed equations that complete a sentence should be punctuated as part of the sentence.
+    reference: AMS Mathematical Style, equation punctuation
+    source: {type: standard-library, name: AMS, note: AMS Mathematical Style-derived internal rule.}
+    examples:
+      bad: [x = y]
+      good: [x = y.]
+    enabled: true
+

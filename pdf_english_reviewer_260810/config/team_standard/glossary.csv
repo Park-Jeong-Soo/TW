@@ -1,0 +1,5 @@
+﻿term,preferred_term,type,scope,project,case_sensitive,notes
+SmartScanT,SmartScanT,product_name,global,,true,Protected product name
+Z scanner,Z Scanner,preferred,global,,false,Use capital S
+Aux2 Out,Aux2 Out,ui_label,global,,true,UI label must be preserved
+set up,setup,discouraged,global,,false,Use setup as noun/adjective only

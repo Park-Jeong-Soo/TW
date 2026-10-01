@@ -1,0 +1,4 @@
+﻿term,type,scope,case_sensitive,notes
+SmartScanT,product_name,global,true,Protected product name
+Aux2 Out,ui_label,global,true,UI label
+

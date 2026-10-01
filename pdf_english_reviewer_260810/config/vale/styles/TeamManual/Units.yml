@@ -1,0 +1,5 @@
+﻿extends: existence
+message: "Check unit spacing: add a space between the number and the unit."
+level: warning
+tokens:
+  - '\b\d+(mm|cm|m|kg|V|Hz|kHz|MHz|MPa|kPa)\b'
