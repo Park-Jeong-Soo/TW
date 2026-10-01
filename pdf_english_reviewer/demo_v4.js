@@ -188,6 +188,7 @@
   const VALE_TIMEOUT_MS = window.VALE_TIMEOUT_MS || 10 * 60 * 1000;
 
   const WS_STORAGE_KEY = "tw-demo-workspaces-v1";
+  const REVIEW_STORAGE_PREFIX = "tw-demo-review-v1:";
   const RULES_STORAGE_KEY = "tw-demo-rules-v4";
   const RULES_MIGRATION_KEY = "tw-demo-rules-migration-v5";
   const RULES_ADDITION_KEY = "tw-demo-rules-addition-v6";
@@ -533,6 +534,36 @@
   function writeWorkspaces(list) { localStorage.setItem(WS_STORAGE_KEY, JSON.stringify(list)); }
   function addWorkspaceMeta(meta) { const list = readWorkspaces(); list.unshift(meta); writeWorkspaces(list); }
   function removeWorkspaceMeta(id) { writeWorkspaces(readWorkspaces().filter((w) => w.id !== id)); }
+  function reviewStorageKey(id) { return REVIEW_STORAGE_PREFIX + id; }
+  function findingKey(finding) {
+    return JSON.stringify([finding.page, finding.ruleId, finding.text, finding.bboxes || finding.bbox]);
+  }
+  function restoreReviewDecisions(findings, workspaceId) {
+    if (!workspaceId) return findings;
+    try {
+      const saved = JSON.parse(localStorage.getItem(reviewStorageKey(workspaceId)) || "{}");
+      for (const finding of findings) {
+        const decision = saved[findingKey(finding)];
+        if (!decision) continue;
+        if (["accepted", "rejected"].includes(decision.status)) finding.status = decision.status;
+        finding.reviewerComment = String(decision.reviewerComment || "");
+      }
+    } catch (error) { console.warn("[demo] review decisions could not be restored:", error); }
+    return findings;
+  }
+  function saveReviewDecisions() {
+    if (!viewerState.workspaceId) return;
+    const saved = {};
+    for (const finding of viewerState.findings) {
+      if (finding.status === "pending" && !finding.reviewerComment) continue;
+      saved[findingKey(finding)] = {
+        status: finding.status,
+        reviewerComment: finding.reviewerComment || "",
+      };
+    }
+    try { localStorage.setItem(reviewStorageKey(viewerState.workspaceId), JSON.stringify(saved)); }
+    catch (error) { console.warn("[demo] review decisions could not be saved:", error); }
+  }
 
   function newId() {
     if (crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -654,7 +685,7 @@
           created_at: new Date().toISOString(),
         });
       } catch (storeErr) { console.warn("[demo] persist failed:", storeErr); }
-      await renderViewer(pdf, file.name);
+      await renderViewer(pdf, file.name, id);
     } catch (err) {
       console.error("[demo] PDF render failed:", err);
       alert("PDF render failed: " + (err && err.message ? err.message : err));
@@ -712,7 +743,7 @@
       const buffer = await blob.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
       if (typeof window.showView === "function") window.showView("reviewer");
-      await renderViewer(pdf, meta.filename);
+      await renderViewer(pdf, meta.filename, id);
     } catch (err) { alert("Could not reopen workspace: " + err.message); }
   }
   async function deleteSavedWorkspace(id) {
@@ -721,6 +752,7 @@
     if (!confirm(`Delete this workspace?\n\n${meta.filename}`)) return;
     try { await idbDelete(id); } catch (err) { console.warn("[demo] IDB delete failed:", err); }
     removeWorkspaceMeta(id);
+    localStorage.removeItem(reviewStorageKey(id));
     renderSavedWorkspaces();
   }
   document.addEventListener("input", (event) => {
@@ -730,13 +762,14 @@
   //
   // ─── Reviewer state ────────────────────────────────────────────────────
   //
-  const viewerState = { pdf: null, zoom: 1, viewMode: "one", currentPage: 1, filename: "", findings: [], activeFindingId: null,
+  const viewerState = { pdf: null, zoom: 1, viewMode: "one", currentPage: 1, filename: "", workspaceId: null, findings: [], activeFindingId: null,
     textPages: new Map(), searchMatches: [], searchIndex: -1, searchRequest: 0, renderRequest: 0 };
 
-  async function renderViewer(pdf, name) {
+  async function renderViewer(pdf, name, workspaceId = null) {
     window.previewViewerActive = true;
     viewerState.pdf = pdf;
     viewerState.filename = name;
+    viewerState.workspaceId = workspaceId;
     viewerState.currentPage = 1;
     viewerState.zoom = 1;
     viewerState.viewMode = "one";
@@ -786,7 +819,7 @@
       const valeFindings = valeRes.status === "fulfilled" ? valeRes.value : [];
       if (valeRes.status === "rejected") console.warn("[demo] Vale check skipped:", valeRes.reason);
       const findings = mergeFindings(mergeFindings(regexFindings, posFindings), valeFindings);
-      viewerState.findings = findings;
+      viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
       setText("issue-total", String(findings.length));
       const cnt = findings.length;
       const posNote = !POS_RULES_ENABLED ? ""
@@ -914,6 +947,7 @@
           category: hit.rule.category, severity: hit.rule.severity || "minor",
           text: hit.text, context: para.text, suggestion: hit.suggestion,
           bbox: boxes[0], bboxes: boxes, source: "pos", status: "pending",
+          explanation: `This text matches the ${hit.rule.name} rule.`,
         });
       }
     }
@@ -1006,6 +1040,7 @@
             id: newId(), page: p, ruleId: tableHeaderRule.id, ruleName: tableHeaderRule.name,
             category: tableHeaderRule.category, severity: tableHeaderRule.severity,
             text: item.str, context: item.str, suggestion, bbox, status: "pending",
+            explanation: "Use title case for this table header.",
           });
         }
         if (titleRule && isTitleText(item, content.items, tableItems, labelPrefixes)) {
@@ -1014,6 +1049,7 @@
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
             category: titleRule.category, severity: titleRule.severity,
             text: item.str, context: item.str, suggestion, bbox, status: "pending",
+            explanation: "Use title case for this heading, figure or table label, or callout.",
           });
         }
 
@@ -1035,6 +1071,7 @@
               suggestion: replacement,
               bbox: bboxSlice(item, m.index, matchText.length, bbox),
               status: "pending",
+              explanation: `This text matches the ${rule.name} rule.`,
             });
             if (!re.global) break;
           }
@@ -1379,6 +1416,7 @@
       if (target === "review-results") {
         if (!confirm("Clear all review results for this session?")) return;
         viewerState.findings = [];
+        if (viewerState.workspaceId) localStorage.removeItem(reviewStorageKey(viewerState.workspaceId));
         setText("issue-total", "0");
         setText("review-status", "Review results cleared");
         renderIssuesPanel();
@@ -1391,13 +1429,13 @@
       }
       if (target === "original" || target === "all") {
         if (!confirm("Delete this workspace and return to upload?")) return;
-        const wsList = readWorkspaces();
-        const meta = wsList.find((w) => w.filename === viewerState.filename);
-        if (meta) {
-          try { await idbDelete(meta.id); } catch {}
-          removeWorkspaceMeta(meta.id);
+        if (viewerState.workspaceId) {
+          try { await idbDelete(viewerState.workspaceId); } catch {}
+          removeWorkspaceMeta(viewerState.workspaceId);
+          localStorage.removeItem(reviewStorageKey(viewerState.workspaceId));
         }
         viewerState.pdf = null;
+        viewerState.workspaceId = null;
         viewerState.findings = [];
         const upload = document.getElementById("upload-panel");
         const workspace = document.getElementById("workspace");
@@ -1490,8 +1528,17 @@
       if (!f) return;
       if (action === "accept") f.status = f.status === "accepted" ? "pending" : "accepted";
       if (action === "reject") f.status = f.status === "rejected" ? "pending" : "rejected";
+      saveReviewDecisions();
       renderIssuesPanel();
       renderCurrentPages();
+    });
+    container.addEventListener("input", (event) => {
+      const input = event.target.closest("[data-demo-comment-id]");
+      if (!input) return;
+      const finding = viewerState.findings.find((item) => item.id === input.dataset.demoCommentId);
+      if (!finding) return;
+      finding.reviewerComment = input.value;
+      saveReviewDecisions();
     });
   }
   function getFilterValue(id) { const el = document.getElementById(id); return (el && el.value) || "all"; }
@@ -1536,6 +1583,9 @@
             <code style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:3px;">${escapeHtml(f.suggestion || "review")}</code>
           </div>
           <div style="font-size:11px;color:#6b7280;margin-top:6px;">Context: <em>…${escapeHtml(truncate(f.context, 80))}…</em></div>
+          <label style="display:block;font-size:11px;color:#6b7280;margin-top:8px;">Reviewer comment
+            <input class="reviewer-comment" data-demo-comment-id="${f.id}" value="${escapeHtml(f.reviewerComment || "")}" placeholder="Reviewer comment" />
+          </label>
           <div style="display:flex;gap:6px;margin-top:10px;">
             <button data-demo-action="accept" data-demo-finding-id="${f.id}"
               style="flex:1;padding:6px 10px;border:1px solid #10b981;background:${f.status === "accepted" ? "#10b981" : "#fff"};color:${f.status === "accepted" ? "#fff" : "#10b981"};border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">
@@ -1594,7 +1644,7 @@
       const safeName = viewerState.filename.replace(/\.pdf$/i, "").replace(/[^\w.-]+/g, "_");
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${safeName || "review"}_annotated.pdf`;
+      link.download = `${safeName || "review"}_annotated_review.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1622,16 +1672,15 @@
     const bottom = Math.min(...boxes.map((b) => b[1]));
     const right = Math.max(...boxes.map((b) => b[2]));
     const top = Math.max(...boxes.map((b) => b[3]));
-    const style = SEVERITY_STYLES[finding.severity] || SEVERITY_STYLES.minor;
-    const color = hexToRgb(style.border).map((channel) => channel / 255);
-    const comment = `${finding.ruleName || "Suggestion"}\nOriginal: ${finding.text || ""}\nSuggestion: ${finding.suggestion || "Review manually"}`;
+    const color = hexToRgb(CATEGORY_COLORS[finding.category] || "#fbb82e").map((channel) => channel / 255);
+    const comment = `Original: ${finding.text || ""}\nSuggestion: ${finding.suggestion || "Review manually"}\nExplanation: ${finding.explanation || finding.ruleName || "Review suggestion"}\nReviewer comment: ${finding.reviewerComment || "-"}`;
     const { PDFHexString } = window.PDFLib;
     const annotation = doc.context.obj({
       Type: "Annot", Subtype: "Highlight",
       Rect: [left, bottom, right, top],
       QuadPoints: boxes.flatMap(([l, b, r, t]) => [l, t, r, t, l, b, r, b]),
       C: color, CA: 0.35, F: 4,
-      T: PDFHexString.fromText("PDF English Reviewer"),
+      T: PDFHexString.fromText(`${finding.category || "Review"} [accepted]`),
       Contents: PDFHexString.fromText(comment),
     });
     page.node.addAnnot(doc.context.register(annotation));

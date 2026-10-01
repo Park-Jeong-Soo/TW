@@ -1,7 +1,15 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
+const source = fs.readFileSync('pdf_english_reviewer/demo_v4.js', 'utf8');
+const winkContext = {window: {}, atob, btoa, TextDecoder};
+try {
+  vm.runInNewContext(fs.readFileSync('pdf_english_reviewer/vendor/wink-bundle.min.js', 'utf8'), winkContext);
+} catch (error) {
+  throw new Error(`Wink browser bundle failed to load: ${error.message}`);
+}
+const winkNlp = winkContext.window.WinkBundle.winkNLP(winkContext.window.WinkBundle.model);
+assert.deepEqual(Array.from(winkNlp.readDoc('Hello world.').tokens().out()), ['Hello', 'world', '.']);
 const code = source.replace(/\}\)\(\);\s*$/, 'globalThis.testApi={getRules,visibleFindings,viewerState,filteredRules,ruleFilters,renderRuleRow,titleCaseText,titleCaseSuggestion,classifyTextRole,isTitleText,isProminentHeading,detectTableRows,runRulesOnPdf,addHighlightComment,saveReviewDecisions,restoreReviewDecisions};})();');
 assert.notEqual(code, source);
 const data = new Map([['tw-demo-rules-v4', JSON.stringify([
@@ -13,6 +21,12 @@ const context = {console, crypto:{randomUUID:()=>String(Math.random())}, window:
   addEventListener(){}, getElementById(id){return elements.get(id)||null}},
   localStorage:{getItem(k){return data.get(k)||null},setItem(k,v){data.set(k,v)},removeItem(k){data.delete(k)}}};
 vm.runInNewContext(code,context);
+const posHits=context.window.PosRules.check(winkNlp,[
+  {text:'The high voltage device was tested on September 28, 2026.',role:'body'},
+],context.window.PosRules.DEFAULT_POS_RULES);
+assert.ok(posHits.some(hit=>hit.rule.id==='pos-compound-modifier'&&hit.suggestion==='high-voltage device'));
+assert.ok(posHits.some(hit=>hit.rule.id==='pos-passive-voice'));
+assert.ok(posHits.some(hit=>hit.rule.id==='pos-date-iso'&&hit.suggestion==='2026-09-28'));
 const annotations=[];
 context.window.PDFLib={PDFHexString:{fromText:text=>({text})}};
 const annotationDoc={
@@ -31,6 +45,14 @@ assert.ok(annotations[0].Contents.text.includes('Suggestion: 5 mm'));
 assert.ok(annotations[0].Contents.text.includes('Explanation: Spacing'));
 assert.ok(annotations[0].Contents.text.includes('Reviewer comment: Use a space.'));
 assert.ok(annotations[0].T.text.includes('[accepted]'));
+assert.equal(context.testApi.addHighlightComment(annotationDoc,{
+  page:2,bbox:[100,200,80,12],bboxes:[[100,200,80,12],[100,180,50,12]],
+  category:'grammar',ruleName:'Passive voice',text:'was tested',suggestion:'Use active voice',
+  status:'accepted',reviewerComment:'Name the actor.',
+}),true);
+assert.deepEqual(Array.from(annotations[1].Rect),[100,180,180,212]);
+assert.equal(annotations[1].QuadPoints.length,16,'both text lines are highlighted');
+assert.ok(annotations[1].Contents.text.includes('Reviewer comment: Name the actor.'));
 assert.equal(context.testApi.addHighlightComment(annotationDoc,{page:3,bbox:[100,200,80,12]}),false);
 assert.equal(context.testApi.addHighlightComment(annotationDoc,{page:1,bbox:[700,200,80,12]}),false);
 const savedFinding={page:2,ruleId:'space-unit',text:'5mm',bbox:[100,200,80,12],status:'accepted',reviewerComment:'Use a space.'};
@@ -256,6 +278,9 @@ elements.get('issue-search').value='Team Manual Standard';
 assert.equal(context.testApi.visibleFindings().length,2);
 const appSource=require('node:fs').readFileSync('pdf_english_reviewer/app_v3.js','utf8');
 const htmlSource=fs.readFileSync('pdf_english_reviewer/index.html','utf8');
+assert.ok(htmlSource.indexOf('vendor/wink-bundle.min.js') < htmlSource.indexOf('demo_v4.js'));
+assert.ok(htmlSource.includes('src="./demo_v4.js?v=1"'));
+assert.ok(!htmlSource.includes('src="./demo.js'));
 assert.ok(!htmlSource.includes('id="nav-engines"'));
 assert.ok(!htmlSource.includes('id="engine-status-view"'));
 assert.ok(!appSource.includes('$("nav-engines").addEventListener'));
