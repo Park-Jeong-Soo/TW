@@ -1645,12 +1645,15 @@
             if (!posConditionMatches(want, tokens, m.index, m.index + m[0].length)) continue;
             const boxes = boxesForRange(para, m.index, m.index + m[0].length);
             if (!boxes.length) continue;
+            const matchTokens = tokens.filter((t) => t.start < m.index + m[0].length && t.end > m.index && t.pos !== "SPACE");
+            const posTrace = matchTokens.map((t) => `${t.value}/${t.pos}`).join(" ");
             findings.push({
               id: newId(), page: p, ruleId: rule.id, ruleName: rule.name,
               category: rule.category, severity: rule.severity,
               text: m[0], context: para.text, suggestion: applyReplacement(rule.replacement, m),
-              bbox: boxes[0], bboxes: boxes, status: "pending",
+              bbox: boxes[0], bboxes: boxes, status: "pending", posTrace,
             });
+            if (/\bbutterfly\b/i.test(m[0])) console.info("[demo][pos][butterfly]", JSON.stringify(m[0]), "tags:", posTrace, "want:", rule.pos);
           }
         }
       }
@@ -2310,6 +2313,7 @@
             <code style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:3px;">${escapeHtml(f.suggestion || "review")}</code>
           </div>
           <div style="font-size:11px;color:#6b7280;margin-top:6px;">Context: <em>…${escapeHtml(truncate(f.context, 80))}…</em></div>
+          ${f.posTrace ? `<div style="font-size:11px;color:#7c3aed;margin-top:4px;font-family:ui-monospace,monospace;">POS: ${escapeHtml(f.posTrace)}</div>` : ""}
           <label style="display:block;font-size:11px;color:#6b7280;margin-top:8px;">Reviewer comment
             <input class="reviewer-comment" data-demo-comment-id="${f.id}" value="${escapeHtml(f.reviewerComment || "")}" placeholder="Reviewer comment" />
           </label>
