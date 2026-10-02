@@ -493,6 +493,7 @@
   // ─── PDF.js loader ─────────────────────────────────────────────────────
   //
   let pdfjsReady = null;
+  let pdfjsBase = null;
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       const s = document.createElement("script");
@@ -510,12 +511,26 @@
         try {
           await loadScript(`${base}/pdf.min.js`);
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.js`;
+          pdfjsBase = base;
           return;
         } catch (err) { lastErr = err; console.warn("[demo] PDF.js load failed from", base, err); }
       }
       throw lastErr || new Error("All PDF.js CDNs failed");
     })();
     return pdfjsReady;
+  }
+  // CMap tables (CJK/non-Latin font decoding). cdnjs lays them out under /cmaps/,
+  // jsdelivr/unpkg under /../cmaps/ relative to /build/. Return a URL that ends with "/".
+  function pdfjsCMapUrl() {
+    if (!pdfjsBase) return null;
+    if (pdfjsBase.includes("cloudflare.com")) return `${pdfjsBase}/cmaps/`;
+    return pdfjsBase.replace(/\/build$/, "/cmaps/");
+  }
+  function pdfDocOptions(extra) {
+    const base = { cMapPacked: true };
+    const url = pdfjsCMapUrl();
+    if (url) base.cMapUrl = url;
+    return Object.assign(base, extra || {});
   }
   ensurePdfjs().catch((err) => console.warn("[demo] PDF.js preload failed:", err));
 
@@ -718,6 +733,25 @@
         });
         saveRules(rules);
       }
+      // Self-heal: STYLE_RULES are the only rules with a .pos field. If a stored rule
+      // of the same id is missing .pos (edited or saved before v11 migration shipped),
+      // restore .pos from the default so POS tagging actually runs.
+      const styleIds = new Set(STYLE_RULES.map((r) => r.id));
+      const missingPos = [];
+      let healed = false;
+      for (const r of rules) {
+        if (!styleIds.has(r.id)) continue;
+        if (r.pos) continue;
+        const def = STYLE_RULES.find((d) => d.id === r.id);
+        if (def && def.pos) { r.pos = def.pos; healed = true; missingPos.push(r.id); }
+      }
+      const existingIds = new Set(rules.map((r) => r.id));
+      const absent = STYLE_RULES.filter((r) => !existingIds.has(r.id));
+      if (absent.length) { rules.push(...absent); healed = true; }
+      if (healed) {
+        saveRules(rules);
+        console.info("[demo][pos] self-healed rules — added:", absent.map((r) => r.id), "pos-restored:", missingPos);
+      }
       return rules;
     } catch { return DEFAULT_RULES.slice(); }
   }
@@ -750,7 +784,7 @@
     try {
       await ensurePdfjs();
       const buffer = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+      const pdf = await window.pdfjsLib.getDocument(pdfDocOptions({ data: buffer.slice(0) })).promise;
       const id = newId();
       try {
         await idbPut(id, new Blob([buffer], { type: "application/pdf" }));
@@ -818,7 +852,7 @@
       if (!blob) return alert("Stored PDF blob not found.");
       await ensurePdfjs();
       const buffer = await blob.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+      const pdf = await window.pdfjsLib.getDocument(pdfDocOptions({ data: buffer })).promise;
       if (typeof window.showView === "function") window.showView("reviewer");
       await renderViewer(pdf, meta.filename, id);
     } catch (err) { alert("Could not reopen workspace: " + err.message); }
@@ -1295,7 +1329,7 @@
     try {
       await ensurePdfjs();
       const { bytes, placed } = await buildSelfCheckPdf();
-      const pdf = await window.pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
+      const pdf = await window.pdfjsLib.getDocument(pdfDocOptions({ data: bytes.slice(0) })).promise;
       selfCheck.pending = true;
       selfCheck.running = true;
       selfCheck.placed = placed;
@@ -1450,21 +1484,32 @@
   else injectSelfCheckButtons();
 
   async function runPosRulesOnPdf(pdf) {
-    const compiled = activeRules().filter((r) => r.pos).map((r) => {
+    const allActive = activeRules();
+    const compiled = allActive.filter((r) => r.pos).map((r) => {
       try {
         const flags = (r.flags || "g").includes("g") ? (r.flags || "g") : (r.flags || "") + "g";
         return { rule: r, re: new RegExp(r.pattern, flags), want: parsePosCondition(r.pos) };
-      } catch { return null; }
+      } catch (err) {
+        console.warn("[demo][pos] rule compile failed:", r.id, err.message);
+        return null;
+      }
     }).filter(Boolean);
-    if (!compiled.length) return [];
+    console.info(`[demo][pos] active rules: ${allActive.length}, with POS condition: ${compiled.length}, WinkBundle: ${typeof window.WinkBundle}`);
+    if (!compiled.length) {
+      console.warn("[demo][pos] no rules with .pos — POS tagging skipped. Check localStorage key 'tw-demo-rules-v4'.");
+      return [];
+    }
     const nlp = await ensureTagger();
+    console.info("[demo][pos] tagger ready, scanning", pdf.numPages, "pages");
     const findings = [];
+    let paraCount = 0;
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
       rememberStyles(content);
       for (const para of buildParagraphs(content.items, page.view[3])) {
+        paraCount++;
         let tokens = null; // tag only paragraphs where some pattern matches
         for (const { rule, re, want } of compiled) {
           re.lastIndex = 0;
@@ -1485,6 +1530,7 @@
         }
       }
     }
+    console.info(`[demo][pos] done — scanned ${paraCount} paragraphs, ${findings.length} POS findings`);
     return findings;
   }
 
