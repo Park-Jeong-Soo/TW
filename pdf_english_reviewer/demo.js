@@ -919,9 +919,18 @@
     wireViewerToolbar();
     wireIssuesFilters();
     wireIssueActions();
+    wireRunReviewButtons();
+    wireBulkDecisionButtons();
     setupExportButton();
     await renderCurrentPages();
+    enableRunReviewButtons(true);
 
+    runReviewFlow(pdf, name);
+  }
+
+  function runReviewFlow(pdf, name) {
+    setText("review-status", "Extracting text and matching rules…");
+    enableRunReviewButtons(false);
     Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runValeOnPdf(pdf)]).then(([regexRes, posRes, valeRes]) => {
       if (regexRes.status === "rejected") throw regexRes.reason;
       const regexFindings = regexRes.value;
@@ -950,7 +959,62 @@
       selfCheck.pending = false;
       console.warn("[demo] rule run failed:", err);
       setText("review-status", "Rule matching failed (see console).");
-    });
+    }).finally(() => enableRunReviewButtons(true));
+  }
+
+  function enableRunReviewButtons(enabled) {
+    const full = document.getElementById("run-full-review-btn");
+    const part = document.getElementById("run-part-review-btn");
+    if (full) full.disabled = !enabled;
+    if (part) part.disabled = !enabled;
+  }
+
+  // app.js attaches backend click handlers to these buttons at startup.
+  // Clone-replace to strip them, then attach the preview-mode handler.
+  let runReviewButtonsWired = false;
+  function wireRunReviewButtons() {
+    if (runReviewButtonsWired) return;
+    runReviewButtonsWired = true;
+    for (const id of ["run-full-review-btn", "run-part-review-btn"]) {
+      const btn = document.getElementById(id);
+      if (!btn) continue;
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener("click", () => {
+        if (!viewerState.pdf) return;
+        runReviewFlow(viewerState.pdf, viewerState.filename);
+      });
+    }
+  }
+
+  let bulkDecisionButtonsWired = false;
+  function wireBulkDecisionButtons() {
+    if (bulkDecisionButtonsWired) return;
+    bulkDecisionButtonsWired = true;
+    const apply = (status) => {
+      const targets = visibleFindings();
+      if (!targets.length) return;
+      for (const f of targets) f.status = status;
+      saveReviewDecisions();
+      renderIssuesPanel();
+      renderCurrentPages();
+      updateBulkDecisionButtons();
+    };
+    for (const [id, status] of [["accept-all-btn", "accepted"], ["ignore-all-btn", "rejected"]]) {
+      const btn = document.getElementById(id);
+      if (!btn) continue;
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener("click", () => apply(status));
+    }
+  }
+
+  function updateBulkDecisionButtons() {
+    const hasAny = (viewerState.findings || []).length > 0;
+    const accept = document.getElementById("accept-all-btn");
+    const ignore = document.getElementById("ignore-all-btn");
+    if (accept) accept.disabled = !hasAny;
+    if (ignore) ignore.disabled = !hasAny;
   }
 
   //
@@ -2157,6 +2221,7 @@
     if (!target) return;
     const list = visibleFindings();
     setText("issue-total", String(list.length));
+    updateBulkDecisionButtons();
     if (!list.length) {
       target.innerHTML = `<div class="empty-issues" style="padding:20px;color:#6b7280;">No suggestions match this filter.</div>`;
       return;

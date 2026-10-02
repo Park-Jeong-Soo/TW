@@ -1154,19 +1154,11 @@ function renderIssueList() {
 }
 
 function updateBulkCategoryActions() {
-  const selectedCategory = $("category-filter").value;
-  const enabled = selectedCategory !== "all"
-    && reviewVisibleIssueSource().some((issue) =>
-      issue.category === selectedCategory && issue.status !== "rejected"
-    );
-  $("accept-category-btn").disabled = !enabled;
-  $("reject-category-btn").disabled = !enabled;
+  // Legacy no-op: Accept Category / Reject Category buttons were removed.
 }
 
 function updateTeamCandidateImportButton() {
-  const button = $("add-selected-team-standard-btn");
-  if (!button) return;
-  button.disabled = state.selectedTeamCandidateIssueIds.size === 0;
+  // Legacy no-op: "Add Selected to Team Manual Standard" button was removed.
 }
 
 async function bulkUpdateCategory(status) {
@@ -2122,7 +2114,6 @@ function attachEventHandlers() {
   });
   $("run-full-review-btn").addEventListener("click", () => runReview("full"));
   $("run-part-review-btn").addEventListener("click", () => runReview("part"));
-  $("add-selected-team-standard-btn").addEventListener("click", openTeamCandidateModal);
   $("close-team-candidate-modal").addEventListener("click", closeTeamCandidateModal);
   $("cancel-team-candidate-modal").addEventListener("click", closeTeamCandidateModal);
   $("save-team-candidates-btn").addEventListener("click", saveTeamCandidates);
@@ -2186,8 +2177,6 @@ function attachEventHandlers() {
   $("engine-filter").addEventListener("change", renderIssueList);
   $("standard-filter").addEventListener("change", renderIssueList);
   $("issue-search").addEventListener("input", renderIssueList);
-  $("accept-category-btn").addEventListener("click", () => bulkUpdateCategory("accepted"));
-  $("reject-category-btn").addEventListener("click", () => bulkUpdateCategory("rejected"));
   document.querySelectorAll("[data-delete-document]").forEach((button) => button.addEventListener("click", () => deleteDocumentTarget(button.dataset.deleteDocument)));
   $("download-csv-btn").addEventListener("click", () => state.documentId && window.open(`/api/documents/${state.documentId}/export.csv`, "_blank"));
   $("download-json-btn").addEventListener("click", () => state.documentId && window.open(`/api/documents/${state.documentId}/export.json`, "_blank"));
