@@ -553,8 +553,36 @@
       </div>
     </section>
   </div>
-  <script src="./app.js?v=14"></script>
+  <script>
+    // Inlined a4PageLayout (fallback — also loaded from page_layout.js). Must exist before app.js/demo.js.
+    (function (root) {
+      const A4_WIDTH = 595.28, A4_HEIGHT = 841.89;
+      function a4PageLayout(sourceWidth, sourceHeight, viewerWidth, zoom, twoPage) {
+        if (zoom === undefined) zoom = 1;
+        if (twoPage === undefined) twoPage = false;
+        if (!(sourceWidth > 0) || !(sourceHeight > 0)) throw new Error("Invalid PDF page size");
+        const landscape = sourceWidth > sourceHeight;
+        const a4Width = landscape ? A4_HEIGHT : A4_WIDTH;
+        const a4Height = landscape ? A4_WIDTH : A4_HEIGHT;
+        const usableWidth = Math.max(240, (viewerWidth || 800) - 80);
+        const fitWidth = twoPage ? Math.max(220, (usableWidth - 24) / 2) : usableWidth;
+        const paperWidth = Math.min(a4Width, fitWidth) * zoom;
+        const paperHeight = paperWidth * a4Height / a4Width;
+        const contentScale = Math.min(paperWidth / sourceWidth, paperHeight / sourceHeight);
+        const contentWidth = sourceWidth * contentScale;
+        const contentHeight = sourceHeight * contentScale;
+        return {
+          paperWidth, paperHeight, contentWidth, contentHeight, contentScale,
+          offsetX: (paperWidth - contentWidth) / 2,
+          offsetY: (paperHeight - contentHeight) / 2,
+        };
+      }
+      root.a4PageLayout = a4PageLayout;
+    })(window);
+  </script>
+  <script src="./page_layout.js?v=2"></script>
+  <script src="./app.js?v=15"></script>
   <script src="./vendor/wink-bundle.min.js?v=1"></script>
-  <script src="./demo.js?v=1"></script>
+  <script src="./demo.js?v=2"></script>
 </body>
 </html>
