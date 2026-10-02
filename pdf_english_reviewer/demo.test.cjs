@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync('pdf_english_reviewer/demo_v4.js', 'utf8');
+const source = fs.readFileSync('pdf_english_reviewer/demo.js', 'utf8');
 const winkContext = {window: {}, atob, btoa, TextDecoder};
 try {
   vm.runInNewContext(fs.readFileSync('pdf_english_reviewer/vendor/wink-bundle.min.js', 'utf8'), winkContext);
@@ -278,9 +278,8 @@ elements.get('issue-search').value='Team Manual Standard';
 assert.equal(context.testApi.visibleFindings().length,2);
 const appSource=require('node:fs').readFileSync('pdf_english_reviewer/app_v3.js','utf8');
 const htmlSource=fs.readFileSync('pdf_english_reviewer/index.html','utf8');
-assert.ok(htmlSource.indexOf('vendor/wink-bundle.min.js') < htmlSource.indexOf('demo_v4.js'));
-assert.ok(htmlSource.includes('src="./demo_v4.js?v=1"'));
-assert.ok(!htmlSource.includes('src="./demo.js'));
+assert.ok(htmlSource.indexOf('vendor/wink-bundle.min.js') < htmlSource.indexOf('demo.js'));
+assert.ok(htmlSource.includes('src="./demo.js?v=1"'));
 assert.ok(!htmlSource.includes('id="nav-engines"'));
 assert.ok(!htmlSource.includes('id="engine-status-view"'));
 assert.ok(!appSource.includes('$("nav-engines").addEventListener'));
