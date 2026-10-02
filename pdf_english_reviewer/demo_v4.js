@@ -201,6 +201,7 @@
   const RULES_CMOS17_V2_KEY = "tw-demo-rules-cmos17-v10";
   const RULES_POS_KEY = "tw-demo-rules-pos-v11";
   const RULES_POS_V12_KEY = "tw-demo-rules-pos-v12";
+  const RULES_FIX_V13_KEY = "tw-demo-rules-fix-v13";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -229,6 +230,11 @@
     critical: { fill: "rgba(239, 68, 68, 0.30)",  border: "#ef4444", label: "Critical" },
     major:    { fill: "rgba(249, 115, 22, 0.30)", border: "#f97316", label: "Major" },
     minor:    { fill: "rgba(234, 179, 8, 0.35)",  border: "#eab308", label: "Minor" },
+  };
+  const CATEGORY_LABELS = {
+    typo: "Typo", spacing: "Spacing", punctuation: "Punctuation", grammar: "Grammar",
+    capitalization: "Capitalization", numbers_abbreviations: "Numbers & abbreviations",
+    hyphenation_terminology: "Hyphenation & terminology", custom: "Custom",
   };
   const CATEGORY_COLORS = {
     typo: "#f59e0b", spacing: "#3b82f6", custom: "#8b5cf6",
@@ -401,7 +407,7 @@
       pattern: "([A-Za-z0-9])\\s+etc\\.", flags: "g", replacement: "$1, etc.", severity: "minor", enabled: true },
     // Disabled / heuristic — require user review
     { id: "chicago-86-ordinal-2d",       category: "numbers_abbreviations", name: "Chicago 9.6 — Use 2nd/22nd not 2d/22d for ordinals (review: 12d is exception)",
-      pattern: "\\b(\\d*2)d\\b", flags: "g", replacement: "$12nd", severity: "minor", enabled: false },
+      pattern: "\\b(\\d*2)d\\b", flags: "g", replacement: "$1nd", severity: "minor", enabled: false },
     { id: "chicago-87-thousands-comma",  category: "numbers_abbreviations", name: "Chicago 9.55 — Comma separator in 4-digit numbers (heuristic; review page nums/years)",
       pattern: "\\b([1-9])(\\d{3})\\b(?!,)", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false },
     // ── CMOS 17 rules (batch 2) — from chapters 1–5, 8, 11–15 ──────────────────
@@ -419,7 +425,7 @@
       pattern: "\\bet al\\b(?!\\.)", flags: "gi", replacement: "et al.", severity: "minor", enabled: true },
     // §8.4: Space between initials in personal names (e.g., E.B. White → E. B. White)
     { id: "chicago-92-initials-space",   category: "spacing", name: "Chicago 8.4 — Space between initials in personal names",
-      pattern: "\\b([A-Z]\\.)([A-Z]\\.)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+      pattern: "\\b(?!(?:U\\.S|D\\.C|U\\.K|E\\.U|U\\.N|M\\.D|B\\.A|M\\.A|B\\.S|M\\.S|J\\.D)\\.)([A-Z]\\.)([A-Z]\\.)(?=\\s+[A-Z][a-z])", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     // §5.49: Possessive pronouns take no apostrophe (hers, theirs, yours, ours)
     { id: "chicago-93-possessive-pronoun", category: "grammar", name: "Chicago 5.49 — Possessive pronouns need no apostrophe",
       pattern: "\\b(her|their|your|our)'s\\b", flags: "gi", replacement: "$1s", severity: "minor", enabled: true },
@@ -463,14 +469,20 @@
   ];
   const TEAM_RULES = [
     { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
-      pattern: "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+      pattern: "\\b(?!(?:1[89]|20)\\d0s\\b)(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "team-title-case", category: "capitalization", name: "Team Manual Standard-Title Case for headings, figure labels, table labels, and callout",
       pattern: "^(?:Figure|Fig\\.|Table)\\s+\\d+[.:]\\s+.+$", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
-  // Stored copy of chicago-11/chicago-02 before v11/v12, used to upgrade only if not edited.
+  // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
+  // Before v13: Chicago 8.4 also matched U.S., D.C., M.D. ...; Chicago 9.6 used "$12nd"
+  // (read as group 12, giving the suggestion "nd").
+  const CHICAGO_92_V12_PATTERN = "\\b([A-Z]\\.)([A-Z]\\.)";
+  const CHICAGO_86_V12_REPLACEMENT = "$12nd";
+  // Before v13: the unit-spacing rule read a decade ("1990s") as number + "s" (seconds).
+  const SPACE_UNIT_V12_PATTERN = "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b";
   const CHICAGO_02_V11_PATTERN = "(\\w+),\\s+(\\w+)\\s+(and|or)\\s+(\\w+)";
   const CHICAGO_11_V10_PATTERN = "\\b(high|low|long|short|full|part|real|multi|open|closed|wide|narrow|fine|coarse)\\s+(speed|resolution|term|scale|frequency|time|source|purpose|loop|range|band|precision|grained)\\s+(\\w+)";
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
@@ -690,6 +702,17 @@
         saveRules(rules);
         localStorage.setItem(RULES_POS_V12_KEY, "done");
       }
+      if (localStorage.getItem(RULES_FIX_V13_KEY) !== "done") {
+        // v13: fixes found by the self-check, applied only to rules the user has not edited.
+        const r92 = rules.find((rule) => rule.id === "chicago-92-initials-space");
+        if (r92 && r92.pattern === CHICAGO_92_V12_PATTERN) r92.pattern = CHICAGO_RULES.find((rule) => rule.id === r92.id).pattern;
+        const r86 = rules.find((rule) => rule.id === "chicago-86-ordinal-2d");
+        if (r86 && r86.replacement === CHICAGO_86_V12_REPLACEMENT) r86.replacement = "$1nd";
+        const ru = rules.find((rule) => rule.id === "space-unit");
+        if (ru && ru.pattern === SPACE_UNIT_V12_PATTERN) ru.pattern = TEAM_RULES.find((rule) => rule.id === "space-unit").pattern;
+        saveRules(rules);
+        localStorage.setItem(RULES_FIX_V13_KEY, "done");
+      }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
       if (titleRules.some((rule) => rule.name !== titleRuleDefault.name || rule.pattern !== titleRuleDefault.pattern)) {
@@ -869,22 +892,19 @@
     setupExportButton();
     await renderCurrentPages();
 
-    Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runUserPosRulesOnPdf(pdf), runValeOnPdf(pdf)]).then(([regexRes, posRes, userPosRes, valeRes]) => {
+    Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runValeOnPdf(pdf)]).then(([regexRes, posRes, valeRes]) => {
       if (regexRes.status === "rejected") throw regexRes.reason;
       const regexFindings = regexRes.value;
       const posFindings = posRes.status === "fulfilled" ? posRes.value : [];
-      if (posRes.status === "rejected") console.warn("[demo] POS rules skipped:", posRes.reason);
-      const userPosFindings = userPosRes.status === "fulfilled" ? userPosRes.value : [];
-      if (userPosRes.status === "rejected") console.warn("[demo] User POS rules skipped:", userPosRes.reason);
+      if (posRes.status === "rejected") console.warn("[demo] POS-condition rules skipped:", posRes.reason);
       const valeFindings = valeRes.status === "fulfilled" ? valeRes.value : [];
       if (valeRes.status === "rejected") console.warn("[demo] Vale check skipped:", valeRes.reason);
-      const findings = mergeFindings(mergeFindings(mergeFindings(regexFindings, posFindings), userPosFindings), valeFindings);
+      const allFindings = sortFindings([...regexFindings, ...posFindings]);
+      const findings = mergeFindings(allFindings, valeFindings);
       viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
       setText("issue-total", String(findings.length));
       const cnt = findings.length;
-      const posNote = !POS_RULES_ENABLED ? ""
-        : posRes.status === "fulfilled" ? ` · POS rules: ${posFindings.length + userPosFindings.length}`
-        : " · POS rules unavailable";
+      const posNote = posRes.status === "rejected" ? " · part-of-speech tagger unavailable: rules with a POS condition were skipped" : "";
       const valeNote = posNote + (!VALE_ENABLED ? ""
         : valeRes.status === "fulfilled" ? ` · Vale: ${valeFindings.length}`
         : " · Vale server unavailable");
@@ -893,7 +913,11 @@
         : `Review complete — no matches found`) + valeNote);
       renderIssuesPanel();
       renderCurrentPages();
+      const oldPanel = document.getElementById("self-check-panel");
+      if (selfCheck.pending && name === SELF_CHECK_FILENAME) { selfCheck.pending = false; renderSelfCheckReport(findings); }
+      else if (oldPanel) oldPanel.remove();
     }).catch((err) => {
+      selfCheck.pending = false;
       console.warn("[demo] rule run failed:", err);
       setText("review-status", "Rule matching failed (see console).");
     });
@@ -912,48 +936,40 @@
     return winkReady;
   }
 
-  // Rebuild paragraphs from PDF.js text items: items -> lines (baseline) ->
-  // paragraphs (line gap / font-size change). A sentence wrapped over two
-  // lines becomes one string, and every character remembers its item so a
-  // match can be highlighted. Role: "heading" if clearly larger than the
-  // page's most common (body) font size, else "body".
+  // PDF.js text items -> lines (same baseline) -> paragraphs (break on a large
+  // line gap, a font-size change or a font change such as bold, so headings never
+  // merge with body text).
+  // Every character keeps its item and index so a match can be highlighted.
   function buildParagraphs(items, pageHeight) {
     const usable = items.filter((item) => {
       if (!item.str || !item.str.trim()) return false;
       const [, y, , h] = itemBbox(item);
       return y >= MARGIN_PT && y + h <= pageHeight - MARGIN_PT;
     });
-    if (!usable.length) return [];
-    const weight = new Map();
-    for (const it of usable) {
-      const size = Math.round(itemFontSize(it) * 10) / 10;
-      weight.set(size, (weight.get(size) || 0) + it.str.length);
-    }
-    const bodySize = [...weight.entries()].sort((a, b) => b[1] - a[1])[0][0];
-
     const lines = [];
     for (const it of [...usable].sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4])) {
       const size = itemFontSize(it) || 10;
       const line = lines[lines.length - 1];
       if (line && Math.abs(line.y - it.transform[5]) < 0.5 * size) line.items.push(it);
-      else lines.push({ y: it.transform[5], size, items: [it] });
+      else lines.push({ y: it.transform[5], items: [it] });
     }
     lines.forEach((l) => {
       l.items.sort((a, b) => a.transform[4] - b.transform[4]);
       l.size = Math.max(...l.items.map((it) => itemFontSize(it)));
+      // The line's main font (the one carrying the most characters): a bold heading
+      // uses a different font from the body even when its size is close.
+      const chars = new Map();
+      for (const it of l.items) chars.set(it.fontName, (chars.get(it.fontName) || 0) + it.str.trim().length);
+      l.font = [...chars.entries()].sort((a, b) => b[1] - a[1])[0][0];
     });
-
     const paras = [];
     let cur = null, prev = null;
     for (const line of lines) {
       const newPara = !prev || (prev.y - line.y) > 1.6 * prev.size
-        || Math.abs(line.size - prev.size) > 0.15 * prev.size;
-      if (newPara) {
-        cur = { text: "", map: [], size: line.size, role: line.size > bodySize * 1.15 ? "heading" : "body" };
-        paras.push(cur);
-      } else if (!cur.text.endsWith("-")) {      // "high-" + "voltage": keep the hyphen, no space
-        cur.text += " "; cur.map.push(null);
-      }
+        || Math.abs(line.size - prev.size) > 0.15 * prev.size
+        || line.font !== prev.font;
+      if (newPara) { cur = { text: "", map: [] }; paras.push(cur); }
+      else if (!cur.text.endsWith("-")) { cur.text += " "; cur.map.push(null); } // "high-" + "voltage": no space
       let lastEnd = null;
       for (const it of line.items) {
         const size = itemFontSize(it) || 10;
@@ -1055,42 +1071,398 @@
       || (b.bbox?.[1] ?? 0) - (a.bbox?.[1] ?? 0) || (a.bbox?.[0] ?? 0) - (b.bbox?.[0] ?? 0));
   }
 
-  async function runPosRulesOnPdf(pdf) {
-    if (!POS_RULES_ENABLED) return [];
-    const nlp = await ensureWink();
-    const rules = window.POS_RULES || window.PosRules.DEFAULT_POS_RULES;
-    const findings = [];
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      let content;
-      try { content = await page.getTextContent(); } catch { continue; }
-      rememberStyles(content);
-      const paras = buildParagraphs(content.items, page.view[3]);
-      for (const hit of window.PosRules.check(nlp, paras, rules)) {
-        const para = paras[hit.paragraph];
-        const boxes = boxesForRange(para, hit.start, hit.end);
-        if (!boxes.length) continue;
-        findings.push({
-          id: newId(), page: p, ruleId: hit.rule.id, ruleName: hit.rule.name,
-          category: hit.rule.category, severity: hit.rule.severity || "minor",
-          text: hit.text, context: para.text, suggestion: hit.suggestion,
-          bbox: boxes[0], bboxes: boxes, source: "pos", status: "pending",
-          explanation: `This text matches the ${hit.rule.name} rule.`,
-        });
-      }
-    }
-    return findings;
+  //
+  // ─── Self-check: a generated sample PDF with known errors ──────────────
+  //
+  // Each case has a deliberately wrong text (its rule must flag it, and applying
+  // the rule's suggestion must give the corrected text) and the corrected text (no
+  // enabled rule may flag it; this also catches two rules that contradict each other).
+  // The sample PDF is generated from this list with pdf-lib: edit it to add cases.
+  // One case per rule (two for table headers). Fields: category, ruleId, flag (text the
+  // rule must flag), wrong, right. Optional: layout ("heading" | "figure" | "table" |
+  // "table10"), noFixCheck (the suggestion is a note, not a replacement), limit (why
+  // the rule cannot work in the PDF pipeline; reported as KNOWN LIMITATION).
+  const SELF_CHECK_CASES = [
+    // ── Typo ──
+    { category: "typo", ruleId: "typo-teh", flag: "teh", wrong: "Check teh cable before each scan.", right: "Check the cable before each scan." },
+    { category: "typo", ruleId: "typo-adress", flag: "adress", wrong: "Enter the IP adress of the controller.", right: "Enter the IP address of the controller." },
+    { category: "typo", ruleId: "typo-recieve", flag: "recieve", wrong: "The controller does not recieve a signal.", right: "The controller does not receive a signal." },
+    { category: "typo", ruleId: "typo-seperate", flag: "seperate", wrong: "Keep each sample in a seperate holder.", right: "Keep each sample in a separate holder." },
+    { category: "typo", ruleId: "typo-occured", flag: "occured", wrong: "An error occured during the approach.", right: "An error occurred during the approach." },
+    { category: "typo", ruleId: "typo-untill", flag: "untill", wrong: "Wait untill the stage stops moving.", right: "Wait until the stage stops moving." },
+    { category: "typo", ruleId: "typo-alot", flag: "alot", wrong: "A large scan takes alot of time.", right: "A large scan takes a lot of time." },
+    { category: "typo", ruleId: "typo-thier", flag: "thier", wrong: "Users save thier settings in a project.", right: "Users save their settings in a project." },
+    // ── Spacing ──
+    { category: "spacing", ruleId: "space-double", flag: "  ", wrong: "Connect the  probe holder to the stage.", right: "Connect the probe holder to the stage.",
+      limit: "PDF.js merges consecutive spaces when it extracts text, so a double space never reaches the rules." },
+    { category: "spacing", ruleId: "space-unit", flag: "10V", wrong: "Set the sample bias to 10V before the scan.", right: "Set the sample bias to 10 V before the scan." },
+    { category: "spacing", ruleId: "chicago-92-initials-space", flag: "J.R.", wrong: "J.R. Smith describes the method in the appendix.", right: "J. R. Smith describes the method in the appendix." },
+    // ── Punctuation ──
+    { category: "punctuation", ruleId: "chicago-01-double-space", flag: ".  ", wrong: "Stop the scan.  Then lift the tip.", right: "Stop the scan. Then lift the tip.",
+      limit: "PDF.js merges consecutive spaces when it extracts text, so two spaces after a period never reach the rules." },
+    { category: "punctuation", ruleId: "chicago-02-serial-comma", flag: "sample, holder and probe", wrong: "Remove the sample, holder and probe before shipping.", right: "Remove the sample, holder, and probe before shipping." },
+    { category: "punctuation", ruleId: "chicago-10-list-punct", flag: "• c", wrong: "• connect the cable to the controller", right: "• Connect the cable to the controller.", noFixCheck: true },
+    { category: "punctuation", ruleId: "chicago-21-colon-space", flag: ":D", wrong: "Note:Disconnect the cable first.", right: "Note: Disconnect the cable first." },
+    { category: "punctuation", ruleId: "chicago-22-em-dash-space", flag: "e — t", wrong: "Check the voltage — then start the scan.", right: "Check the voltage—then start the scan." },
+    { category: "punctuation", ruleId: "chicago-26-date-day-comma", flag: "October 1 2026", wrong: "The update arrives on October 1 2026.", right: "The update arrives on October 1, 2026." },
+    { category: "punctuation", ruleId: "chicago-27-date-year-comma", flag: "2026 t", wrong: "On October 1, 2026 the service period starts.", right: "On October 1, 2026, the service period starts." },
+    { category: "punctuation", ruleId: "chicago-28-for-example-comma", flag: "For example t", wrong: "For example the tip can touch the sample.", right: "For example, the tip can touch the sample." },
+    { category: "punctuation", ruleId: "chicago-30-slash-alternatives", flag: "on / off", wrong: "Set the switch to on / off as needed.", right: "Set the switch to on/off as needed." },
+    { category: "punctuation", ruleId: "chicago-31-punctuation-space", flag: "r ,", wrong: "Turn off the amplifier , then wait ten seconds.", right: "Turn off the amplifier, then wait ten seconds." },
+    { category: "punctuation", ruleId: "chicago-36-quote-comma", flag: "\"Auto\",", wrong: "Select \"Auto\", then press Start.", right: "Select \"Auto,\" then press Start." },
+    { category: "punctuation", ruleId: "chicago-37-quote-period", flag: "\"Manual\".", wrong: "Set the mode to \"Manual\".", right: "Set the mode to \"Manual.\"" },
+    { category: "punctuation", ruleId: "chicago-38-yes-comma", flag: "Yes t", wrong: "Yes the stage returns to the home position.", right: "Yes, the stage returns to the home position." },
+    { category: "punctuation", ruleId: "chicago-39-no-comma", flag: "No it", wrong: "No it does not need a new probe.", right: "No, it does not need a new probe." },
+    { category: "punctuation", ruleId: "chicago-40-oh-comma", flag: "Oh t", wrong: "Oh the cover is still open.", right: "Oh, the cover is still open." },
+    { category: "punctuation", ruleId: "chicago-41-ah-comma", flag: "Ah t", wrong: "Ah the scan finished early.", right: "Ah, the scan finished early." },
+    { category: "punctuation", ruleId: "chicago-42-namely-comma", flag: "Namely t", wrong: "Namely the tip and the sample must stay clean.", right: "Namely, the tip and the sample must stay clean." },
+    { category: "punctuation", ruleId: "chicago-43-that-is-comma", flag: "That is t", wrong: "That is the stage must stay cold.", right: "That is, the stage must stay cold." },
+    { category: "punctuation", ruleId: "chicago-55-period-space", flag: "e .", wrong: "Lift the probe from the stage .", right: "Lift the probe from the stage." },
+    { category: "punctuation", ruleId: "chicago-60-eg-comma", flag: "e.g.", wrong: "Use a stiff probe, e.g. the NSC18 model.", right: "Use a stiff probe, e.g., the NSC18 model." },
+    { category: "punctuation", ruleId: "chicago-61-ie-comma", flag: "i.e.", wrong: "Use the slow mode, i.e. the 0.5 Hz rate.", right: "Use the slow mode, i.e., the 0.5 Hz rate." },
+    { category: "punctuation", ruleId: "chicago-68-ellipsis-before", flag: "s…", wrong: "Open Settings… and choose a mode.", right: "Open Settings … and choose a mode." },
+    { category: "punctuation", ruleId: "chicago-69-ellipsis-after", flag: "…t", wrong: "Wait …then restart the controller.", right: "Wait … then restart the controller." },
+    { category: "punctuation", ruleId: "chicago-70-question-space", flag: "y ?", wrong: "Is the stage ready ?", right: "Is the stage ready?" },
+    { category: "punctuation", ruleId: "chicago-71-exclamation-space", flag: "p !", wrong: "Do not touch the tip !", right: "Do not touch the tip!" },
+    { category: "punctuation", ruleId: "chicago-85-comma-before-etc", flag: "s etc.", wrong: "Check the cables and probes etc. before use.", right: "Check the cables and probes, etc. before use." },
+    { category: "punctuation", ruleId: "chicago-88-sic-brackets", flag: "sic", wrong: "The old label reads lenght sic on the box.", right: "The old label reads lenght [sic] on the box." },
+    // ── Grammar ──
+    { category: "grammar", ruleId: "chicago-04-comma-splice", flag: "is ready, it is", wrong: "The stage is ready, it is safe to start.", right: "The stage is ready. It is safe to start.", noFixCheck: true },
+    { category: "grammar", ruleId: "chicago-16-subject-verb", flag: "These is", wrong: "These is the default settings.", right: "These are the default settings." },
+    { category: "grammar", ruleId: "chicago-17-pronoun-agree", flag: "Each user saves their", wrong: "Each user saves their own settings.", right: "All users save their own settings." },
+    { category: "grammar", ruleId: "chicago-18-dangling", flag: "After loading the sample, the stage", wrong: "After loading the sample, the stage moves up.", right: "After you load the sample, the stage moves up.", noFixCheck: true },
+    { category: "grammar", ruleId: "chicago-19-tense", flag: "will stop when the scan was", wrong: "The stage will stop when the scan was complete.", right: "The stage stops when the scan is complete." },
+    { category: "grammar", ruleId: "chicago-20-parallel-lists", flag: "1.", wrong: "1. Loading the sample|2. Start the scan", right: "1. Load the sample|2. Start the scan",
+      layout: "lines", limit: "The pattern spans two list lines, but rules are checked one text line at a time, so it never matches." },
+    { category: "grammar", ruleId: "chicago-89-ibid-discouraged", flag: "Ibid.", wrong: "Ibid. page 4 lists the values.", right: "Smith, Manual, page 4 lists the values." },
+    { category: "grammar", ruleId: "chicago-93-possessive-pronoun", flag: "your's", wrong: "The final choice is your's.", right: "The final choice is yours." },
+    { category: "grammar", ruleId: "chicago-96-double-negative", flag: "Don't touch nothing", wrong: "Don't touch nothing on the stage.", right: "Don't touch anything on the stage." },
+    { category: "grammar", ruleId: "style-passive-voice", flag: "is applied", wrong: "The sample bias is applied by the controller.", right: "The controller applies the sample bias." },
+    { category: "grammar", ruleId: "style-future-tense", flag: "will move", wrong: "The stage will move to the home position.", right: "The stage moves to the home position." },
+    { category: "grammar", ruleId: "style-condition-first-if", flag: "Click Delete if you", wrong: "Click Delete if you want to remove the scan data from the current project folder.", right: "If you want to remove the scan data from the current project folder, click Delete." },
+    { category: "grammar", ruleId: "style-condition-first-see", flag: "See the maintenance chapter for more information", wrong: "See the maintenance chapter for more information.", right: "For more information, see the maintenance chapter." },
+    { category: "grammar", ruleId: "style-condition-first-to", flag: "Press Start to begin the scan", wrong: "Press Start to begin the scan.", right: "To begin the scan, press Start." },
+    // ── Capitalization ──
+    { category: "capitalization", ruleId: "chicago-05-cap-after-colon", flag: ": c", wrong: "Note: connect the ground cable first.", right: "Note: Connect the ground cable first.", noFixCheck: true },
+    { category: "capitalization", ruleId: "chicago-73-internet", flag: "Internet", wrong: "Download the driver from the Internet.", right: "Download the driver from the internet." },
+    { category: "capitalization", ruleId: "chicago-74-seasons", flag: "Winter", wrong: "Humidity drops in the Winter months.", right: "Humidity drops in the winter months." },
+    { category: "capitalization", ruleId: "chicago-75-titles", flag: "Director of the", wrong: "Ask the Director of the lab for access.", right: "Ask the director of the lab for access." },
+    { category: "capitalization", ruleId: "team-title-case", layout: "heading", flag: "Install the high-voltage module", wrong: "Install the high-voltage module", right: "Install the High-Voltage Module" },
+    { category: "capitalization", ruleId: "team-title-case", layout: "figure", flag: "signal flow", wrong: "Figure 1. signal flow of the amplifier", right: "Figure 1. Signal Flow of the Amplifier" },
+    { category: "capitalization", ruleId: "team-title-case", layout: "figure", flag: "scan parameters", wrong: "Table 3. scan parameters", right: "Table 3. Scan Parameters" },
+    { category: "capitalization", ruleId: "team-table-header-case", layout: "table", flag: "scan mode", wrong: "Table 1. Scan Settings|scan mode|setpoint|Contact|Low", right: "Table 1. Scan Settings|Scan Mode|Setpoint|Contact|Low" },
+    { category: "capitalization", ruleId: "team-table-header-case", layout: "tableBody", flag: "drive amplitude", wrong: "Table 2. Drive Settings|drive amplitude|phase|10 mV|90 deg", right: "Table 2. Drive Settings|Drive Amplitude|Phase|10 mV|90 deg" },
+    // ── Hyphenation & terminology ──
+    { category: "hyphenation_terminology", ruleId: "chicago-11-hyphen-modifier", flag: "high voltage amplifier", wrong: "Connect the cable to the high voltage amplifier.", right: "Connect the cable to the high-voltage amplifier." },
+    { category: "hyphenation_terminology", ruleId: "chicago-12-no-hyphen-ly", flag: "newly-installed", wrong: "Use a newly-installed probe for the first scan.", right: "Use a newly installed probe for the first scan." },
+    { category: "hyphenation_terminology", ruleId: "chicago-13-suspended-hyphen", flag: "low and high-voltage", wrong: "The unit has low and high-voltage outputs.", right: "The unit has low- and high-voltage outputs." },
+    { category: "hyphenation_terminology", ruleId: "chicago-15-ui-capitalization", flag: "click apply", wrong: "Then click apply to keep the settings.", right: "Then click Apply to keep the settings.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-32-website", flag: "web site", wrong: "Visit the web site for updates.", right: "Visit the website for updates." },
+    { category: "hyphenation_terminology", ruleId: "chicago-58-email", flag: "e-mail", wrong: "Send the log file by e-mail to the service team.", right: "Send the log file by email to the service team." },
+    { category: "hyphenation_terminology", ruleId: "chicago-59-esports", flag: "e-sports", wrong: "The e-sports club uses the same monitor.", right: "The esports club uses the same monitor." },
+    // ── Numbers & abbreviations ──
+    { category: "numbers_abbreviations", ruleId: "chicago-23-decimal-zero", flag: ".5", wrong: "Set the gain to .5 before the scan.", right: "Set the gain to 0.5 before the scan." },
+    { category: "numbers_abbreviations", ruleId: "chicago-24-number-range", flag: "pages 10-12", wrong: "See pages 10-12 in the user guide.", right: "See pages 10–12 in the user guide." },
+    { category: "numbers_abbreviations", ruleId: "chicago-25-us-abbreviation", flag: "U.S.", wrong: "The U.S. version uses a different plug.", right: "The US version uses a different plug." },
+    { category: "numbers_abbreviations", ruleId: "chicago-29-year-range", flag: "years 2019-2021", wrong: "Units built in the years 2019-2021 need a new cable.", right: "Units built in the years 2019–2021 need a new cable." },
+    { category: "numbers_abbreviations", ruleId: "chicago-33-percent-range", flag: "10-20%", wrong: "Use 10-20% of the maximum power.", right: "Use 10%–20% of the maximum power." },
+    { category: "numbers_abbreviations", ruleId: "chicago-34-kilogram-case", flag: "5 Kg", wrong: "The stage carries up to 5 Kg of load.", right: "The stage carries up to 5 kg of load." },
+    { category: "numbers_abbreviations", ruleId: "chicago-35-si-plural", flag: "5 mms", wrong: "Lower the head by 5 mms first.", right: "Lower the head by 5 mm first." },
+    { category: "numbers_abbreviations", ruleId: "chicago-44-khz-case", flag: "10 KHz", wrong: "Set the filter to 10 KHz before the scan.", right: "Set the filter to 10 kHz before the scan." },
+    { category: "numbers_abbreviations", ruleId: "chicago-45-mpa-case", flag: "2 Mpa", wrong: "The chamber holds up to 2 Mpa of pressure.", right: "The chamber holds up to 2 MPa of pressure." },
+    { category: "numbers_abbreviations", ruleId: "chicago-46-kpa-uppercase", flag: "3 KPA", wrong: "Keep the line pressure near 3 KPA in use.", right: "Keep the line pressure near 3 kPa in use." },
+    { category: "numbers_abbreviations", ruleId: "chicago-47-section-range", flag: "sections 3-5", wrong: "Read sections 3-5 before the first scan.", right: "Read sections 3–5 before the first scan." },
+    { category: "numbers_abbreviations", ruleId: "chicago-48-chapter-range", flag: "chapters 2-4", wrong: "Read chapters 2-4 before the first scan.", right: "Read chapters 2–4 before the first scan." },
+    { category: "numbers_abbreviations", ruleId: "chicago-49-decade-apostrophe", flag: "1990's", wrong: "The first units date from the 1990's.", right: "The first units date from the 1990s." },
+    { category: "numbers_abbreviations", ruleId: "chicago-50-percent-space", flag: "10 %", wrong: "The drift stays below 10 % per hour.", right: "The drift stays below 10% per hour." },
+    { category: "numbers_abbreviations", ruleId: "chicago-51-ratio-space", flag: "1 : 4", wrong: "Mix the epoxy at a 1 : 4 ratio.", right: "Mix the epoxy at a 1:4 ratio." },
+    { category: "numbers_abbreviations", ruleId: "chicago-52-kpa-case", flag: "3 KPa", wrong: "Keep the line pressure near 3 KPa in use.", right: "Keep the line pressure near 3 kPa in use." },
+    { category: "numbers_abbreviations", ruleId: "chicago-53-mhz-case", flag: "50 Mhz", wrong: "The clock runs at 50 Mhz in this mode.", right: "The clock runs at 50 MHz in this mode." },
+    { category: "numbers_abbreviations", ruleId: "chicago-54-ghz-case", flag: "2 Ghz", wrong: "The link runs at 2 Ghz in this mode.", right: "The link runs at 2 GHz in this mode." },
+    { category: "numbers_abbreviations", ruleId: "chicago-56-am-time", flag: "9:00 AM", wrong: "Restart the controller at 9:00 AM every day.", right: "Restart the controller at 9:00 a.m. every day." },
+    { category: "numbers_abbreviations", ruleId: "chicago-57-pm-time", flag: "5:30 PM", wrong: "Back up the data at 5:30 PM every day.", right: "Back up the data at 5:30 p.m. every day." },
+    { category: "numbers_abbreviations", ruleId: "chicago-62-etc-period", flag: "etc", wrong: "Check the cables, probes, etc, before use.", right: "Check the cables, probes, etc., before use." },
+    { category: "numbers_abbreviations", ruleId: "chicago-63-dc", flag: "D.C.", wrong: "The D.C. office handles service calls.", right: "The DC office handles service calls." },
+    { category: "numbers_abbreviations", ruleId: "chicago-64-uk", flag: "U.K.", wrong: "The U.K. office handles service calls.", right: "The UK office handles service calls." },
+    { category: "numbers_abbreviations", ruleId: "chicago-65-eu", flag: "E.U.", wrong: "The E.U. office handles service calls.", right: "The EU office handles service calls." },
+    { category: "numbers_abbreviations", ruleId: "chicago-66-un", flag: "U.N.", wrong: "The U.N. office handles service calls.", right: "The UN office handles service calls." },
+    { category: "numbers_abbreviations", ruleId: "chicago-67-month-day-cardinal", flag: "October 1st", wrong: "The update is due on October 1st this year.", right: "The update is due on October 1 this year." },
+    { category: "numbers_abbreviations", ruleId: "chicago-72-acronym-plural", flag: "PDF's", wrong: "Save all PDF's in the project folder.", right: "Save all PDFs in the project folder." },
+    { category: "numbers_abbreviations", ruleId: "chicago-76-from-number-range", flag: "from 10-20", wrong: "Set the voltage from 10-20 V for this test.", right: "Set the voltage from 10 to 20 V for this test." },
+    { category: "numbers_abbreviations", ruleId: "chicago-77-between-number-range", flag: "between 10-20", wrong: "Keep the voltage between 10-20 V for this test.", right: "Keep the voltage between 10 and 20 V for this test." },
+    { category: "numbers_abbreviations", ruleId: "chicago-78-phd-no-periods", flag: "Ph.D.", wrong: "A Ph.D. student wrote this chapter.", right: "A PhD student wrote this chapter." },
+    { category: "numbers_abbreviations", ruleId: "chicago-79-md-no-periods", flag: "M.D.", wrong: "An M.D. degree is not required here.", right: "An MD degree is not required here." },
+    { category: "numbers_abbreviations", ruleId: "chicago-80-ba-no-periods", flag: "B.A.", wrong: "A B.A. degree is not required here.", right: "A BA degree is not required here." },
+    { category: "numbers_abbreviations", ruleId: "chicago-81-ma-no-periods", flag: "M.A.", wrong: "An M.A. degree is not required here.", right: "An MA degree is not required here." },
+    { category: "numbers_abbreviations", ruleId: "chicago-82-bs-no-periods", flag: "B.S.", wrong: "A B.S. degree is not required here.", right: "A BS degree is not required here." },
+    { category: "numbers_abbreviations", ruleId: "chicago-83-ms-no-periods", flag: "M.S.", wrong: "An M.S. degree is not required here.", right: "An MS degree is not required here." },
+    { category: "numbers_abbreviations", ruleId: "chicago-84-jd-no-periods", flag: "J.D.", wrong: "A J.D. degree is not required here.", right: "A JD degree is not required here." },
+    { category: "numbers_abbreviations", ruleId: "chicago-86-ordinal-2d", flag: "2d", wrong: "Repeat the 2d scan after cooling.", right: "Repeat the 2nd scan after cooling." },
+    { category: "numbers_abbreviations", ruleId: "chicago-87-thousands-comma", flag: "2500", wrong: "Set 2500 points for each line.", right: "Set 2,500 points for each line." },
+    { category: "numbers_abbreviations", ruleId: "chicago-90-cf-period", flag: "cf", wrong: "For the limits, cf the appendix.", right: "For the limits, cf. the appendix." },
+    { category: "numbers_abbreviations", ruleId: "chicago-91-et-al-period", flag: "et al", wrong: "Kim et al reported the same drift.", right: "Kim et al. reported the same drift." },
+    { category: "numbers_abbreviations", ruleId: "chicago-94-vs-period", flag: "vs", wrong: "Plot the height vs time for each line.", right: "Plot the height vs. time for each line." },
+    { category: "numbers_abbreviations", ruleId: "chicago-95-author-date-comma", flag: "(Kim, 2020)", wrong: "The method follows (Kim, 2020) closely.", right: "The method follows (Kim 2020) closely." },
+  ];
+  // Text in the header/footer bands (top/bottom MARGIN_CM) must never be flagged.
+  const SELF_CHECK_MARGIN_TEXT = {
+    header: "Self-check sample - teh header, 10 % drift, high voltage amplifier, will be removed",
+    footer: "Footer - recieve, e-mail, sample, holder and probe, 9:00 AM",
+  };
+  const SELF_CHECK_FILENAME = "self-check-sample.pdf";
+  const selfCheck = { pending: false, placed: [], lastReport: null, forceAll: false, running: false };
+  // Rules used for a review. During "Test all rules" every rule runs, but nothing is saved.
+  function activeRules() {
+    const rules = getRules();
+    return selfCheck.running && selfCheck.forceAll ? rules.map((r) => ({ ...r, enabled: true })) : rules.filter((r) => r.enabled);
   }
 
-  async function runUserPosRulesOnPdf(pdf) {
-    const compiled = getRules().filter((r) => r.enabled && r.pos).map((r) => {
+  async function buildSelfCheckPdf() {
+    await ensurePdfLib();
+    const { PDFDocument, StandardFonts } = window.PDFLib;
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const W = 595.28, H = 841.89, left = 72, width = 400;
+    const top = H - MARGIN_PT - 24, bottom = MARGIN_PT + 24;
+    let page = null, pageNo = 0, y = 0;
+    const placed = [];
+    const newPage = () => {
+      page = doc.addPage([W, H]); pageNo++; y = top;
+      page.drawText(SELF_CHECK_MARGIN_TEXT.header, { x: left, y: H - 40, size: 9, font });
+      page.drawText(`${SELF_CHECK_MARGIN_TEXT.footer} - page ${pageNo}`, { x: left, y: 36, size: 9, font });
+    };
+    const ensure = (h) => { if (!page || y - h < bottom) newPage(); };
+    const wrap = (text, f, size) => {
+      const words = text.split(" "), lines = [];
+      let line = "";
+      for (const w of words) {
+        const next = line === "" ? w : line + " " + w;
+        if (line !== "" && f.widthOfTextAtSize(next, size) > width) { lines.push(line); line = w; } else line = next;
+      }
+      if (line) lines.push(line);
+      return lines;
+    };
+    const paragraph = (text, size = 10.5, leading = 14) => {
+      const lines = wrap(text, font, size);
+      ensure(lines.length * leading + 8);
+      for (const l of lines) { page.drawText(l, { x: left, y, size, font }); y -= leading; }
+      y -= 8;
+    };
+    // Headings need clear space above and below to count as headings (isProminentHeading).
+    const heading = (text, size = 14) => {
+      ensure(60);
+      y -= 14; page.drawText(text, { x: left, y, size, font: bold }); y -= 30;
+    };
+    const figure = (text) => { ensure(30); page.drawText(text, { x: left, y, size: 9, font }); y -= 26; };
+    // headerSize 11: larger than body; 10.5: bold at body size (as most manuals set it).
+    const table = (spec, headerSize = 11) => {
+      const [title, h1, h2, c1, c2] = spec.split("|");
+      ensure(80);
+      page.drawText(title, { x: left, y, size: 9, font }); y -= 20;
+      page.drawText(h1, { x: left, y, size: headerSize, font: bold }); page.drawText(h2, { x: left + 160, y, size: headerSize, font: bold }); y -= 16;
+      page.drawText(c1, { x: left, y, size: 9, font }); page.drawText(c2, { x: left + 160, y, size: 9, font }); y -= 30;
+    };
+    const put = (c, text, kind) => {
+      if (c.layout === "heading") heading(text);
+      else if (c.layout === "figure") figure(text);
+      else if (c.layout === "table") table(text);
+      else if (c.layout === "tableBody") table(text, 10.5);
+      else if (c.layout === "lines") { for (const l of text.split("|")) paragraph(l); }
+      else paragraph(text);
+      placed.push({ c, kind, page: pageNo, text: c.layout ? text.split("|").join(" ") : text });
+    };
+    // Section labels are bold headings too, so they are written in Title Case.
+    const label = (text) => { ensure(40); y -= 6; page.drawText(titleCaseText(text), { x: left, y, size: 12, font: bold }); y -= 22; };
+
+    newPage();
+    heading("Self-Check Sample: Deliberate Errors", 16);
+    let lastCat = "";
+    for (const c of SELF_CHECK_CASES) {
+      if (c.category !== lastCat) { label(CATEGORY_LABELS[c.category] || c.category); lastCat = c.category; }
+      put(c, c.wrong, "wrong");
+    }
+    page = null; // corrected versions start on a new page
+    newPage();
+    heading("Self-Check Sample: Corrected Text", 16);
+    lastCat = "";
+    for (const c of SELF_CHECK_CASES) {
+      if (c.category !== lastCat) { label(CATEGORY_LABELS[c.category] || c.category); lastCat = c.category; }
+      put(c, c.right, "right");
+    }
+    return { bytes: await doc.save(), placed };
+  }
+
+  async function runSelfCheck(forceAll = false) {
+    selfCheck.forceAll = !!forceAll;
+    const btn = document.getElementById("self-check-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Building sample…"; }
+    try {
+      await ensurePdfjs();
+      const { bytes, placed } = await buildSelfCheckPdf();
+      const pdf = await window.pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
+      selfCheck.pending = true;
+      selfCheck.running = true;
+      selfCheck.placed = placed;
+      await renderViewer(pdf, SELF_CHECK_FILENAME);
+    } catch (err) {
+      selfCheck.pending = false;
+      selfCheck.running = false;
+      console.error("[demo] self-check failed:", err);
+      alert("Self-check failed: " + (err && err.message ? err.message : err));
+    } finally { if (btn) { btn.disabled = false; btn.textContent = "Run self-check"; } }
+  }
+
+  const normText = (s) => String(s || "").replace(/\s+/g, " ").trim();
+  // A finding belongs to a placed text if both its match and its context sit inside it.
+  function findingIn(f, place) {
+    if (f.page !== place.page) return false;
+    const t = normText(place.text), m = normText(f.text), ctx = normText(f.context);
+    if (!m || !t.includes(m)) return false;
+    return !ctx || t.includes(ctx) || ctx.includes(t);
+  }
+
+  function evaluateSelfCheck(findings) {
+    const rules = getRules();
+    const rows = SELF_CHECK_CASES.map((c) => {
+      const rule = rules.find((r) => r.id === c.ruleId);
+      const wrong = selfCheck.placed.find((p) => p.c === c && p.kind === "wrong");
+      const right = selfCheck.placed.find((p) => p.c === c && p.kind === "right");
+      const onWrong = findings.filter((f) => findingIn(f, wrong));
+      const target = onWrong.filter((f) => f.ruleId === c.ruleId && normText(f.text).includes(normText(c.flag)));
+      const others = onWrong.filter((f) => f.ruleId !== c.ruleId && rules.find((x) => x.id === f.ruleId)?.enabled);
+      // Corrected text: only rules that are on in the user's settings (plus the case's
+      // own rule) count, so "Test all rules" checks each off rule on its own.
+      const onRight = findings.filter((f) => findingIn(f, right)
+        && (f.ruleId === c.ruleId || rules.find((x) => x.id === f.ruleId)?.enabled));
+      // Applying the suggestion to the wrong text must give the corrected text. Skipped
+      // for advice ("(consider active voice)") and layout rules (whole heading/cell).
+      let fixedText = null;
+      const f0 = target[0];
+      if (f0 && !c.layout && !c.noFixCheck && f0.suggestion && !/^\(/.test(f0.suggestion)) {
+        fixedText = normText(normText(c.wrong).replace(normText(f0.text), f0.suggestion));
+      }
+      const fixOk = fixedText === null || fixedText === normText(c.right);
+      let status;
+      if (!rule) status = "missing";
+      else if (!rule.enabled && !selfCheck.forceAll) status = "off";
+      else if (target.length && !onRight.length && fixOk) status = "pass";
+      else status = c.limit ? "limit" : "fail";
+      return { c, rule, status, target, others, onRight, fixedText, fixOk, wrongPage: wrong.page, rightPage: right.page,
+        offInSettings: !!rule && !rule.enabled };
+    });
+    const margin = findings.filter((f) => {
+      const t = normText(f.text);
+      return [SELF_CHECK_MARGIN_TEXT.header, SELF_CHECK_MARGIN_TEXT.footer].some((m) => normText(m).includes(t)
+        && normText(f.context) && normText(m).includes(normText(f.context)));
+    });
+    const tested = new Set(SELF_CHECK_CASES.map((c) => c.ruleId));
+    const uncovered = rules.filter((r) => !tested.has(r.id));
+    return { rows, margin, uncovered };
+  }
+
+  function renderSelfCheckReport(findings) {
+    selfCheck.running = false;
+    const { rows, margin, uncovered } = evaluateSelfCheck(findings);
+    selfCheck.lastReport = { rows, margin, uncovered };
+    const ws = document.getElementById("workspace");
+    if (!ws) return;
+    let panel = document.getElementById("self-check-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "self-check-panel";
+      panel.style.cssText = "margin:0 0 12px;padding:12px 14px;border:1px solid #d1d5db;border-radius:10px;background:#ffffff;color:#111827;font-size:13px;";
+      ws.insertBefore(panel, ws.firstChild);
+    }
+    const tested = rows.filter((r) => r.status === "pass" || r.status === "fail");
+    const passed = rows.filter((r) => r.status === "pass").length + (margin.length ? 0 : 1);
+    const total = tested.length + 1; // +1: header/footer exclusion
+    const ok = passed === total;
+    const cats = [...new Set(rows.map((r) => r.c.category))];
+    const chip = (cat) => {
+      const rs = rows.filter((r) => r.c.category === cat), p = rs.filter((r) => r.status === "pass").length;
+      const t = rs.filter((r) => r.status === "pass" || r.status === "fail").length;
+      const lim = rs.filter((r) => r.status === "limit").length, off = rs.filter((r) => r.status === "off" || r.status === "missing").length;
+      const good = p === t;
+      const extra = [lim ? `${lim} limit` : "", off ? `${off} off` : ""].filter(Boolean).join(", ");
+      return `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;background:${good ? "#d1fae5" : "#fee2e2"};color:${good ? "#065f46" : "#991b1b"};">${escapeHtml(CATEGORY_LABELS[cat] || cat)} ${p}/${t}${extra ? ` (${extra})` : ""}</span>`;
+    };
+    const statusCell = (r) => (r.offInSettings && selfCheck.forceAll && r.status !== "off" ? '<span style="color:#6b7280;font-size:11px;">off in settings · </span>' : "") + ({ pass: '<b style="color:#047857;">PASS</b>', fail: '<b style="color:#b91c1c;">FAIL</b>',
+      limit: '<b style="color:#92400e;">KNOWN LIMITATION</b>',
+      off: '<span style="color:#6b7280;">rule off (not tested)</span>', missing: '<span style="color:#6b7280;">rule deleted</span>' }[r.status]);
+    const detail = (r) => {
+      if (r.status === "off" || r.status === "missing") return "";
+      if (r.status === "limit") return `<span style="color:#92400e;">${escapeHtml(r.c.limit)}</span>`;
+      const bits = [];
+      if (!r.target.length) bits.push(`<span style="color:#b91c1c;">wrong text not flagged by this rule</span>`);
+      if (!r.fixOk) bits.push(`<span style="color:#b91c1c;">suggested fix gives: "${escapeHtml(r.fixedText)}"</span>`);
+      if (r.onRight.length) bits.push(`<span style="color:#b91c1c;">corrected text flagged by: ${r.onRight.map((f) => escapeHtml(f.ruleName)).join("; ")}</span>`);
+      if (r.others.length) bits.push(`<span style="color:#92400e;">also flagged by: ${r.others.map((f) => escapeHtml(f.ruleName)).join("; ")}</span>`);
+      return bits.join("<br>");
+    };
+    panel.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;">
+        <div><b>Self-check${selfCheck.forceAll ? " (all rules, including off ones)" : ""}:</b> <b style="color:${ok ? "#047857" : "#b91c1c"};">${passed} / ${total} passed</b>
+          <span style="color:#6b7280;"> · each case: wrong text flagged by its rule, its suggestion gives the corrected text, and the corrected text is flagged by no rule${rows.some((r) => r.status === "limit") ? ` · ${rows.filter((r) => r.status === "limit").length} known limitation (not counted)` : ""}</span></div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" data-self-check="rerun" title="Run the self-check again, e.g. after editing a rule" style="padding:4px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;">Run again</button>
+          <button type="button" data-self-check="all" title="Also test rules that are off in your settings, for this run only (nothing is saved)" style="padding:4px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;">${selfCheck.forceAll ? "Test enabled rules only" : "Test all rules, including off ones"}</button>
+          <button type="button" data-self-check="toggle" style="padding:4px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;">Details</button>
+          <button type="button" data-self-check="close" style="padding:4px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;">Close</button>
+        </div>
+      </div>
+      <div style="margin-top:6px;">${cats.map(chip).join("")}${uncovered.length ? `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;background:#fef3c7;color:#92400e;">${uncovered.length} rule${uncovered.length === 1 ? "" : "s"} without a test case</span>` : ""}<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;background:${margin.length ? "#fee2e2" : "#d1fae5"};color:${margin.length ? "#991b1b" : "#065f46"};">Header/footer excluded ${margin.length ? "0/1" : "1/1"}</span></div>
+      <div data-self-check="details" style="display:${ok ? "none" : "block"};margin-top:8px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <tr style="color:#6b7280;text-align:left;"><th style="padding:4px 6px;">Category</th><th style="padding:4px 6px;">Rule</th><th style="padding:4px 6px;">Wrong text (p.)</th><th style="padding:4px 6px;">Corrected text (p.)</th><th style="padding:4px 6px;">Result</th></tr>
+          ${rows.map((r) => `<tr style="border-top:1px solid #e5e7eb;vertical-align:top;">
+            <td style="padding:4px 6px;">${escapeHtml(CATEGORY_LABELS[r.c.category] || r.c.category)}</td>
+            <td style="padding:4px 6px;">${escapeHtml(r.rule ? r.rule.name : r.c.ruleId)}</td>
+            <td style="padding:4px 6px;">${escapeHtml(r.c.wrong.split("|").join(" "))} <span style="color:#6b7280;">(p.${r.wrongPage})</span></td>
+            <td style="padding:4px 6px;">${escapeHtml(r.c.right.split("|").join(" "))} <span style="color:#6b7280;">(p.${r.rightPage})</span></td>
+            <td style="padding:4px 6px;">${statusCell(r)}${detail(r) ? `<div style="margin-top:2px;">${detail(r)}</div>` : ""}</td></tr>`).join("")}
+          <tr style="border-top:1px solid #e5e7eb;"><td style="padding:4px 6px;">Layout</td><td style="padding:4px 6px;">Header/footer exclusion (${MARGIN_CM} cm)</td>
+            <td style="padding:4px 6px;" colspan="2">${escapeHtml(SELF_CHECK_MARGIN_TEXT.header)} / ${escapeHtml(SELF_CHECK_MARGIN_TEXT.footer)}</td>
+            <td style="padding:4px 6px;">${margin.length ? `<b style="color:#b91c1c;">FAIL</b> (${margin.length} flagged)` : '<b style="color:#047857;">PASS</b>'}</td></tr>
+          ${uncovered.map((r) => `<tr style="border-top:1px solid #e5e7eb;"><td style="padding:4px 6px;">${escapeHtml(CATEGORY_LABELS[r.category] || r.category)}</td>
+            <td style="padding:4px 6px;">${escapeHtml(r.name)}</td><td style="padding:4px 6px;" colspan="2" style="color:#6b7280;">No test case for this rule (add one to SELF_CHECK_CASES)</td>
+            <td style="padding:4px 6px;color:#92400e;font-weight:700;">NOT COVERED</td></tr>`).join("")}
+        </table>
+      </div>`;
+    panel.querySelector('[data-self-check="toggle"]').onclick = () => {
+      const d = panel.querySelector('[data-self-check="details"]');
+      d.style.display = d.style.display === "none" ? "block" : "none";
+    };
+    panel.querySelector('[data-self-check="close"]').onclick = () => panel.remove();
+    panel.querySelector('[data-self-check="rerun"]').onclick = (e) => { e.target.disabled = true; e.target.textContent = "Running…"; runSelfCheck(selfCheck.forceAll); };
+    panel.querySelector('[data-self-check="all"]').onclick = (e) => { e.target.disabled = true; e.target.textContent = "Running…"; runSelfCheck(!selfCheck.forceAll); };
+  }
+
+  // "Run self-check" button next to the upload button ("Run again" is in the report panel).
+  function injectSelfCheckButtons() {
+    const form = document.getElementById("upload-form");
+    if (form && !document.getElementById("self-check-btn")) {
+      const b = document.createElement("button");
+      b.type = "button"; b.id = "self-check-btn"; b.textContent = "Run self-check";
+      b.title = "Review a generated sample PDF with known errors in every category and report what the rules caught";
+      b.style.cssText = "margin-left:8px;";
+      b.addEventListener("click", () => runSelfCheck(false));
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit && submit.parentNode) submit.parentNode.insertBefore(b, submit.nextSibling); else form.appendChild(b);
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectSelfCheckButtons);
+  else injectSelfCheckButtons();
+
+  async function runPosRulesOnPdf(pdf) {
+    const compiled = activeRules().filter((r) => r.pos).map((r) => {
       try {
         const flags = (r.flags || "g").includes("g") ? (r.flags || "g") : (r.flags || "") + "g";
         return { rule: r, re: new RegExp(r.pattern, flags), want: parsePosCondition(r.pos) };
       } catch { return null; }
     }).filter(Boolean);
     if (!compiled.length) return [];
-    const nlp = await ensureWink();
+    const nlp = await ensureTagger();
     const findings = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -1098,7 +1470,7 @@
       try { content = await page.getTextContent(); } catch { continue; }
       rememberStyles(content);
       for (const para of buildParagraphs(content.items, page.view[3])) {
-        let tokens = null;
+        let tokens = null; // tag only paragraphs where some pattern matches
         for (const { rule, re, want } of compiled) {
           re.lastIndex = 0;
           let m;
@@ -1112,7 +1484,7 @@
               id: newId(), page: p, ruleId: rule.id, ruleName: rule.name,
               category: rule.category, severity: rule.severity,
               text: m[0], context: para.text, suggestion: applyReplacement(rule.replacement, m),
-              bbox: boxes[0], bboxes: boxes, source: "pos", status: "pending",
+              bbox: boxes[0], bboxes: boxes, status: "pending",
             });
           }
         }
@@ -1166,11 +1538,11 @@
   // ─── Rule matching over PDF text ───────────────────────────────────────
   //
   async function runRulesOnPdf(pdf) {
-    const rules = getRules().filter((r) => r.enabled && !r.pos);
+    const rules = activeRules();
     if (!rules.length) return [];
     const titleRule = rules.find((r) => r.id === "team-title-case");
     const tableHeaderRule = rules.find((r) => r.id === "team-table-header-case");
-    const compiled = rules.filter((r) => !["team-title-case", "team-table-header-case"].includes(r.id)).map((r) => {
+    const compiled = rules.filter((r) => !["team-title-case", "team-table-header-case"].includes(r.id) && !r.pos).map((r) => {
       try { return { rule: r, re: new RegExp(r.pattern, r.flags || "g") }; }
       catch { return null; }
     }).filter(Boolean);
@@ -1185,6 +1557,7 @@
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
       rememberStyles(content);
+      await resolveFontNames(page, content.items);
       viewerState.textPages.set(p, content.items);
       const bodySize = 10.5; // Table grid geometry only; heading detection does not infer body size.
       const tableTitles = content.items.filter((item) => /^Table\s+\d+[.:](?:\s+|$)/i.test(item.str || ""));
@@ -1263,6 +1636,28 @@
     "underneath", "unlike", "unto", "up", "upon", "via", "with", "within", "without",
   ]);
   function itemFontSize(item) { return Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0); }
+  // PDF.js reports item.fontName as an internal id ("g_d0_f3"), so "Bold" never
+  // appears in it. The real PostScript name ("Arial-BoldMT", "Helvetica-Bold") is on
+  // the loaded font object, which exists once the page's operator list has been
+  // built. Fonts are shared across pages, so this costs one extra pass only on pages
+  // that introduce a new font.
+  const realFontName = new Map(); // PDF.js font id -> PostScript font name
+  async function resolveFontNames(page, items) {
+    const ids = [...new Set(items.map((it) => it.fontName).filter(Boolean))].filter((id) => !realFontName.has(id));
+    if (!ids.length) return;
+    const tryGet = (id) => {
+      try {
+        if (page.commonObjs.has(id)) { realFontName.set(id, page.commonObjs.get(id)?.name || ""); return true; }
+      } catch { /* not resolved yet */ }
+      return false;
+    };
+    if (ids.every(tryGet)) return;
+    try { await page.getOperatorList(); } catch { /* fall back to the id */ }
+    ids.forEach(tryGet);
+  }
+  function isBoldItem(item) {
+    return /bold|semibold|heavy|black/i.test(realFontName.get(item.fontName) || item.fontName || "");
+  }
   function isBodyFontSize(size) { return Math.abs(size - 10.5) <= 0.15; }
   function isExcludedTitleFontSize(size) { return Math.abs(size - 10) <= 0.15 || isBodyFontSize(size); }
   function isExcludedTitleItem(item) {
@@ -1333,7 +1728,7 @@
       if (!gridRows.length) continue;
       for (const row of gridRows) row.items.forEach((item) => tableItems.add(item));
       const firstRow = gridRows[0];
-      const distinctHeaderStyle = firstRow.items.some((item) => /bold|semibold|heavy/i.test(item.fontName || "")
+      const distinctHeaderStyle = firstRow.items.some((item) => isBoldItem(item)
         || Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0) > bodySize * 1.03);
       if (distinctHeaderStyle && firstRow.y > titleY - 120) firstRow.items.forEach((item) => headerItems.add(item));
     }
@@ -1356,7 +1751,7 @@
       && x - prefix.transform?.[4] < (prefix.width || 100) + 60)) return "label";
     // Ignore periods in a section number such as 1.2, but not periods in prose.
     if (line.replace(/^\d+(?:\.\d+)*[.:]?\s*/, "").includes(".")) return "other";
-    if (!/bold|semibold|heavy/i.test(item.fontName || "")) return "other";
+    if (!isBoldItem(item)) return "other";
     return isProminentHeading(item, pageItems) ? "heading" : "other";
   }
   function isTitleText(item, pageItems = [], tableItems = new Set(), labelPrefixes = []) {
