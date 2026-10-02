@@ -990,9 +990,11 @@ function renderReviewSettings() {
   $("publishing-standards-list").innerHTML = state.standards.map((standard) => `
     <label><input type="checkbox" data-standard-setting="${escapeHtml(standard.id)}" /> ${escapeHtml(standard.name)}</label>
   `).join("");
-  $("standard-filter").innerHTML = `<option value="all">All standards</option>` + state.standards.map((standard) => (
-    `<option value="${escapeHtml(standard.id)}">${escapeHtml(standard.id)}</option>`
-  )).join("");
+  if ($("standard-filter")) {
+    $("standard-filter").innerHTML = `<option value="all">All standards</option>` + state.standards.map((standard) => (
+      `<option value="${escapeHtml(standard.id)}">${escapeHtml(standard.id)}</option>`
+    )).join("");
+  }
   applyProfileToSettings(state.activeProfileId);
   document.querySelectorAll("[data-standard-setting], [data-engine-setting], [data-internal-standard-setting]").forEach((input) => {
     input.addEventListener("change", () => {
@@ -1681,21 +1683,8 @@ function renderTeamStandardRules() {
       <td>${escapeHtml(rule.approval_status || "")}</td>
       <td>${rule.enabled ? "Yes" : "No"}</td>
       <td>${escapeHtml(rule.source_path || rule.source_type || "database")}</td>
-      <td>
-        <button class="secondary compact-btn" data-team-standard-edit="${rule.id}">Edit</button>
-        <button class="secondary compact-btn" data-team-standard-toggle="${rule.id}">${rule.enabled ? "Disable" : "Enable"}</button>
-        <button class="secondary compact-btn" data-team-standard-archive="${rule.id}">Archive</button>
-      </td>
     </tr>
-  `).join("") : `<tr><td class="empty-table" colspan="6">No Team Manual Standard rules.</td></tr>`;
-  body.querySelectorAll("[data-team-standard-edit]").forEach((button) => button.addEventListener("click", () => editTeamStandardRule(button.dataset.teamStandardEdit)));
-  body.querySelectorAll("[data-team-standard-toggle]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const rule = state.teamStandardRules.find((item) => String(item.id) === String(button.dataset.teamStandardToggle));
-      if (rule) await setTeamStandardStatus(rule.id, !rule.enabled, rule.approval_status || "candidate");
-    });
-  });
-  body.querySelectorAll("[data-team-standard-archive]").forEach((button) => button.addEventListener("click", () => setTeamStandardStatus(button.dataset.teamStandardArchive, false, "archived")));
+  `).join("") : `<tr><td class="empty-table" colspan="5">No Team Manual Standard rules.</td></tr>`;
 }
 
 async function validateTeamStandardRule() {
@@ -2174,8 +2163,8 @@ function attachEventHandlers() {
   $("save-progress-btn").addEventListener("click", saveProgress);
   $("text-selection-btn").addEventListener("click", toggleTextSelectionMode);
   $("category-filter").addEventListener("change", renderIssueList);
-  $("engine-filter").addEventListener("change", renderIssueList);
-  $("standard-filter").addEventListener("change", renderIssueList);
+  if ($("engine-filter")) $("engine-filter").addEventListener("change", renderIssueList);
+  if ($("standard-filter")) $("standard-filter").addEventListener("change", renderIssueList);
   $("issue-search").addEventListener("input", renderIssueList);
   document.querySelectorAll("[data-delete-document]").forEach((button) => button.addEventListener("click", () => deleteDocumentTarget(button.dataset.deleteDocument)));
   $("download-csv-btn").addEventListener("click", () => state.documentId && window.open(`/api/documents/${state.documentId}/export.csv`, "_blank"));

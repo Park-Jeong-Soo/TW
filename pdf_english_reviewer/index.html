@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDF English Reviewer</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./styles.css?v=13" />
+  <link rel="stylesheet" href="./styles.css?v=14" />
   <script>
     // Preview mode: stub /api/* calls before app.js runs its initial fetches.
     (function () {
@@ -42,7 +42,7 @@
     <nav class="main-nav" aria-label="Main navigation">
       <button class="nav-btn active" id="nav-reviewer">Reviewer</button>
       <button class="nav-btn" id="nav-workspaces">Workspaces</button>
-      <button class="nav-btn" id="nav-team-standard">Team Manual Standard</button>
+      <button class="nav-btn" id="nav-team-standard">Team Manual Standard Viewer</button>
       <button class="nav-btn hidden" id="nav-glossary">Manual Glossary</button>
     </nav>
     <div class="topbar-actions">
@@ -241,18 +241,6 @@
               <option value="numbers_abbreviations">Numbers and abbreviations</option>
               <option value="hyphenation_terminology">Hyphenation and terminology</option>
             </select>
-            <select id="engine-filter" aria-label="Filter by engine">
-              <option value="all">All engines</option>
-              <option value="basic">Basic</option>
-              <option value="publishing_standard">Publishing Standard</option>
-              <option value="team_rule">Team Rule</option>
-              <option value="glossary">Glossary</option>
-              <option value="vale">Vale</option>
-              <option value="ollama">Ollama</option>
-            </select>
-            <select id="standard-filter" aria-label="Filter by standard">
-              <option value="all">All standards</option>
-            </select>
           </div>
           <label class="issue-search-label" for="issue-search">Search suggestions
             <input id="issue-search" type="search" placeholder="Chicago number or Team Manual Standard rule" autocomplete="off" />
@@ -275,49 +263,19 @@
         <div class="page-heading">
           <div>
             <p class="eyebrow">CANONICAL WRITING RULES</p>
-            <h2>Team Manual Standard</h2>
-            <p>Manage internal writing rules stored in <code>data/reviewer.db</code>.</p>
-          </div>
-          <div class="heading-actions">
-            <button class="secondary" id="team-standard-migration-report-btn">Migration Report</button>
-            <button class="primary" id="team-standard-refresh-btn">Refresh</button>
+            <h2>Team Manual Standard Viewer</h2>
+            <p>Read-only view of internal writing rules stored in <code>data/reviewer.db</code>.</p>
           </div>
         </div>
         <div class="team-standard-grid">
           <div class="team-standard-table-card">
             <table class="glossary-table team-standard-table">
               <thead>
-                <tr><th>Key</th><th>Title</th><th>Status</th><th>Enabled</th><th>Source</th><th>Actions</th></tr>
+                <tr><th>Key</th><th>Title</th><th>Status</th><th>Enabled</th><th>Source</th></tr>
               </thead>
               <tbody id="team-standard-table-body"></tbody>
             </table>
           </div>
-          <form class="team-standard-editor" id="team-standard-form">
-            <input type="hidden" id="team-standard-rule-id" />
-            <label>Rule Key<input id="team-standard-rule-key" placeholder="UNIT_SPACE_001" /></label>
-            <label>Title<input id="team-standard-title" required /></label>
-            <label>Category<input id="team-standard-category" value="consistency" required /></label>
-            <label>Severity<input id="team-standard-severity" value="warning" required /></label>
-            <label>Pattern<textarea id="team-standard-pattern" rows="3" required></textarea></label>
-            <label>Replacement<input id="team-standard-replacement" /></label>
-            <label>Message<textarea id="team-standard-message" rows="3" required></textarea></label>
-            <label>Description<textarea id="team-standard-description" rows="3"></textarea></label>
-            <label>Status
-              <select id="team-standard-approval-status">
-                <option value="candidate">candidate</option>
-                <option value="approved">approved</option>
-                <option value="archived">archived</option>
-              </select>
-            </label>
-            <label class="checkbox-inline"><input id="team-standard-enabled" type="checkbox" checked /> Enabled</label>
-            <label>Test Sentence<textarea id="team-standard-sample" rows="3"></textarea></label>
-            <div class="form-actions">
-              <button type="button" class="secondary" id="team-standard-new-btn">New</button>
-              <button type="button" class="secondary" id="team-standard-validate-btn">Validate</button>
-              <button type="submit" class="primary">Save Rule</button>
-            </div>
-            <pre class="validation-output" id="team-standard-validation-output"></pre>
-          </form>
         </div>
       </div>
     </section>
@@ -581,8 +539,8 @@
     })(window);
   </script>
   <script src="./page_layout.js?v=2"></script>
-  <script src="./app.js?v=16"></script>
+  <script src="./app.js?v=17"></script>
   <script src="./vendor/wink-bundle.min.js?v=1"></script>
-  <script src="./demo.js?v=7"></script>
+  <script src="./demo.js?v=8"></script>
 </body>
 </html>

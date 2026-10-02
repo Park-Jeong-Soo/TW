@@ -172,7 +172,7 @@ button { border: 1px solid transparent; border-radius: 8px; padding: 10px 13px; 
 .issues-header h2 { margin-top: 5px; font-size: 18px; }
 .issues-header h2 span { margin-left: 4px; color: var(--blue); }
 .issues-header { flex-wrap: wrap; }
-.issue-controls-grid { flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.issue-controls-grid { flex: 1 1 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
 .issues-header select { min-width: 0; width: 100%; padding: 8px; font-size: 11px; }
 .issue-search-label { flex: 1 1 100%; min-width: 0; font-size: 11px; }
 .issue-search-label input { width: 100%; padding: 8px; font-size: 11px; }
@@ -361,7 +361,7 @@ legend { padding: 0 5px; color: #374553; font-size: 11px; font-weight: 750; }
 .issue-controls-grid {
   flex: 1 1 100%;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
   min-width: 260px;
 }
@@ -389,7 +389,7 @@ legend { padding: 0 5px; color: #374553; font-size: 11px; font-weight: 750; }
 .provenance-row small { color: var(--muted); }
 
 
-.team-standard-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.team-standard-grid { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 .team-standard-table-card { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: var(--shadow); }
 .team-standard-table { min-width: 900px; }
 .team-standard-editor { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: var(--shadow); }
