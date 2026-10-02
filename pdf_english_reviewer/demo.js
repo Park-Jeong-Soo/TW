@@ -991,10 +991,14 @@
   function wireBulkDecisionButtons() {
     if (bulkDecisionButtonsWired) return;
     bulkDecisionButtonsWired = true;
-    const apply = (status) => {
+    // Toggle: if every visible finding already has the target status, clear
+    // them back to "pending"; otherwise set every visible finding to it.
+    const toggle = (status) => {
       const targets = visibleFindings();
       if (!targets.length) return;
-      for (const f of targets) f.status = status;
+      const allAlready = targets.every((f) => f.status === status);
+      const next = allAlready ? "pending" : status;
+      for (const f of targets) f.status = next;
       saveReviewDecisions();
       renderIssuesPanel();
       renderCurrentPages();
@@ -1005,16 +1009,23 @@
       if (!btn) continue;
       const clone = btn.cloneNode(true);
       btn.parentNode.replaceChild(clone, btn);
-      clone.addEventListener("click", () => apply(status));
+      clone.addEventListener("click", () => toggle(status));
     }
   }
 
   function updateBulkDecisionButtons() {
-    const hasAny = (viewerState.findings || []).length > 0;
+    const list = visibleFindings();
+    const hasAny = list.length > 0;
     const accept = document.getElementById("accept-all-btn");
     const ignore = document.getElementById("ignore-all-btn");
-    if (accept) accept.disabled = !hasAny;
-    if (ignore) ignore.disabled = !hasAny;
+    if (accept) {
+      accept.disabled = !hasAny;
+      accept.textContent = hasAny && list.every((f) => f.status === "accepted") ? "Clear Accept All" : "Accept All";
+    }
+    if (ignore) {
+      ignore.disabled = !hasAny;
+      ignore.textContent = hasAny && list.every((f) => f.status === "rejected") ? "Clear Ignore All" : "Ignore All";
+    }
   }
 
   //
