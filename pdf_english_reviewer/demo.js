@@ -2058,9 +2058,7 @@
         <option value="capitalization">Capitalization</option>
         <option value="numbers_abbreviations">Numbers &amp; abbreviations</option>
         <option value="hyphenation_terminology">Hyphenation &amp; terminology</option>
-        <option value="custom">Custom</option>
-        <option value="style">Style (Vale)</option>
-        <option value="analysis">Sentence analysis (Vale)</option>`;
+        `;
     }
     on("category-filter", "change", () => { renderIssuesPanel(); renderCurrentPages(); });
     on("issue-search", "input", renderIssuesPanel);
