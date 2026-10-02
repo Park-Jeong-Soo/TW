@@ -1110,8 +1110,36 @@
   // wink-nlp often tags a capitalized sentence-initial verb ("Click", "Use", "Open")
   // as a proper noun. Tag a copy in which such a word starts lowercase; the copy has
   // the same length, so offsets still point into the original text.
+  //
+  // Also lowercase the first letter after a hyphen so compound modifiers like
+  // "Butterfly-Shaped" tag correctly (the model otherwise flags "Shaped" as PROPN).
+  // And for title-case paragraphs (headings), lowercase every TitleCase word so a
+  // heading like "Butterfly-Shaped Probe for AFM Measurement" tags common words as
+  // NOUN/ADJ/VERB instead of a run of PROPN. All-caps acronyms (AFM, DMA) do not
+  // match /[A-Z][a-z]+/ and stay untouched.
   function taggingCopy(text) {
-    return text.replace(/(^|[.!?:]\s+)([A-Z])(?=[a-z]+\b)/g, (m, before, c) => before + c.toLowerCase());
+    const words = text.match(/\b[A-Za-z][A-Za-z]*\b/g) || [];
+    const titleCount = words.filter((w) => /^[A-Z][a-z]+$/.test(w)).length;
+    const endsWithSentencePunct = /[.!?]\s*$/.test(text);
+    // Heading heuristic: no sentence-ending period, at least two TitleCase
+    // words, and most content words are TitleCase. All-caps acronyms (AFM)
+    // are excluded from both numerator and denominator by only counting
+    // words that match /^[A-Z]?[a-z]+$/ (TitleCase or lowercase).
+    const content = words.filter((w) => /^[A-Z]?[a-z]+$/.test(w));
+    const isHeading = !endsWithSentencePunct && titleCount >= 2
+      && content.length >= 2 && titleCount / content.length >= 0.5;
+    if (isHeading) {
+      // Lowercase every TitleCase word so a heading like
+      // "Butterfly-Shaped Probe for AFM Measurement" tags common words as
+      // NOUN/ADJ/VERB instead of a run of PROPN. All-caps acronyms (AFM, DMA)
+      // do not match /[A-Z][a-z]+/ and stay untouched.
+      return text.replace(/\b([A-Z])(?=[a-z]+\b)/g, (m, c) => c.toLowerCase());
+    }
+    // Lowercase only after a sentence boundary or a hyphen, so an
+    // imperative verb ("Click the button.") and a compound modifier
+    // ("butterfly-Shaped") tag correctly without demoting real proper
+    // nouns that appear mid-sentence ("John", "Google").
+    return text.replace(/(^|[.!?:]\s+|-)([A-Z])(?=[a-z]+\b)/g, (m, before, c) => before + c.toLowerCase());
   }
   function looksImperative(nlp, sentence) {
     const its = nlp.its;
