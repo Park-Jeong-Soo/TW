@@ -179,10 +179,6 @@
   const VALE_API_URL = window.VALE_API_URL || "http://127.0.0.1:5001/api/vale";
   const VALE_ENABLED = window.VALE_ENABLED ?? Boolean(window.VALE_API_URL);
 
-  // Browser POS rules (no backend). Host both files next to this script.
-  //   <script>window.POS_RULES_ENABLED = false;</script>   to turn off
-  const POS_RULES_ENABLED = window.POS_RULES_ENABLED !== false;
-  const POS_RULES_URL = window.POS_RULES_URL || "pos-rules.js";
   const POS_TAGS = ["ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
     "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X"];
   const WINK_BUNDLE_URL = window.WINK_BUNDLE_URL || "vendor/wink-bundle.min.js";
@@ -926,14 +922,13 @@
   //
   // ─── POS rules in the browser (no backend) ─────────────────────────────
   //
-  let winkReady = null;
-  async function ensureWink() {
-    if (!winkReady) winkReady = (async () => {
-      if (!window.PosRules) await loadScript(POS_RULES_URL);
+  let taggerReady = null;
+  async function ensureTagger() {
+    if (!taggerReady) taggerReady = (async () => {
       if (!window.WinkBundle) await loadScript(WINK_BUNDLE_URL);
       return window.WinkBundle.winkNLP(window.WinkBundle.model);
-    })().catch((err) => { winkReady = null; throw err; });
-    return winkReady;
+    })().catch((err) => { taggerReady = null; throw err; });
+    return taggerReady;
   }
 
   // PDF.js text items -> lines (same baseline) -> paragraphs (break on a large
@@ -2004,7 +1999,7 @@
         if (workspace) workspace.classList.add("hidden");
         if (upload) upload.classList.remove("hidden");
       }
-    }, true); // capture: bypass app_v3.js handlers
+    }, true); // capture: bypass app.js handlers
   }
 
   //

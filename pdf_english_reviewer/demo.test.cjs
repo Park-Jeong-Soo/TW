@@ -276,7 +276,7 @@ context.testApi.viewerState.findings=[
 assert.equal(context.testApi.visibleFindings().length,1);
 elements.get('issue-search').value='Team Manual Standard';
 assert.equal(context.testApi.visibleFindings().length,2);
-const appSource=require('node:fs').readFileSync('pdf_english_reviewer/app_v3.js','utf8');
+const appSource=require('node:fs').readFileSync('pdf_english_reviewer/app.js','utf8');
 const htmlSource=fs.readFileSync('pdf_english_reviewer/index.html','utf8');
 assert.ok(htmlSource.indexOf('vendor/wink-bundle.min.js') < htmlSource.indexOf('demo.js'));
 assert.ok(htmlSource.includes('src="./demo.js?v=1"'));
