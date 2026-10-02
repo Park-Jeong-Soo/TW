@@ -183,6 +183,8 @@
   //   <script>window.POS_RULES_ENABLED = false;</script>   to turn off
   const POS_RULES_ENABLED = window.POS_RULES_ENABLED !== false;
   const POS_RULES_URL = window.POS_RULES_URL || "pos-rules.js";
+  const POS_TAGS = ["ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
+    "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X"];
   const WINK_BUNDLE_URL = window.WINK_BUNDLE_URL || "vendor/wink-bundle.min.js";
   const VALE_STYLES = window.VALE_STYLES || "EnTech";
   const VALE_TIMEOUT_MS = window.VALE_TIMEOUT_MS || 10 * 60 * 1000;
@@ -811,19 +813,21 @@
     setupExportButton();
     await renderCurrentPages();
 
-    Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runValeOnPdf(pdf)]).then(([regexRes, posRes, valeRes]) => {
+    Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runUserPosRulesOnPdf(pdf), runValeOnPdf(pdf)]).then(([regexRes, posRes, userPosRes, valeRes]) => {
       if (regexRes.status === "rejected") throw regexRes.reason;
       const regexFindings = regexRes.value;
       const posFindings = posRes.status === "fulfilled" ? posRes.value : [];
       if (posRes.status === "rejected") console.warn("[demo] POS rules skipped:", posRes.reason);
+      const userPosFindings = userPosRes.status === "fulfilled" ? userPosRes.value : [];
+      if (userPosRes.status === "rejected") console.warn("[demo] User POS rules skipped:", userPosRes.reason);
       const valeFindings = valeRes.status === "fulfilled" ? valeRes.value : [];
       if (valeRes.status === "rejected") console.warn("[demo] Vale check skipped:", valeRes.reason);
-      const findings = mergeFindings(mergeFindings(regexFindings, posFindings), valeFindings);
+      const findings = mergeFindings(mergeFindings(mergeFindings(regexFindings, posFindings), userPosFindings), valeFindings);
       viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
       setText("issue-total", String(findings.length));
       const cnt = findings.length;
       const posNote = !POS_RULES_ENABLED ? ""
-        : posRes.status === "fulfilled" ? ` · POS rules: ${posFindings.length}`
+        : posRes.status === "fulfilled" ? ` · POS rules: ${posFindings.length + userPosFindings.length}`
         : " · POS rules unavailable";
       const valeNote = posNote + (!VALE_ENABLED ? ""
         : valeRes.status === "fulfilled" ? ` · Vale: ${valeFindings.length}`
@@ -927,6 +931,74 @@
     return lines.sort((p, q) => q[1] - p[1]);
   }
 
+  // wink-nlp often tags a capitalized sentence-initial verb ("Click", "Use", "Open")
+  // as a proper noun. Tag a copy in which such a word starts lowercase; the copy has
+  // the same length, so offsets still point into the original text.
+  function taggingCopy(text) {
+    return text.replace(/(^|[.!?:]\s+)([A-Z])(?=[a-z]+\b)/g, (m, before, c) => before + c.toLowerCase());
+  }
+  function looksImperative(nlp, sentence) {
+    const its = nlp.its;
+    const words = [];
+    nlp.readDoc("you " + sentence.charAt(0).toLowerCase() + sentence.slice(1)).tokens().each((t) => {
+      const p = t.out(its.pos);
+      if (p !== "PUNCT" && p !== "SPACE") words.push({ value: t.out(its.value), pos: p });
+    });
+    if (!words[1] || words[1].pos !== "VERB") return false;
+    const next = words[2];
+    if (!next) return true;
+    if (/^[A-Z]/.test(next.value)) return true;
+    return ["DET", "PRON", "NUM", "ADP", "ADJ", "ADV", "PART", "PROPN"].includes(next.pos);
+  }
+  function tagParagraph(nlp, text) {
+    const its = nlp.its;
+    const tokens = [];
+    const copy = taggingCopy(text);
+    let at = 0;
+    nlp.readDoc(copy).tokens().each((t) => {
+      const v = t.out(its.value);
+      const found = copy.indexOf(v, at);
+      const start = found >= 0 ? found : at;
+      tokens.push({ value: text.slice(start, start + v.length), pos: t.out(its.pos), start, end: start + v.length });
+      at = start + v.length;
+    });
+    tokens.forEach((t, i) => {
+      const prev = tokens.slice(0, i).reverse().find((x) => x.pos !== "SPACE");
+      const atStart = !prev || /^[.!?:]$/.test(prev.value);
+      if (!atStart || !/^[A-Z][a-z]+$/.test(t.value) || t.pos === "VERB") return;
+      const rest = text.slice(t.start);
+      const sentence = rest.slice(0, (rest.search(/[.!?](\s|$)/) + 1) || rest.length);
+      if (looksImperative(nlp, sentence)) t.pos = "VERB";
+    });
+    return tokens;
+  }
+  function parsePosCondition(condition) {
+    return String(condition || "").trim().split(/\s+/).filter(Boolean).map((part) => part.split("|"));
+  }
+  function posConditionError(condition) {
+    const bad = parsePosCondition(condition).flat().filter((tag) => tag !== "*" && tag !== "..." && !POS_TAGS.includes(tag));
+    return bad.length ? `Unknown POS tag: ${bad.join(", ")}` : "";
+  }
+  function posConditionMatches(want, tokens, start, end) {
+    const words = tokens.filter((t) => t.start < end && t.end > start && t.pos !== "PUNCT" && t.pos !== "SPACE");
+    const memo = new Map();
+    const fits = (i, j) => {
+      const key = i * 10000 + j;
+      if (memo.has(key)) return memo.get(key);
+      let ok;
+      if (i === want.length) ok = j === words.length;
+      else if (want[i].includes("...")) ok = fits(i + 1, j) || (j < words.length && fits(i, j + 1));
+      else ok = j < words.length && (want[i].includes("*") || want[i].includes(words[j].pos)) && fits(i + 1, j + 1);
+      memo.set(key, ok);
+      return ok;
+    };
+    return fits(0, 0);
+  }
+  function sortFindings(list) {
+    return list.sort((a, b) => a.page - b.page
+      || (b.bbox?.[1] ?? 0) - (a.bbox?.[1] ?? 0) || (a.bbox?.[0] ?? 0) - (b.bbox?.[0] ?? 0));
+  }
+
   async function runPosRulesOnPdf(pdf) {
     if (!POS_RULES_ENABLED) return [];
     const nlp = await ensureWink();
@@ -949,6 +1021,45 @@
           bbox: boxes[0], bboxes: boxes, source: "pos", status: "pending",
           explanation: `This text matches the ${hit.rule.name} rule.`,
         });
+      }
+    }
+    return findings;
+  }
+
+  async function runUserPosRulesOnPdf(pdf) {
+    const compiled = getRules().filter((r) => r.enabled && r.pos).map((r) => {
+      try {
+        const flags = (r.flags || "g").includes("g") ? (r.flags || "g") : (r.flags || "") + "g";
+        return { rule: r, re: new RegExp(r.pattern, flags), want: parsePosCondition(r.pos) };
+      } catch { return null; }
+    }).filter(Boolean);
+    if (!compiled.length) return [];
+    const nlp = await ensureWink();
+    const findings = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      let content;
+      try { content = await page.getTextContent(); } catch { continue; }
+      rememberStyles(content);
+      for (const para of buildParagraphs(content.items, page.view[3])) {
+        let tokens = null;
+        for (const { rule, re, want } of compiled) {
+          re.lastIndex = 0;
+          let m;
+          while ((m = re.exec(para.text)) !== null) {
+            if (!m[0]) { re.lastIndex++; continue; }
+            tokens = tokens || tagParagraph(nlp, para.text);
+            if (!posConditionMatches(want, tokens, m.index, m.index + m[0].length)) continue;
+            const boxes = boxesForRange(para, m.index, m.index + m[0].length);
+            if (!boxes.length) continue;
+            findings.push({
+              id: newId(), page: p, ruleId: rule.id, ruleName: rule.name,
+              category: rule.category, severity: rule.severity,
+              text: m[0], context: para.text, suggestion: applyReplacement(rule.replacement, m),
+              bbox: boxes[0], bboxes: boxes, source: "pos", status: "pending",
+            });
+          }
+        }
       }
     }
     return findings;
@@ -999,7 +1110,7 @@
   // ─── Rule matching over PDF text ───────────────────────────────────────
   //
   async function runRulesOnPdf(pdf) {
-    const rules = getRules().filter((r) => r.enabled);
+    const rules = getRules().filter((r) => r.enabled && !r.pos);
     if (!rules.length) return [];
     const titleRule = rules.find((r) => r.id === "team-title-case");
     const tableHeaderRule = rules.find((r) => r.id === "team-table-header-case");
@@ -1720,7 +1831,7 @@
           </div>
         </div>
         <div style="background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:12px 16px;border-radius:8px;font-size:12px;margin-bottom:16px;line-height:1.5;">
-          <strong>How it works:</strong> Each rule uses a JavaScript regular expression tested against text extracted from the PDF (excluding the top and bottom ${MARGIN_CM} cm). Matches appear as highlighted findings. Use <code>$1</code>, <code>$2</code>… in the replacement to reference capture groups.
+          <strong>How it works:</strong> Each rule uses a JavaScript regular expression tested against text extracted from the PDF (excluding the top and bottom ${MARGIN_CM} cm). Matches appear as highlighted findings. Use <code>$1</code>, <code>$2</code>… in the replacement to reference capture groups. A rule with a <strong>POS condition</strong> (shown in purple under its pattern) also checks the part of speech of each matched word, e.g. <code>ADJ|NOUN NOUN NOUN|PROPN</code>, or <code>VERB ... SCONJ PRON ...</code> where <code>...</code> stands for any number of words; it is checked on whole paragraphs, so phrases split across lines are found.
         </div>
         <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px;">
           <thead style="background:#f9fafb;">
@@ -1746,7 +1857,7 @@
         <td style="padding:8px;"><input type="checkbox" data-rule-toggle ${r.enabled ? "checked" : ""} /></td>
         <td style="padding:8px;"><span style="background:${CATEGORY_COLORS[r.category] || "#6b7280"};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${escapeHtml(r.category)}</span></td>
         <td style="padding:8px;font-weight:500;">${escapeHtml(r.name)}</td>
-        <td style="padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#374151;">${escapeHtml(r.pattern)}</td>
+        <td style="padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#374151;">${escapeHtml(r.pattern)}${r.pos ? `<div style="margin-top:4px;color:#7c3aed;">POS: ${escapeHtml(r.pos)}</div>` : ""}</td>
         <td style="padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#059669;">${escapeHtml(r.replacement || "—")}</td>
         <td style="padding:8px;"><span style="color:${(SEVERITY_STYLES[r.severity] || SEVERITY_STYLES.minor).border};font-weight:600;font-size:12px;">${escapeHtml(r.severity)}</span></td>
         <td style="padding:8px;text-align:right;">
@@ -1863,6 +1974,10 @@
           </label>
           ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Heading: Bold/Semibold/Heavy, spaced from nearby lines, and no period. Body: 10 or 10.5 pt (±0.15 pt) ending in a period. Figure/Table labels: recognized outside those font sizes. Callouts follow the heading criteria. This rule uses PDF layout; the pattern is shown for reference.</p>' : ''}
           ${r.id === "team-table-header-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Table headers are identified from PDF layout and checked separately. The pattern is shown for reference.</p>' : ''}
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">POS condition (optional) — one part of speech per matched word
+            <input name="pos" value="${escapeHtml(r.pos || "")}" ${layoutRule ? "readonly" : ""} placeholder="e.g. ADJ|NOUN NOUN NOUN|PROPN — leave empty for a text-only rule" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
+            <span style="color:#6b7280;font-size:11px;">${POS_TAGS.join(" ")} · "|" = either · "*" = any one word · "..." = any number of words</span>
+          </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Severity
             <select name="severity" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
               <option value="minor" ${r.severity === "minor" ? "selected" : ""}>Minor (yellow)</option>
@@ -1884,7 +1999,14 @@
       const fd = new FormData(form);
       try {
         const re = new RegExp(fd.get("pattern"), fd.get("flags") || "g");
-        preview.textContent = `Pattern OK · ${re}`;
+        const posErr = posConditionError(fd.get("pos"));
+        if (posErr) {
+          preview.textContent = `POS condition: ${posErr}`;
+          preview.style.color = "#dc2626";
+          return;
+        }
+        const pos = String(fd.get("pos") || "").trim().replace(/\s+/g, " ");
+        preview.textContent = `Pattern OK · ${re}` + (pos ? ` · POS: ${pos}` : "");
         preview.style.color = "#059669";
       } catch (err) {
         preview.textContent = `Invalid regex: ${err.message}`;
@@ -1908,7 +2030,11 @@
         severity: fd.get("severity"),
         enabled: r.enabled !== false,
       };
+      const pos = String(fd.get("pos") || "").trim().replace(/\s+/g, " ");
+      if (pos) rule.pos = pos;
       try { new RegExp(rule.pattern, rule.flags); } catch (err) { alert("Invalid regex: " + err.message); return; }
+      const posErr = posConditionError(rule.pos);
+      if (posErr) { alert(posErr); return; }
       upsertRule(rule);
       modal.style.display = "none";
       renderRuleEditor();
