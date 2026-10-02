@@ -528,7 +528,10 @@
     return pdfjsBase.replace(/\/build$/, "/cmaps/");
   }
   function pdfDocOptions(extra) {
-    const base = { cMapPacked: true };
+    // verbosity 0 = errors only (hide "Cannot load system font" and other
+    // info messages that fire when the PDF references a font the OS does
+    // not have installed — PDF.js falls back on its own).
+    const base = { cMapPacked: true, verbosity: 0 };
     const url = pdfjsCMapUrl();
     if (url) base.cMapUrl = url;
     return Object.assign(base, extra || {});
