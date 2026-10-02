@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>demo_editor — 검토 규칙 편집</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  --paper: #f7f8fb; --panel: #ffffff; --ink: #1d2433; --muted: #5b6475; --line: #dde2ea; --soft: #eef1f6;
+  --blue: #2b59c3; --blue-soft: #e7eefc; --red: #c23a2b; --red-soft: #fbeae8; --green: #237a4b; --green-soft: #e4f3ea;
+  --mark: #ffe58a; --mark-ink: #1d2433; --amber: #8a5a00;
+  --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #13161c; --panel: #1b1f27; --ink: #e6e9ef; --muted: #9aa3b2; --line: #2c3340; --soft: #232834;
+  --blue: #7ea2f2; --blue-soft: #1f2b45; --red: #f08a7e; --red-soft: #3a2220; --green: #6cc796; --green-soft: #183327;
+  --mark: #6b5a12; --mark-ink: #fff6cf; --amber: #f2c46b; } }
+:root[data-theme="dark"] {
+  --paper: #13161c; --panel: #1b1f27; --ink: #e6e9ef; --muted: #9aa3b2; --line: #2c3340; --soft: #232834;
+  --blue: #7ea2f2; --blue-soft: #1f2b45; --red: #f08a7e; --red-soft: #3a2220; --green: #6cc796; --green-soft: #183327;
+  --mark: #6b5a12; --mark-ink: #fff6cf; --amber: #f2c46b; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; min-height: 100%; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--sans); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.hidden { display: none !important; }
+code, .mono { font-family: var(--mono); font-size: 13px; }
+
+/* header */
+header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 14px 22px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+header .sub { color: var(--muted); font-size: 13px; }
+.spacer { flex: 1; }
+.chip { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--soft); font-size: 13px; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+.btn:hover { border-color: var(--blue); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+:root[data-theme="dark"] .btn.primary, :root:not([data-theme="light"]) .btn.primary { color: #0e1422; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .btn.primary { color: #fff; } }
+.btn.danger { color: var(--red); border-color: var(--red); background: transparent; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+
+/* empty state */
+#drop { max-width: 720px; margin: 9vh auto 0; padding: 0 20px; }
+#drop .zone { border: 2px dashed var(--line); border-radius: 14px; padding: 48px 28px; text-align: center; background: var(--panel); }
+#drop .zone.over { border-color: var(--blue); background: var(--blue-soft); }
+#drop h2 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+#drop p { color: var(--muted); margin: 0 0 18px; }
+#drop ol { color: var(--muted); font-size: 14px; margin: 26px 0 0; padding-left: 20px; line-height: 1.8; }
+#load-error { color: var(--red); margin-top: 14px; }
+
+/* workspace */
+#app { display: grid; grid-template-columns: 330px minmax(0, 1fr); min-height: calc(100vh - 64px); }
+@media (max-width: 900px) { #app { grid-template-columns: minmax(0, 1fr); } #list-pane { max-height: 46vh; border-right: 0; border-bottom: 1px solid var(--line); } }
+#list-pane { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.list-tools { padding: 12px 14px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.list-tools input, .list-tools select { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+#rule-list { overflow-y: auto; flex: 1; padding: 4px 0 20px; }
+.group { padding: 14px 16px 4px; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; }
+.row { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 7px 16px 7px 14px; border-left: 3px solid transparent; cursor: pointer; }
+.row:hover { background: var(--soft); }
+.row.active { background: var(--blue-soft); border-left-color: var(--blue); }
+.row .nm { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .meta { display: flex; gap: 8px; font-size: 12px; color: var(--muted); }
+.row .meta .mono { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { font-size: 11.5px; padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+.tag.new, .tag.edited { background: var(--blue-soft); color: var(--blue); }
+.tag.deleted { background: var(--red-soft); color: var(--red); }
+.tag.off { background: var(--soft); color: var(--muted); }
+.tag.warn { background: var(--red-soft); color: var(--red); }
+.row.is-deleted .nm { text-decoration: line-through; color: var(--muted); }
+
+#detail { padding: 22px 28px 60px; min-width: 0; }
+@media (max-width: 700px) { #detail { padding: 18px 16px 48px; } header { padding: 12px 16px; } .proof .ln { grid-template-columns: 1fr; gap: 0; } }
+#detail .head { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+#detail h2 { margin: 0; font-size: 20px; font-weight: 600; flex: 1 1 320px; }
+#detail .lead { color: var(--muted); font-size: 13.5px; margin: 0 0 18px; }
+.form { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px 14px; max-width: 980px; }
+.f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.f input, .f select, .f textarea { width: 100%; min-width: 0; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14.5px; }
+.f input.mono, .f textarea.mono { font-family: var(--mono); font-size: 13.5px; }
+.f input[readonly] { background: var(--soft); }
+.f .hint { font-size: 12px; color: var(--muted); }
+.f .err { font-size: 12.5px; color: var(--red); }
+.c2 { grid-column: span 2; } .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; }
+@media (max-width: 700px) { .c2, .c3, .c4 { grid-column: span 6; } }
+.check { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; }
+.f input[type="checkbox"] { width: auto; flex: none; margin: 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
+
+/* tests */
+.tests-head { display: flex; align-items: baseline; gap: 12px; margin: 34px 0 6px; max-width: 980px; }
+.tests-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.tests-head p { margin: 0; color: var(--muted); font-size: 13px; flex: 1; }
+.case { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin: 12px 0; max-width: 980px; overflow: hidden; }
+.case.is-deleted { opacity: .55; }
+.proof { padding: 14px 18px; border-bottom: 1px solid var(--line); background: var(--soft); }
+.proof .ln { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px; align-items: baseline; margin: 2px 0; }
+.proof .lbl { font-size: 12.5px; color: var(--muted); }
+.proof .txt { font-size: 16px; line-height: 1.7; overflow-wrap: anywhere; }
+mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 0 1px; }
+mark.bad { background: transparent; color: inherit; text-decoration: underline wavy var(--red); text-underline-offset: 3px; }
+del { color: var(--red); text-decoration-thickness: 2px; }
+ins { color: var(--blue); text-decoration: none; border-bottom: 2px solid var(--blue); margin-left: 2px; }
+.verdicts { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; display: grid; gap: 2px; }
+.verdicts li::before { display: inline-block; width: 18px; font-weight: 700; }
+.verdicts .ok { color: var(--green); } .verdicts .ok::before { content: "✓"; }
+.verdicts .no { color: var(--red); } .verdicts .no::before { content: "✗"; }
+.verdicts .note { color: var(--amber); } .verdicts .note::before { content: "•"; }
+.case .fields { padding: 14px 18px; }
+.case .bar { display: flex; justify-content: flex-end; gap: 8px; padding: 0 18px 14px; }
+
+/* save bar: always visible at the bottom of the editing pane */
+.savebar { position: sticky; bottom: env(safe-area-inset-bottom, 0px); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
+  margin: 28px -28px -60px; padding: 12px 28px; background: var(--panel); border-top: 1px solid var(--line); z-index: 3; }
+.savebar .state { flex: 1 1 220px; font-size: 13.5px; color: var(--muted); }
+.savebar .state.dirty { color: var(--amber); }
+.savebar .state.saved { color: var(--green); }
+.savebar .state.error { color: var(--red); }
+@media (max-width: 700px) { .savebar { margin: 24px -16px -48px; padding: 10px 16px; } }
+.tag.draft { background: var(--soft); color: var(--amber); }
+
+/* dialog */
+dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(680px, 94vw); background: var(--panel); color: var(--ink); }
+dialog::backdrop { background: rgba(10, 14, 22, .45); }
+dialog .in { padding: 22px 24px; }
+dialog h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+dialog ul { padding-left: 18px; margin: 8px 0; font-size: 14px; }
+dialog .msgs { max-height: 46vh; overflow-y: auto; }
+dialog .err { color: var(--red); } dialog .warn { color: var(--amber); } dialog .ok { color: var(--green); }
+dialog footer { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 14px 24px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-family: var(--mono); font-size: 13.5px; }
+@media (prefers-reduced-motion: no-preference) { .row, .btn { transition: background-color .12s, border-color .12s; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>demo_editor</h1>
+  <span class="sub">검토 규칙과 자체 점검 문장을 고쳐서 새 demo 파일로 내려받습니다</span>
+  <span class="spacer"></span>
+  <span id="file-chip" class="chip hidden"></span>
+  <button id="btn-open" class="btn hidden" type="button">다른 파일 열기</button>
+  <button id="btn-changes" class="btn hidden" type="button">변경 0건</button>
+  <button id="btn-export" class="btn primary hidden" type="button">새 파일 만들기</button>
+</header>
+
+<section id="drop">
+  <div class="zone" id="zone">
+    <h2>demo 파일을 여기에 놓으세요</h2>
+    <p>지금 쓰는 demo_v9.js 같은 파일을 끌어 놓거나 선택하면 규칙 목록이 열립니다. 파일은 이 브라우저 안에서만 읽습니다.</p>
+    <label class="btn primary" style="display:inline-block;">파일 선택<input id="file" type="file" accept=".js,text/javascript" hidden></label>
+    <div id="load-error"></div>
+  </div>
+  <ol>
+    <li>왼쪽 목록에서 규칙을 고르거나 새 규칙을 추가합니다.</li>
+    <li>아래 자체 점검 문장 칸에서 틀린 문장과 고친 문장을 넣으면, 규칙이 실제로 어떻게 걸리는지 바로 보입니다.</li>
+    <li>저장을 누르면 그 규칙의 변경이 확정됩니다. 저장하지 않고 다른 규칙으로 옮기면 저장할지 물어봅니다.</li>
+    <li>새 파일 만들기를 누르면 바뀐 부분만 고친 demo 파일이 내려받아집니다. 이미 규칙을 저장해 둔 사용자에게도 변경이 반영되도록 업그레이드 코드가 함께 들어갑니다. 내려받은 뒤에는 그 파일을 기준으로 이어서 고칠 수 있습니다.</li>
+  </ol>
+</section>
+
+<div id="app" class="hidden">
+  <aside id="list-pane">
+    <div class="list-tools">
+      <button id="btn-new" class="btn primary" type="button">새 규칙 추가</button>
+      <input id="q" type="search" placeholder="이름, id, 정규식으로 찾기">
+      <select id="cat-filter"></select>
+    </div>
+    <nav id="rule-list" aria-label="규칙 목록"></nav>
+  </aside>
+  <main id="detail"></main>
+</div>
+
+<dialog id="dlg"><div class="in" id="dlg-body"></div><footer id="dlg-foot"></footer></dialog>
+
+<script>// demo_editor core: read the rule and self-check arrays out of a demo_vX.js file and
+// write edits back as minimal text changes (comments and layout elsewhere stay as-is).
+// Used by demo_editor.html; also loadable in Node for testing.
+(function (root) {
+  const RULE_ARRAYS = ["_BASE_RULES", "CHICAGO_RULES", "STYLE_RULES", "TEAM_RULES"];
+  const CASE_ARRAY = "SELF_CHECK_CASES";
+  const RULE_KEYS = ["id", "category", "name", "pattern", "flags", "replacement", "severity", "enabled", "pos"];
+  const CASE_KEYS = ["category", "ruleId", "layout", "flag", "wrong", "right", "noFixCheck", "limit"];
+
+  // ── scanning helpers (skip strings and comments) ──
+  function skipString(src, i) {
+    const q = src[i];
+    for (i++; i < src.length; i++) {
+      if (src[i] === "\\") { i++; continue; }
+      if (src[i] === q) return i + 1;
+      if (q === "`" && src[i] === "$" && src[i + 1] === "{") throw new Error("Template expressions are not supported in rule data.");
+    }
+    throw new Error("Unterminated string.");
+  }
+  function skipComment(src, i) {
+    if (src[i + 1] === "/") { const e = src.indexOf("\n", i); return e < 0 ? src.length : e; }
+    const e = src.indexOf("*/", i + 2); if (e < 0) throw new Error("Unterminated comment."); return e + 2;
+  }
+  function matchingClose(src, open) {
+    const pairs = { "[": "]", "{": "}", "(": ")" };
+    const stack = [pairs[src[open]]];
+    for (let i = open + 1; i < src.length;) {
+      const c = src[i];
+      if (c === '"' || c === "'" || c === "`") { i = skipString(src, i); continue; }
+      if (c === "/" && (src[i + 1] === "/" || src[i + 1] === "*")) { i = skipComment(src, i); continue; }
+      if (pairs[c]) stack.push(pairs[c]);
+      else if (c === "]" || c === "}" || c === ")") {
+        if (stack.pop() !== c) throw new Error(`Unbalanced "${c}" at ${i}.`);
+        if (!stack.length) return i;
+      }
+      i++;
+    }
+    throw new Error("Unclosed bracket.");
+  }
+
+  // ── a small parser for JS object literals made of plain values ──
+  function parseLiteral(text) {
+    let i = 0;
+    const ws = () => {
+      for (;;) {
+        while (i < text.length && /\s/.test(text[i])) i++;
+        if (text[i] === "/" && (text[i + 1] === "/" || text[i + 1] === "*")) { i = skipComment(text, i); continue; }
+        return;
+      }
+    };
+    const str = () => {
+      const q = text[i++]; let out = "";
+      while (i < text.length && text[i] !== q) {
+        let c = text[i++];
+        if (c !== "\\") { out += c; continue; }
+        c = text[i++];
+        const simple = { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f", v: "\v", 0: "\0" };
+        if (c in simple) out += simple[c];
+        else if (c === "x") { out += String.fromCharCode(parseInt(text.substr(i, 2), 16)); i += 2; }
+        else if (c === "u") {
+          if (text[i] === "{") { const e = text.indexOf("}", i); out += String.fromCodePoint(parseInt(text.slice(i + 1, e), 16)); i = e + 1; }
+          else { out += String.fromCharCode(parseInt(text.substr(i, 4), 16)); i += 4; }
+        } else if (c === "\r" || c === "\n") { if (c === "\r" && text[i] === "\n") i++; }
+        else out += c;
+      }
+      i++; return out;
+    };
+    const value = () => {
+      ws();
+      const c = text[i];
+      let v;
+      if (c === "{") {
+        i++; v = {};
+        for (;;) {
+          ws(); if (text[i] === "}") { i++; break; }
+          let key;
+          if (text[i] === '"' || text[i] === "'") key = str();
+          else { const m = /^[A-Za-z_$][\w$]*/.exec(text.slice(i)); if (!m) throw new Error(`Unexpected "${text[i]}" in object.`); key = m[0]; i += key.length; }
+          ws(); if (text[i] !== ":") throw new Error(`Expected ":" after ${key}.`); i++;
+          v[key] = value();
+          ws(); if (text[i] === ",") { i++; continue; }
+          if (text[i] === "}") { i++; break; }
+          throw new Error(`Expected "," or "}" after ${key}.`);
+        }
+      } else if (c === "[") {
+        i++; v = [];
+        for (;;) { ws(); if (text[i] === "]") { i++; break; } v.push(value()); ws(); if (text[i] === ",") i++; }
+      } else if (c === '"' || c === "'" || c === "`") v = str();
+      else {
+        const m = /^(true|false|null|undefined|-?\d+(?:\.\d+)?)/.exec(text.slice(i));
+        if (!m) throw new Error(`Unsupported value starting "${text.slice(i, i + 20)}" (only plain values can be edited).`);
+        i += m[0].length;
+        v = { true: true, false: false, null: null, undefined: undefined }[m[0]];
+        if (v === undefined && m[0] !== "undefined") v = Number(m[0]);
+      }
+      ws();
+      while (text[i] === "+") { i++; const r = value(); v = v + r; ws(); }   // "a" + "b"
+      return v;
+    };
+    const v = value(); ws();
+    if (i < text.length) throw new Error("Unexpected text after value.");
+    return v;
+  }
+
+  // ── locate an array and its top-level object entries ──
+  function findArray(src, name) {
+    const re = new RegExp(`const\\s+${name.replace("$", "\\$")}\\s*=\\s*\\[`);
+    const m = re.exec(src);
+    if (!m) return null;
+    const open = m.index + m[0].length - 1, close = matchingClose(src, open);
+    const entries = [];
+    for (let i = open + 1; i < close;) {
+      const c = src[i];
+      if (c === '"' || c === "'" || c === "`") { i = skipString(src, i); continue; }
+      if (c === "/" && (src[i + 1] === "/" || src[i + 1] === "*")) { i = skipComment(src, i); continue; }
+      if (c === "{") {
+        const end = matchingClose(src, i) + 1;
+        entries.push({ start: i, end, value: parseLiteral(src.slice(i, end)) });
+        i = end; continue;
+      }
+      i++;
+    }
+    return { name, open, close, entries };
+  }
+
+  function parseDemo(src) {
+    const arrays = {};
+    for (const name of RULE_ARRAYS) {
+      const a = findArray(src, name);
+      if (a) arrays[name] = a;
+    }
+    if (!Object.keys(arrays).length) throw new Error("No rule arrays (_BASE_RULES, CHICAGO_RULES, …) were found. Is this a demo_vX.js file?");
+    const cases = findArray(src, CASE_ARRAY);
+    const rules = [];
+    for (const a of Object.values(arrays)) for (const e of a.entries) rules.push({ ...e, array: a.name, rule: e.value });
+    const ids = new Set();
+    for (const r of rules) { if (ids.has(r.rule.id)) throw new Error(`Duplicate rule id in file: ${r.rule.id}`); ids.add(r.rule.id); }
+    return {
+      rules, arrays,
+      cases: cases ? cases.entries.map((e) => ({ ...e, c: e.value })) : [],
+      caseArray: cases,
+      hasMigrationList: src.includes('.forEach((k) => localStorage.setItem(k, "done"))'),
+    };
+  }
+
+  // ── writing ──
+  const lit = (v) => (typeof v === "string" ? JSON.stringify(v) : String(v));
+  function ordered(obj, keys) {
+    const out = [];
+    for (const k of keys) if (obj[k] !== undefined && obj[k] !== "") out.push([k, obj[k]]);
+    for (const k of Object.keys(obj)) if (!keys.includes(k) && obj[k] !== undefined) out.push([k, obj[k]]);
+    return out;
+  }
+  function ruleText(r, indent = "    ") {
+    const pairs = ordered({ ...r, enabled: r.enabled !== false }, RULE_KEYS).filter(([k, v]) => !(k === "pos" && !v));
+    const head = pairs.filter(([k]) => ["id", "category", "name"].includes(k));
+    const rest = pairs.filter(([k]) => !["id", "category", "name"].includes(k));
+    const f = (ps) => ps.map(([k, v]) => `${k}: ${lit(v)}`).join(", ");
+    return `{ ${f(head)},\n${indent}  ${f(rest)} }`;
+  }
+  function caseText(c) {
+    const pairs = ordered(c, CASE_KEYS).filter(([k, v]) => !(k === "noFixCheck" && !v) && !(k === "layout" && (!v || v === "body")));
+    return `{ ${pairs.map(([k, v]) => `${k}: ${lit(v)}`).join(", ")} }`;
+  }
+  function lineStart(src, i) { return src.lastIndexOf("\n", i - 1) + 1; }
+  function lineEnd(src, i) { const e = src.indexOf("\n", i); return e < 0 ? src.length : e + 1; }
+  // Remove an entry with its trailing comma and the comment lines right above it
+  // (but not section headers like "// ── Typo ──").
+  function removalRange(src, e) {
+    let start = lineStart(src, e.start);
+    const onlyEntry = src.slice(start, e.start).trim() === "";
+    let end = e.end;
+    const after = /^\s*,/.exec(src.slice(end)); if (after) end += after[0].length;
+    if (onlyEntry && src.slice(end, lineEnd(src, end)).trim() === "") end = lineEnd(src, end); else start = e.start;
+    if (onlyEntry) {
+      for (;;) {
+        const prevStart = lineStart(src, start - 1);
+        const line = src.slice(prevStart, start);
+        if (start > 0 && /^\s*\/\//.test(line) && !/──/.test(line)) start = prevStart; else break;
+      }
+    }
+    return [start, end];
+  }
+  function indentOf(src, i) { const s = lineStart(src, i); return /^\s*/.exec(src.slice(s, i))[0]; }
+
+  function migrationKeyName(stamp) { return `RULES_EDIT_${stamp}_KEY`; }
+
+  // changes: { added: [{array, rule, note}], edited: [{id, rule}], deleted: [id],
+  //            cases: { added: [case], edited: [{index, c}], deleted: [index] } }
+  function applyChanges(src, parsed, changes, stamp) {
+    const ops = []; // { at, end, text, order }
+    let order = 0;
+    const byId = new Map(parsed.rules.map((r) => [r.rule.id, r]));
+    for (const { id, rule } of changes.edited) {
+      const e = byId.get(id);
+      ops.push({ at: e.start, end: e.end, text: ruleText({ ...e.rule, ...rule, id }, indentOf(src, e.start)), order: order++ });
+    }
+    for (const id of changes.deleted) { const [a, b] = removalRange(src, byId.get(id)); ops.push({ at: a, end: b, text: "", order: order++ }); }
+    for (const { array, rule, note } of changes.added) {
+      const arr = parsed.arrays[array];
+      const at = lineEnd(src, arr.open);
+      const comment = note ? note.split("\n").map((l) => `    // ${l}`).join("\n") + "\n" : "";
+      ops.push({ at, end: at, text: `${comment}    ${ruleText(rule)},\n`, order: order++ });
+    }
+    const cs = changes.cases;
+    if (parsed.caseArray) {
+      for (const { index, c } of cs.edited) {
+        const e = parsed.cases[index]; ops.push({ at: e.start, end: e.end, text: caseText(c), order: order++ });
+      }
+      for (const index of cs.deleted) { const [a, b] = removalRange(src, parsed.cases[index]); ops.push({ at: a, end: b, text: "", order: order++ }); }
+      for (const c of cs.added) {
+        // after the last case of the same rule, else of the same category, else at the top
+        const same = parsed.cases.filter((x) => x.c.ruleId === c.ruleId && !cs.deleted.includes(parsed.cases.indexOf(x)));
+        const cat = parsed.cases.filter((x) => x.c.category === c.category && !cs.deleted.includes(parsed.cases.indexOf(x)));
+        const anchor = (same.length ? same : cat)[(same.length ? same : cat).length - 1];
+        const at = anchor ? lineEnd(src, anchor.end) : lineEnd(src, parsed.caseArray.open);
+        ops.push({ at, end: at, text: `    ${caseText(c)},\n`, order: order++ });
+      }
+    } else if (cs.added.length) throw new Error("This demo file has no SELF_CHECK_CASES list (self-check tests need demo_v7 or later).");
+
+    // migration for users who already have saved rules
+    const ruleChange = changes.added.length || changes.edited.length || changes.deleted.length;
+    let keyName = null;
+    if (ruleChange) {
+      keyName = migrationKeyName(stamp);
+      const keyRe = /^[ \t]*const\s+\w+_KEY\s*=\s*"tw-demo-rules-[^"]*";[^\n]*\n/gm;
+      let m, lastKey = null; while ((m = keyRe.exec(src))) lastKey = m;
+      if (!lastKey) throw new Error("Could not find the rule-version keys (const …_KEY = \"tw-demo-rules-…\").");
+      ops.push({ at: lastKey.index + lastKey[0].length, end: lastKey.index + lastKey[0].length,
+        text: `  const ${keyName} = "tw-demo-rules-edit-${stamp.toLowerCase()}";\n`, order: order++ });
+      const doneRe = /localStorage\.setItem\(\w+_KEY, "done"\);\s*\n[ \t]*\}\n/g;
+      let d, lastDone = null; while ((d = doneRe.exec(src))) lastDone = d;
+      if (!lastDone) throw new Error('Could not find where rule upgrades run (localStorage.setItem(…_KEY, "done")).');
+      const before = {};
+      for (const { id } of changes.edited) {
+        const r = byId.get(id).rule;
+        before[id] = Object.fromEntries(["name", "category", "pattern", "flags", "replacement", "severity", "pos", "enabled"].map((k) => [k, r[k]]));
+      }
+      const block = [
+        `      if (localStorage.getItem(${keyName}) !== "done") {`,
+        `        // demo_editor: rule changes for users who already have saved rules.`,
+        `        const added = ${JSON.stringify(changes.added.map((a) => a.rule.id))};`,
+        `        const removed = ${JSON.stringify(changes.deleted)};`,
+        `        const previous = ${JSON.stringify(before)};`,
+        `        const existingIds = new Set(rules.map((rule) => rule.id));`,
+        `        rules.push(...DEFAULT_RULES.filter((rule) => added.includes(rule.id) && !existingIds.has(rule.id)));`,
+        `        for (let i = rules.length - 1; i >= 0; i--) if (removed.includes(rules[i].id)) rules.splice(i, 1);`,
+        `        // Changed rules are updated only where the user has not edited them in the browser.`,
+        `        const fields = ["name", "category", "pattern", "flags", "replacement", "severity", "pos"];`,
+        `        for (const [id, prev] of Object.entries(previous)) {`,
+        `          const r = rules.find((rule) => rule.id === id), now = DEFAULT_RULES.find((rule) => rule.id === id);`,
+        `          if (!r || !now) continue;`,
+        `          if (fields.every((f) => (r[f] ?? "") === (prev[f] ?? ""))) fields.forEach((f) => { if (now[f] === undefined) delete r[f]; else r[f] = now[f]; });`,
+        `          if (r.enabled === prev.enabled) r.enabled = now.enabled !== false;`,
+        `        }`,
+        `        saveRules(rules);`,
+        `        localStorage.setItem(${keyName}, "done");`,
+        `      }`,
+      ].join("\n") + "\n";
+      const at = lastDone.index + lastDone[0].length;
+      ops.push({ at, end: at, text: block, order: order++ });
+      if (parsed.hasMigrationList) {
+        const fe = src.indexOf('.forEach((k) => localStorage.setItem(k, "done"))');
+        const br = src.lastIndexOf("]", fe);
+        ops.push({ at: br, end: br, text: `, ${keyName}`, order: order++ });
+      }
+    }
+    // header note
+    const summary = [];
+    if (changes.added.length) summary.push(`${changes.added.length} rule(s) added`);
+    if (changes.edited.length) summary.push(`${changes.edited.length} edited`);
+    if (changes.deleted.length) summary.push(`${changes.deleted.length} deleted`);
+    const caseCount = cs.added.length + cs.edited.length + cs.deleted.length;
+    if (caseCount) summary.push(`${caseCount} self-check test change(s)`);
+    if (summary.length) {
+      const first = lineEnd(src, 0);
+      ops.push({ at: first, end: first, text: `// Edited with demo_editor (${stamp}): ${summary.join(", ")}.\n`, order: order++ });
+    }
+
+    ops.sort((a, b) => b.at - a.at || b.order - a.order);
+    let out = src;
+    for (const op of ops) out = out.slice(0, op.at) + op.text + out.slice(op.end);
+    return { text: out, keyName };
+  }
+
+  // ── same replacement logic as the demo (keep identical to demo's applyReplacement) ──
+  function applyReplacement(template, match) {
+    if (!template) return "";
+    return template.replace(/\$(\d+)/g, (_, n) => match[Number(n)] || "");
+  }
+
+  const api = { parseDemo, applyChanges, parseLiteral, ruleText, caseText, applyReplacement, RULE_ARRAYS };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.DemoEditorCore = api;
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+<script>
+(() => {
+  const C = window.DemoEditorCore;
+  const CATS = { typo: "Typo", spacing: "Spacing", punctuation: "Punctuation", grammar: "Grammar", capitalization: "Capitalization",
+    numbers_abbreviations: "Numbers & abbreviations", hyphenation_terminology: "Hyphenation & terminology", custom: "Custom" };
+  const ARRAYS = { TEAM_RULES: "팀 표준 (TEAM_RULES)", STYLE_RULES: "스타일 가이드 (STYLE_RULES)", CHICAGO_RULES: "Chicago (CHICAGO_RULES)", _BASE_RULES: "기본 오타 (_BASE_RULES)" };
+  const LAYOUTS = { body: "본문 문장", lines: "여러 줄 (| 로 줄 구분)", heading: "제목 (굵게 14 pt)", figure: "그림·표 라벨 (9 pt)",
+    table: "표 머리글 11 pt (제목|머리글1|머리글2|칸1|칸2)", tableBody: "표 머리글 본문 크기 (제목|머리글1|머리글2|칸1|칸2)" };
+  const POS_TAGS = ["ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM", "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X"];
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const norm = (t) => String(t ?? "").replace(/\s+/g, " ").trim();
+  const $ = (id) => document.getElementById(id);
+
+  // S: the loaded file and the saved edits.
+  //   rules: [{ key, orig|null, rule, array, note, deleted }]
+  //   cases: [{ origIndex|null, orig, c, deleted, ruleKey }]
+  // D: the draft of the rule open on the right (edits go here until "저장").
+  let S = null, D = null, exportedOnce = false;
+
+  // ── loading ──
+  const zone = $("zone");
+  $("file").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
+  ["dragenter", "dragover"].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.remove("over"); }));
+  zone.addEventListener("drop", (e) => e.dataTransfer.files[0] && load(e.dataTransfer.files[0]));
+  async function load(file) {
+    $("load-error").textContent = "";
+    try { start(file.name, await file.text()); }
+    catch (e) { $("load-error").textContent = "이 파일을 읽을 수 없습니다: " + e.message; }
+  }
+  function start(name, src) {
+    const parsed = C.parseDemo(src);
+    let k = 0;
+    S = {
+      name, src, parsed,
+      rules: parsed.rules.map((r) => ({ key: "r" + k++, orig: clone(r.rule), rule: clone(r.rule), array: r.array, note: "", deleted: false })),
+      cases: [],
+    };
+    const keyOf = (id) => S.rules.find((r) => r.orig.id === id)?.key || null;
+    S.cases = parsed.cases.map((c, i) => ({ origIndex: i, orig: clone(c.c), c: clone(c.c), deleted: false, ruleKey: keyOf(c.c.ruleId) }));
+    $("drop").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    ["file-chip", "btn-open", "btn-changes", "btn-export"].forEach((id) => $(id).classList.remove("hidden"));
+    $("file-chip").textContent = `${name} · 규칙 ${S.rules.length}개`;
+    $("cat-filter").innerHTML = `<option value="">모든 분류</option>` + Object.entries(CATS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")
+      + `<option value=":changed">바뀐 규칙만</option><option value=":untested">점검 문장 없는 규칙</option><option value=":off">기본으로 꺼진 규칙</option>`;
+    exportedOnce = false;
+    openRule(S.rules[0].key);
+    renderList(); renderCount();
+  }
+  $("btn-open").addEventListener("click", async () => {
+    if (!(await settleDraft())) return;
+    if (changeList().length && !exportedOnce && !(await ask("아직 내려받지 않은 변경이 있습니다", "다른 파일을 열면 지금까지의 변경이 사라집니다.", [["stay", "계속 편집"], ["go", "버리고 다른 파일 열기", "danger"]])) === "go") return;
+    S = null; D = null;
+    $("app").classList.add("hidden"); $("drop").classList.remove("hidden");
+    ["file-chip", "btn-open", "btn-changes", "btn-export"].forEach((id) => $(id).classList.add("hidden"));
+  });
+
+  // ── saved-state helpers ──
+  const ruleByKey = (k) => S.rules.find((r) => r.key === k);
+  const casesOf = (k) => S.cases.filter((c) => c.ruleKey === k);
+  const FIELDS = ["name", "category", "pattern", "flags", "replacement", "severity", "pos"];
+  const ruleChanged = (r) => r.orig && (FIELDS.some((f) => (r.rule[f] ?? "") !== (r.orig[f] ?? "")) || (r.rule.enabled !== false) !== (r.orig.enabled !== false));
+  const stable = (o) => JSON.stringify(Object.keys(o).sort().reduce((a, k) => ((a[k] = o[k]), a), {}));
+  const caseChanged = (c) => c.origIndex !== null && stable(c.c) !== stable(c.orig);
+  function stateOf(r) {
+    if (r.deleted) return "deleted";
+    if (!r.orig) return "new";
+    if (ruleChanged(r) || casesOf(r.key).some((c) => c.deleted || c.origIndex === null || caseChanged(c))) return "edited";
+    return r.rule.enabled === false ? "off" : "";
+  }
+  function changeList() {
+    const out = [];
+    for (const r of S.rules) {
+      if (!r.orig && !r.deleted) out.push({ key: r.key, text: `추가: ${r.rule.name}` });
+      else if (r.orig && r.deleted) out.push({ key: r.key, text: `삭제: ${r.orig.name}` });
+      else if (r.orig && ruleChanged(r)) out.push({ key: r.key, text: `수정: ${r.orig.name}` });
+    }
+    for (const c of S.cases) {
+      const r = ruleByKey(c.ruleKey);
+      if (!r || r.deleted) continue;
+      const kind = c.origIndex === null ? (c.deleted ? "" : "점검 문장 추가") : c.deleted ? "점검 문장 삭제" : caseChanged(c) ? "점검 문장 수정" : "";
+      if (kind) out.push({ key: r.key, text: `${kind}: ${r.rule.name}` });
+    }
+    return out;
+  }
+  function renderCount() {
+    const n = S ? changeList().length : 0;
+    $("btn-changes").textContent = `변경 ${n}건`;
+    $("btn-changes").disabled = !n;
+  }
+
+  // ── the draft ──
+  function openRule(key, isNew = false) {
+    if (isNew) {
+      D = { key, isNew: true, idTouched: false, array: "TEAM_RULES", note: "",
+        rule: { id: "", category: "custom", name: "", pattern: "", flags: "g", replacement: "", severity: "minor", enabled: true },
+        cases: [{ ref: null, c: { category: "custom", ruleId: "", flag: "", wrong: "", right: "" }, deleted: false }] };
+    } else {
+      const r = ruleByKey(key);
+      D = { key, isNew: !r.orig, idTouched: true, array: r.array, note: r.note, rule: clone(r.rule),
+        cases: casesOf(key).map((c) => ({ ref: c, c: clone(c.c), deleted: c.deleted })) };
+    }
+    D.snapshot = snap(D);
+    D.status = isNew ? ["dirty", "새 규칙입니다. 내용을 넣고 저장하세요."] : null;
+    renderDetail();
+  }
+  const snap = (d) => JSON.stringify({ r: d.rule, a: d.array, n: d.note, c: d.cases.map((x) => [x.c, x.deleted]) });
+  const isDirty = () => !!D && (D.isNew && !ruleByKey(D.key) ? true : snap(D) !== D.snapshot);
+  const draftRule = () => ({ key: D.key, rule: D.rule, orig: ruleByKey(D.key)?.orig || null });
+
+  function draftErrors() {
+    const R = D.rule, e = {};
+    const saved = ruleByKey(D.key);
+    if (!String(R.name || "").trim()) e.name = "이름을 넣으세요.";
+    if (!saved?.orig) {
+      if (!/^[A-Za-z0-9_-]+$/.test(R.id || "")) e.id = "영문, 숫자, -, _ 만 쓸 수 있습니다.";
+      else if (S.rules.some((x) => x.key !== D.key && x.orig?.id === R.id && x.deleted))
+        e.id = "삭제한 규칙의 id입니다. 같은 id를 다시 쓰면 기존 사용자에게서 새 규칙이 지워지므로, 다른 id를 쓰거나 삭제를 취소하고 그 규칙을 고치세요.";
+      else if (S.rules.some((x) => x.key !== D.key && !x.deleted && x.rule.id === R.id)) e.id = "이미 있는 id입니다.";
+    }
+    if (!isLayoutRule(R)) {
+      if (!R.pattern) e.pattern = "정규식을 넣으세요.";
+      else { try { regexOf(R); } catch (x) { e.pattern = "정규식 오류: " + x.message; } }
+      if (!/^[dgimsuy]*$/.test(R.flags || "")) e.flags = "쓸 수 있는 플래그: g i m s u y";
+    }
+    if (R.pos) {
+      const bad = R.pos.trim().split(/\s+/).flatMap((p) => p.split("|")).filter((t) => t !== "*" && t !== "..." && !POS_TAGS.includes(t));
+      if (bad.length) e.pos = "알 수 없는 품사: " + bad.join(", ");
+    }
+    const live = D.cases.filter((c) => !c.deleted);
+    if (live.some((c) => !c.c.wrong.trim() || !c.c.right.trim())) e.cases = "점검 문장의 틀린 문장과 고친 문장을 모두 넣거나, 쓰지 않을 문장은 삭제하세요.";
+    return e;
+  }
+
+  function saveDraft() {
+    const E = draftErrors();
+    if (Object.keys(E).length) {
+      D.status = ["error", "저장할 수 없습니다: " + Object.values(E)[0]];
+      renderDetail(); focusFirstError(E); return false;
+    }
+    let r = ruleByKey(D.key);
+    if (!r) { r = { key: D.key, orig: null, deleted: false }; S.rules.push(r); }
+    r.rule = clone(D.rule); r.array = D.array; r.note = D.note;
+    if (!r.rule.pos) delete r.rule.pos;
+    for (const dc of D.cases) {
+      if (dc.ref) { dc.ref.c = clone(dc.c); dc.ref.deleted = dc.deleted; }
+      else if (!dc.deleted) { dc.ref = { origIndex: null, orig: null, c: clone(dc.c), deleted: false, ruleKey: D.key }; S.cases.push(dc.ref); }
+    }
+    // new test sentences removed before they were ever saved
+    S.cases = S.cases.filter((c) => !(c.origIndex === null && c.ruleKey === D.key && !D.cases.some((dc) => dc.ref === c && !dc.deleted)));
+    for (const c of casesOf(D.key)) { c.c.category = r.rule.category; c.c.ruleId = r.rule.id; }
+    D.isNew = false;
+    D.snapshot = snap(D);
+    D.status = ["saved", "저장했습니다. 새 파일 만들기로 내려받을 때 반영됩니다."];
+    exportedOnce = false;
+    renderList(); renderDetail(); renderCount();
+    return true;
+  }
+  function discardDraft() {
+    if (D.isNew && !ruleByKey(D.key)) { D = null; openRule((S.rules.find((r) => !r.deleted) || S.rules[0]).key); }
+    else openRule(D.key);
+    renderList();
+  }
+  function focusFirstError(E) {
+    const f = Object.keys(E)[0];
+    const el = f === "cases" ? document.querySelector('#cases [data-f="wrong"]') : document.querySelector(`#detail [data-f="${f}"]`);
+    if (el) { el.focus(); el.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  }
+  // Before leaving the open rule: save / discard / stay. Resolves true when it is OK to move on.
+  async function settleDraft() {
+    if (!D || !isDirty()) return true;
+    const a = await ask("저장하지 않은 변경이 있습니다", `"${esc(D.rule.name || "새 규칙")}"의 변경을 저장할까요?`,
+      [["stay", "계속 편집"], ["discard", "저장하지 않음", "danger"], ["save", "저장", "primary"]]);
+    if (a === "save") return saveDraft();
+    if (a === "discard") { if (D.isNew && !ruleByKey(D.key)) D = null; else openRule(D.key); return true; }
+    return false;
+  }
+  window.addEventListener("beforeunload", (e) => {
+    if (S && (isDirty() || (changeList().length && !exportedOnce))) { e.preventDefault(); e.returnValue = ""; }
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && D) { e.preventDefault(); saveDraft(); }
+  });
+
+  // ── matching (same regex logic as the demo; POS conditions are not evaluated here) ──
+  function regexOf(rule) {
+    const flags = (rule.flags || "g").includes("g") ? (rule.flags || "g") : (rule.flags || "") + "g";
+    return new RegExp(rule.pattern, flags);
+  }
+  function findAll(rule, text) {
+    let re; try { re = regexOf(rule); } catch { return []; }
+    const out = []; let m;
+    while ((m = re.exec(text)) !== null) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      out.push({ start: m.index, end: m.index + m[0].length, text: m[0], suggestion: C.applyReplacement(rule.replacement, m) });
+    }
+    return out;
+  }
+  const isLayoutRule = (r) => r.id === "team-title-case" || r.id === "team-table-header-case";
+  const noteLike = (rule, c) => c.noFixCheck || !rule.replacement || /^\(/.test(rule.replacement) || rule.replacement === "$&";
+
+  function proof(r, c) {
+    const rule = r.rule;
+    const layout = c.layout || "body";
+    const verdicts = [];
+    if (isLayoutRule(rule) || ["heading", "figure", "table", "tableBody"].includes(layout)) {
+      return { html: `<div class="ln"><span class="lbl">틀린 문장</span><span class="txt">${esc(c.wrong)}</span></div>
+        <div class="ln"><span class="lbl">고친 문장</span><span class="txt">${esc(c.right)}</span></div>`,
+        verdicts: [["note", "제목·라벨·표 머리글은 PDF 배치로 판단하는 규칙이라 여기서는 미리 볼 수 없습니다. 새 파일에서 Run self-check로 확인하세요."]] };
+    }
+    try { regexOf(rule); } catch (e) { return { html: "", verdicts: [["no", "정규식 오류: " + esc(e.message)]] }; }
+    if (!rule.pattern) return { html: "", verdicts: [["note", "정규식을 넣으면 여기서 결과를 바로 볼 수 있습니다."]] };
+    const lines = (t) => (layout === "lines" ? t.split("|").map((x) => x.trim()) : [t]);
+    const wl = lines(c.wrong);
+    let target = null;
+    const wrongHtml = wl.map((line) => {
+      const hits = findAll(rule, line);
+      const t = hits.find((h) => norm(h.text).includes(norm(c.flag)));
+      if (t && !target) target = t;
+      let out = "", at = 0;
+      for (const h of hits) {
+        out += esc(line.slice(at, h.start));
+        const fix = h === t && !noteLike(rule, c) ? `<ins>${esc(h.suggestion)}</ins>` : "";
+        out += fix ? `<del><mark>${esc(h.text)}</mark></del>${fix}` : `<mark>${esc(h.text)}</mark>`;
+        at = h.end;
+      }
+      return out + esc(line.slice(at));
+    }).join("<br>");
+    if (!c.wrong.trim()) verdicts.push(["no", "틀린 문장을 넣으세요."]);
+    else if (c.flag && !norm(c.wrong).includes(norm(c.flag))) verdicts.push(["no", `걸려야 할 부분 "${esc(c.flag)}"이(가) 틀린 문장에 없습니다.`]);
+    else if (!target) verdicts.push(["no", findAll(rule, wl.join(" ")).length ? `규칙이 "${esc(c.flag)}"이(가) 아닌 다른 부분을 찾습니다.` : "틀린 문장이 규칙에 걸리지 않습니다."]);
+    else {
+      verdicts.push(["ok", `"${esc(target.text)}"을(를) 찾습니다${noteLike(rule, c) ? ` → 제안: ${esc(target.suggestion)}` : ""}.`]);
+      if (!noteLike(rule, c) && layout !== "lines") {
+        const fixed = norm(norm(c.wrong).replace(norm(target.text), target.suggestion));
+        verdicts.push(fixed === norm(c.right) ? ["ok", "제안대로 고치면 고친 문장과 같아집니다."] : ["no", `제안대로 고치면: "${esc(fixed)}"`]);
+      }
+    }
+    const others = S.rules.filter((x) => x.key !== r.key && !x.deleted && x.rule.enabled !== false && !isLayoutRule(x.rule) && !x.rule.pos);
+    const rl = lines(c.right);
+    const conflicts = [];
+    const rightHtml = rl.map((line) => {
+      const own = findAll(rule, line);
+      const oth = [];
+      for (const o of others) for (const h of findAll(o.rule, line)) { oth.push(h); conflicts.push(`${esc(o.rule.name)} ("${esc(h.text)}")`); }
+      const all = [...own, ...oth].sort((a, b) => a.start - b.start);
+      let out = "", at = 0;
+      for (const h of all) { if (h.start < at) continue; out += esc(line.slice(at, h.start)) + `<mark class="bad">${esc(h.text)}</mark>`; at = h.end; }
+      return out + esc(line.slice(at));
+    }).join("<br>");
+    if (!c.right.trim()) verdicts.push(["no", "고친 문장을 넣으세요."]);
+    else {
+      const ownHits = rl.flatMap((l) => findAll(rule, l));
+      verdicts.push(ownHits.length ? ["no", `이 규칙이 고친 문장도 잡습니다: "${esc(ownHits[0].text)}"`] : ["ok", "고친 문장은 이 규칙에 걸리지 않습니다."]);
+      verdicts.push(conflicts.length ? ["no", `다른 규칙이 고친 문장을 잡습니다: ${conflicts.join("; ")}`] : ["ok", "켜져 있는 다른 규칙도 고친 문장을 잡지 않습니다."]);
+    }
+    if (rule.pos) verdicts.push(["note", `품사 조건(${esc(rule.pos)})은 여기서 확인하지 않고 정규식만 봅니다. 최종 결과는 새 파일의 Run self-check로 확인하세요.`]);
+    if (c.limit) verdicts.push(["note", "알려진 한계로 표시된 문장입니다: " + esc(c.limit)]);
+    return { html: `<div class="ln"><span class="lbl">틀린 문장</span><span class="txt">${wrongHtml || "&nbsp;"}</span></div>
+      <div class="ln"><span class="lbl">고친 문장</span><span class="txt">${rightHtml || "&nbsp;"}</span></div>`, verdicts };
+  }
+  const caseOk = (r, c) => !proof(r, c).verdicts.some(([k]) => k === "no");
+
+  // ── list ──
+  $("q").addEventListener("input", renderList);
+  $("cat-filter").addEventListener("change", renderList);
+  function renderList() {
+    if (!S) return;
+    const q = $("q").value.trim().toLowerCase();
+    const f = $("cat-filter").value;
+    const rows = S.rules.filter((r) => {
+      const R = r.rule;
+      if (q && ![R.name, R.id, R.pattern].some((x) => String(x || "").toLowerCase().includes(q))) return false;
+      if (f === ":changed") return !!stateOf(r) && stateOf(r) !== "off";
+      if (f === ":untested") return !r.deleted && !casesOf(r.key).some((c) => !c.deleted);
+      if (f === ":off") return R.enabled === false;
+      return !f || R.category === f;
+    });
+    const groups = {};
+    for (const r of rows) (groups[r.rule.category] ||= []).push(r);
+    const order = Object.keys(CATS);
+    const tags = { new: "새 규칙", edited: "수정됨", deleted: "삭제 예정", off: "기본 꺼짐" };
+    const draftRow = D && D.isNew && !ruleByKey(D.key) ? `<div class="group"><span>저장 전</span><span>1</span></div>
+      <button type="button" class="row active" data-key="${D.key}"><span class="nm">${esc(D.rule.name || "새 규칙")}</span>
+      <span class="meta"><span class="mono">${esc(D.rule.id || "—")}</span><span class="tag draft">저장 전</span></span></button>` : "";
+    const html = draftRow + Object.keys(groups).sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((cat) => `
+      <div class="group"><span>${esc(CATS[cat] || cat)}</span><span>${groups[cat].length}</span></div>
+      ${groups[cat].map((r) => {
+        const st = stateOf(r);
+        const untested = !r.deleted && !casesOf(r.key).some((c) => !c.deleted);
+        const dirty = D && D.key === r.key && isDirty();
+        return `<button type="button" class="row ${D && r.key === D.key ? "active" : ""} ${r.deleted ? "is-deleted" : ""}" data-key="${r.key}">
+          <span class="nm">${esc(r.rule.name || "(이름 없음)")}</span>
+          <span class="meta"><span class="mono">${esc(r.rule.id)}</span>${dirty ? '<span class="tag draft">저장 안 됨</span>' : ""}${st ? `<span class="tag ${st}">${tags[st]}</span>` : ""}${untested ? '<span class="tag warn">점검 문장 없음</span>' : ""}</span>
+        </button>`;
+      }).join("")}`).join("");
+    $("rule-list").innerHTML = html || `<p style="padding:16px;color:var(--muted);">조건에 맞는 규칙이 없습니다.</p>`;
+  }
+  $("rule-list").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-key]"); if (!b || (D && b.dataset.key === D.key)) return;
+    if (!(await settleDraft())) return;
+    openRule(b.dataset.key); renderList();
+    if (matchMedia("(max-width: 900px)").matches) $("detail").scrollIntoView({ behavior: "smooth" });
+  });
+  $("btn-new").addEventListener("click", async () => {
+    if (!(await settleDraft())) return;
+    openRule("n" + Date.now(), true); renderList();
+    document.querySelector('#detail [data-f="name"]').focus();
+  });
+
+  // ── detail ──
+  const slug = (s) => String(s).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+  function field(label, f, val, opts = {}) {
+    const { cls = "c3", mono = false, ro = false, hint = "", err = "", type = "input", options = null } = opts;
+    let ctl;
+    if (options) ctl = `<select data-f="${f}" ${ro ? "disabled" : ""}>${Object.entries(options).map(([k, v]) => `<option value="${esc(k)}" ${String(val) === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
+    else if (type === "textarea") ctl = `<textarea data-f="${f}" rows="2" class="${mono ? "mono" : ""}" ${ro ? "readonly" : ""}>${esc(val)}</textarea>`;
+    else ctl = `<input data-f="${f}" value="${esc(val)}" class="${mono ? "mono" : ""}" ${ro ? "readonly" : ""} spellcheck="false">`;
+    return `<label class="f ${cls}">${esc(label)}${ctl}${hint ? `<span class="hint">${hint}</span>` : ""}<span class="err" data-err="${f}">${esc(err)}</span></label>`;
+  }
+  function renderDetail() {
+    const d = $("detail");
+    if (!D) { d.innerHTML = `<p class="lead">왼쪽에서 규칙을 고르세요.</p>`; return; }
+    const saved = ruleByKey(D.key);
+    const R = D.rule, layoutRule = isLayoutRule(R), deleted = !!saved?.deleted;
+    const fromFile = !!saved?.orig;
+    const E = D.status?.[0] === "error" ? draftErrors() : {};
+    d.innerHTML = `
+      <div class="head"><h2>${esc(R.name || "새 규칙")}</h2>
+        ${fromFile ? `<button class="btn small" type="button" data-act="revert" ${stateOf(saved) === "edited" || deleted ? "" : "disabled"} title="파일에 있던 내용으로 되돌립니다">파일 원래대로</button>` : ""}
+        ${saved ? `<button class="btn small danger" type="button" data-act="delete">${deleted ? "삭제 취소" : "이 규칙 삭제"}</button>` : ""}</div>
+      <p class="lead">${deleted ? "새 파일에서 이 규칙이 빠집니다. 이미 규칙을 저장해 둔 사용자에게서도 지워집니다." :
+        !fromFile ? "새 규칙은 고른 묶음의 맨 앞에 들어갑니다." :
+        layoutRule ? "이 규칙은 PDF 배치(제목, 라벨, 표 머리글)로 판단하므로 정규식은 바꿀 수 없습니다." : `파일 안 위치: ${esc(ARRAYS[saved.array] || saved.array)}`}</p>
+      <div class="form" ${deleted ? 'inert style="opacity:.55"' : ""}>
+        ${field("이름", "name", R.name, { cls: "c4", err: E.name })}
+        ${field("분류", "category", R.category, { cls: "c2", options: CATS })}
+        ${!fromFile ? field("들어갈 묶음", "array", D.array, { cls: "c3", options: ARRAYS }) : ""}
+        ${field("id", "id", R.id, { cls: fromFile ? "c6" : "c3", mono: true, ro: fromFile, err: E.id, hint: fromFile ? "" : "이름을 쓰면 자동으로 채워집니다. 한 번 배포한 뒤에는 바꾸지 마세요." })}
+        ${field("정규식 (/ / 없이)", "pattern", R.pattern, { cls: "c4", mono: true, ro: layoutRule, err: E.pattern })}
+        ${field("플래그", "flags", R.flags ?? "g", { cls: "c2", mono: true, err: E.flags, hint: "g 전체, i 대소문자 무시" })}
+        ${field("수정 제안", "replacement", R.replacement, { cls: "c3", mono: true, ro: layoutRule, hint: "$1, $2로 괄호 그룹을 씁니다. 괄호로 시작하면 메모로 표시됩니다." })}
+        ${field("품사 조건 (선택)", "pos", R.pos || "", { cls: "c3", mono: true, ro: layoutRule, err: E.pos, hint: "예: ADJ NOUN NOUN · \"|\" 둘 중 하나 · \"...\" 단어 여러 개" })}
+        ${field("심각도", "severity", R.severity, { cls: "c2", options: { minor: "Minor", major: "Major", critical: "Critical" } })}
+        <label class="f c4 check"><input type="checkbox" data-f="enabled" ${R.enabled !== false ? "checked" : ""}> 처음 쓰는 사람에게 켜진 상태로 제공</label>
+        ${!fromFile ? field("코드 주석 (선택)", "note", D.note, { cls: "c6", hint: "규칙 위에 // 주석으로 들어갑니다. 출처 같은 것을 적어 두세요." }) : ""}
+      </div>
+      <div class="tests-head"><h3>자체 점검 문장</h3><p>틀린 문장은 이 규칙에 걸려야 하고, 고친 문장은 어떤 규칙에도 걸리면 안 됩니다.</p>
+        <button class="btn small" type="button" data-act="add-case" ${deleted ? "disabled" : ""}>문장 추가</button></div>
+      ${E.cases ? `<p class="err" style="color:var(--red);font-size:13px;margin:0;">${esc(E.cases)}</p>` : ""}
+      <div id="cases">${D.cases.length ? D.cases.map((c, i) => caseCard(c, i, deleted)).join("") : `<p class="lead">아직 점검 문장이 없습니다. 문장을 추가하면 Run self-check에 포함됩니다.</p>`}</div>
+      <div class="savebar">
+        <span class="state" id="save-state"></span>
+        <button class="btn" type="button" data-act="cancel">변경 취소</button>
+        <button class="btn primary" type="button" data-act="save" title="Ctrl+S">${fromFile || saved ? "저장" : "규칙 추가"}</button>
+      </div>`;
+    updateSaveState();
+  }
+  function updateSaveState() {
+    const el = $("save-state"); if (!el) return;
+    const dirty = isDirty();
+    let cls = "", text = "저장된 상태입니다.";
+    if (D.status && (D.status[0] === "error" || D.status[0] === "saved" && !dirty || D.status[0] === "dirty" && dirty)) [cls, text] = D.status;
+    else if (dirty) [cls, text] = ["dirty", "저장하지 않은 변경이 있습니다."];
+    el.className = "state " + cls; el.textContent = text;
+    const saveBtn = document.querySelector('#detail [data-act="save"]'), cancelBtn = document.querySelector('#detail [data-act="cancel"]');
+    if (saveBtn) saveBtn.disabled = !dirty;
+    if (cancelBtn) cancelBtn.disabled = !dirty;
+  }
+  function caseCard(dc, i, ruleDeleted) {
+    const p = proof(draftRule(), dc.c), c = dc.c;
+    return `<div class="case ${dc.deleted ? "is-deleted" : ""}" data-case="${i}">
+      <div class="proof">${p.html}<ul class="verdicts">${p.verdicts.map(([k, t]) => `<li class="${k}">${t}</li>`).join("")}</ul></div>
+      <div class="fields form" ${dc.deleted || ruleDeleted ? "inert" : ""}>
+        ${field("틀린 문장", "wrong", c.wrong, { cls: "c6", type: "textarea" })}
+        ${field("고친 문장", "right", c.right, { cls: "c6", type: "textarea" })}
+        ${field("걸려야 할 부분 (선택)", "flag", c.flag, { cls: "c2", hint: "비우면 이 규칙이 찾은 아무 부분" })}
+        ${field("배치", "layout", c.layout || "body", { cls: "c2", options: LAYOUTS })}
+        ${field("알려진 한계 (선택)", "limit", c.limit || "", { cls: "c2", hint: "적으면 실패해도 '알려진 한계'로 표시" })}
+        <label class="f c6 check"><input type="checkbox" data-f="noFixCheck" ${c.noFixCheck ? "checked" : ""}> 수정 제안이 메모 형식이라 '제안대로 고치면 같아지는지'는 검사하지 않음</label>
+      </div>
+      <div class="bar"><button class="btn small danger" type="button" data-act="del-case">${dc.deleted ? "삭제 취소" : "이 문장 삭제"}</button></div>
+    </div>`;
+  }
+  function refreshCases() {
+    document.querySelectorAll("#cases .case").forEach((el) => {
+      const dc = D.cases[Number(el.dataset.case)]; const p = proof(draftRule(), dc.c);
+      el.querySelector(".proof").innerHTML = `${p.html}<ul class="verdicts">${p.verdicts.map(([k, t]) => `<li class="${k}">${t}</li>`).join("")}</ul>`;
+    });
+  }
+  $("detail").addEventListener("input", (e) => {
+    const t = e.target, f = t.dataset.f; if (!f || !D) return;
+    const val = t.type === "checkbox" ? t.checked : t.value;
+    const caseEl = t.closest(".case");
+    if (caseEl) {
+      const c = D.cases[Number(caseEl.dataset.case)].c;
+      if (f === "layout") { if (val === "body") delete c.layout; else c.layout = val; }
+      else if (f === "noFixCheck") { if (val) c.noFixCheck = true; else delete c.noFixCheck; }
+      else if (f === "limit") { if (val.trim()) c.limit = val; else delete c.limit; }
+      else c[f] = val;
+    } else {
+      if (f === "array") D.array = val;
+      else if (f === "note") D.note = val;
+      else if (f === "pos") { if (val.trim()) D.rule.pos = val; else delete D.rule.pos; }
+      else if (f === "enabled") D.rule.enabled = val;
+      else D.rule[f] = val;
+      if ((f === "name" || f === "array") && !ruleByKey(D.key)?.orig && !D.idTouched) {
+        D.rule.id = (D.array === "TEAM_RULES" ? "team-" : D.array === "STYLE_RULES" ? "style-" : "") + slug(D.rule.name);
+        const idEl = document.querySelector('#detail [data-f="id"]'); if (idEl) idEl.value = D.rule.id;
+      }
+      if (f === "id") D.idTouched = true;
+      const h = document.querySelector("#detail h2"); if (h) h.textContent = D.rule.name || "새 규칙";
+    }
+    if (D.status && D.status[0] !== "dirty") D.status = null;
+    // live field errors once a save has been refused
+    const E = draftErrors();
+    document.querySelectorAll("#detail .form > .f [data-err], #detail > .form [data-err]").forEach((el) => { if (!el.closest(".case")) el.textContent = el.textContent ? (E[el.dataset.err] || "") : ""; });
+    refreshCases(); updateSaveState();
+    clearTimeout(renderList.t); renderList.t = setTimeout(renderList, 250);
+  });
+  $("detail").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-act]"); if (!b || !D) return;
+    const act = b.dataset.act;
+    const saved = ruleByKey(D.key);
+    if (act === "save") { saveDraft(); return; }
+    if (act === "cancel") { discardDraft(); return; }
+    if (act === "delete") {
+      if (!saved.deleted && isDirty() && (await ask("저장하지 않은 변경이 있습니다", "이 규칙을 삭제하면 저장하지 않은 변경도 사라집니다.", [["stay", "계속 편집"], ["go", "삭제", "danger"]])) !== "go") return;
+      saved.deleted = !saved.deleted;
+      if (!saved.orig && saved.deleted) { S.rules = S.rules.filter((x) => x !== saved); S.cases = S.cases.filter((c) => c.ruleKey !== saved.key); D = null; openRule((S.rules.find((r) => !r.deleted) || S.rules[0]).key); }
+      else openRule(D.key);
+      exportedOnce = false;
+      renderList(); renderCount(); return;
+    }
+    if (act === "revert") {
+      if ((await ask("파일 원래대로 되돌릴까요?", "이 규칙과 점검 문장을 처음 연 파일의 내용으로 되돌립니다. 저장한 변경도 사라집니다.", [["stay", "취소"], ["go", "되돌리기", "danger"]])) !== "go") return;
+      saved.rule = clone(saved.orig); saved.deleted = false;
+      S.cases = S.cases.filter((c) => !(c.ruleKey === saved.key && c.origIndex === null));
+      S.cases.forEach((c) => { if (c.ruleKey === saved.key) { c.c = clone(c.orig); c.deleted = false; } });
+      openRule(D.key); renderList(); renderCount(); return;
+    }
+    if (act === "add-case") {
+      D.cases.push({ ref: null, c: { category: D.rule.category, ruleId: D.rule.id, flag: "", wrong: "", right: "" }, deleted: false });
+      renderDetail(); renderList();
+      const all = document.querySelectorAll('#cases [data-f="wrong"]'); all[all.length - 1]?.focus();
+      return;
+    }
+    if (act === "del-case") {
+      const i = Number(b.closest(".case").dataset.case), dc = D.cases[i];
+      if (!dc.ref) D.cases.splice(i, 1); else dc.deleted = !dc.deleted;
+      renderDetail(); renderList();
+    }
+  });
+
+  // ── dialogs ──
+  const dlg = $("dlg");
+  function ask(title, html, buttons) {
+    return new Promise((resolve) => {
+      $("dlg-body").innerHTML = `<h3>${esc(title)}</h3><p>${html}</p>`;
+      $("dlg-foot").innerHTML = buttons.map(([v, label, cls]) => `<button class="btn ${cls || ""}" type="button" data-answer="${v}">${esc(label)}</button>`).join("");
+      const done = (v) => { dlg.removeEventListener("close", onClose); dlg.close(); resolve(v); };
+      const onClose = () => resolve(buttons[0][0]);
+      dlg.addEventListener("close", onClose, { once: true });
+      $("dlg-foot").onclick = (e) => { const b = e.target.closest("[data-answer]"); if (b) done(b.dataset.answer); };
+      dlg.showModal();
+      $("dlg-foot").querySelector(".primary, [data-answer]:last-child")?.focus();
+    });
+  }
+  $("btn-changes").addEventListener("click", () => {
+    const list = changeList();
+    $("dlg-body").innerHTML = `<h3>저장한 변경 ${list.length}건</h3>
+      <div class="msgs"><ul>${list.map((x) => `<li><a href="#" data-go="${x.key}">${esc(x.text)}</a></li>`).join("")}</ul></div>`;
+    $("dlg-foot").innerHTML = `<button class="btn" type="button" data-close>닫기</button>`;
+    $("dlg-foot").onclick = null;
+    dlg.showModal();
+  });
+  dlg.addEventListener("click", async (e) => {
+    if (e.target.closest("[data-close]") || e.target === dlg) { dlg.close(); return; }
+    const a = e.target.closest("[data-go]");
+    if (a) { e.preventDefault(); dlg.close(); if (await settleDraft()) { openRule(a.dataset.go); renderList(); } }
+  });
+
+  // ── export ──
+  const nextName = (n) => (/\d+\.js$/i.test(n) ? n.replace(/(\d+)(\.js)$/i, (_, d, ext) => String(Number(d) + 1) + ext) : n.replace(/(\.js)?$/i, "_edited.js"));
+  const stamp = () => { const d = new Date(), p = (x) => String(x).padStart(2, "0"); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
+  $("btn-export").addEventListener("click", async () => {
+    if (!(await settleDraft())) return;
+    const warns = [];
+    for (const r of S.rules) {
+      if (r.deleted) continue;
+      const cs = casesOf(r.key).filter((c) => !c.deleted);
+      const touched = !r.orig || ruleChanged(r) || casesOf(r.key).some((c) => c.origIndex === null || caseChanged(c));
+      if (touched) for (const c of cs) if (!c.c.limit && !caseOk(r, c.c)) { warns.push({ key: r.key, m: `${r.rule.name}: 점검 문장 미리보기에 ✗ 항목이 있습니다.` }); break; }
+      if (!cs.length && r.rule.enabled !== false && (!r.orig || ruleChanged(r))) warns.push({ key: r.key, m: `${r.rule.name}: 점검 문장이 없어 Run self-check에서 NOT COVERED로 나옵니다.` });
+    }
+    const list = changeList();
+    const body = $("dlg-body"), foot = $("dlg-foot");
+    foot.onclick = null;
+    if (!list.length) {
+      body.innerHTML = `<h3>저장한 변경이 없습니다</h3><p>규칙이나 점검 문장을 고치고 저장한 뒤 다시 누르세요.</p>`;
+      foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
+    }
+    let result;
+    try { result = build(); } catch (e) {
+      body.innerHTML = `<h3>파일을 만들 수 없습니다</h3><p class="err">${esc(e.message)}</p>`;
+      foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
+    }
+    let syntax;
+    try { new Function(result.text); syntax = ["ok", "문법 검사 통과"]; }
+    catch (e) { syntax = e instanceof SyntaxError ? ["err", "문법 오류: " + e.message] : ["warn", "이 화면에서는 문법 검사를 할 수 없습니다. 내려받은 뒤 node --check로 확인하세요."]; }
+    body.innerHTML = `<h3>새 파일 만들기</h3>
+      <div class="msgs"><ul>${list.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul>
+      ${result.keyName ? `<p style="font-size:14px;">이미 규칙을 저장해 둔 사용자용 업그레이드 코드(<code>${esc(result.keyName)}</code>)를 함께 넣었습니다. 사용자가 브라우저에서 직접 고친 규칙은 덮어쓰지 않습니다.</p>` : ""}
+      ${warns.length ? `<p class="warn" style="margin-bottom:0;">확인해 보세요</p><ul>${warns.map((x) => `<li class="warn"><a href="#" data-go="${x.key}">${esc(x.m)}</a></li>`).join("")}</ul>` : ""}
+      <p class="${syntax[0]}">${esc(syntax[1])}</p></div>`;
+    foot.innerHTML = `<input id="out-name" value="${esc(nextName(S.name))}" aria-label="파일 이름">
+      <button class="btn" type="button" data-close>닫기</button>
+      <button class="btn primary" type="button" id="do-download" ${syntax[0] === "err" ? "disabled" : ""}>내려받기</button>`;
+    dlg.showModal();
+    $("do-download").onclick = () => {
+      const name = $("out-name").value.trim() || nextName(S.name);
+      const url = URL.createObjectURL(new Blob([result.text], { type: "text/javascript" }));
+      const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      // Continue from the new file, so the next export becomes the next version.
+      const keep = D && ruleByKey(D.key) && !ruleByKey(D.key).deleted ? ruleByKey(D.key).rule.id : null;
+      start(name, result.text);
+      exportedOnce = true;
+      const again = keep && S.rules.find((r) => r.rule.id === keep);
+      if (again) { openRule(again.key); renderList(); }
+      body.innerHTML = `<h3>${esc(name)}을(를) 내려받았습니다</h3>
+        <p>툴에서 이 파일로 바꾼 뒤 Run self-check로 확인하세요. 편집기는 이제 ${esc(name)}을(를) 기준으로 이어서 고칠 수 있고, 다음에 만들 파일 이름은 ${esc(nextName(name))}입니다.</p>`;
+      foot.innerHTML = `<button class="btn primary" type="button" data-close>확인</button>`;
+    };
+  });
+  function build() {
+    const changes = { added: [], edited: [], deleted: [], cases: { added: [], edited: [], deleted: [] } };
+    for (const r of S.rules) {
+      if (!r.orig && !r.deleted) changes.added.push({ array: r.array, rule: clean(r.rule), note: (r.note || "").trim() });
+      else if (r.orig && r.deleted) changes.deleted.push(r.orig.id);
+      else if (r.orig && ruleChanged(r)) changes.edited.push({ id: r.orig.id, rule: clean(r.rule) });
+    }
+    for (const cs of S.cases) {
+      const r = ruleByKey(cs.ruleKey);
+      if (cs.origIndex === null) { if (!cs.deleted && r && !r.deleted) changes.cases.added.push({ ...cs.c, category: r.rule.category, ruleId: r.rule.id }); }
+      else if (cs.deleted || (r && r.deleted)) changes.cases.deleted.push(cs.origIndex);
+      else if (caseChanged(cs)) changes.cases.edited.push({ index: cs.origIndex, c: cs.c });
+    }
+    return C.applyChanges(S.src, S.parsed, changes, stamp());
+  }
+  function clean(rule) { const o = { ...rule }; if (!o.pos) delete o.pos; o.enabled = o.enabled !== false; return o; }
+})();
+
+</script>
+</body>
+</html>
