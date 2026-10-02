@@ -91,7 +91,7 @@ const exportPromise=exportContext.exportReport().then(async()=>{
   assert.ok(alerts.some(message=>message.includes('Accept a suggestion')));
 });
 const rules=context.testApi.getRules();
-assert.equal(rules.length,80);
+assert.equal(rules.length,85);
 assert.equal(rules.filter(r=>/^chicago-2[1-5]-/.test(r.id)).length,5);
 assert.equal(rules.filter(r=>/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id)).length,10);
 assert.equal(rules.filter(r=>/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)).length,20);
@@ -108,7 +108,7 @@ assert.equal(new Set(rules.map(r=>r.id)).size,rules.length);
 for(const removed of ['chicago-03-intro-clause','chicago-08-define-abbrev','chicago-14-consistent-compound']) assert.ok(!rules.some(r=>r.id===removed));
 assert.ok(!rules.some(r=>/^Chicago (?:6\.26|7\.89|10\.3)\b/.test(r.name)));
 assert.equal(rules.find(r=>r.id==='custom').enabled,false);
-assert.equal(context.testApi.getRules().length,80);
+assert.equal(context.testApi.getRules().length,85);
 for(const [id,input,expected] of [
   ['chicago-21-colon-space','Note:Check','Note: Check'],
   ['chicago-22-em-dash-space','one — two','one—two'],
@@ -192,24 +192,24 @@ for(const [id,input,expected] of [
 }
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:2[6-9]|3[0-5])-/.test(r.id))));
 data.delete('tw-demo-rules-addition-v6');
-assert.equal(context.testApi.getRules().length,80,'v6 adds rules to an existing v5 rule set');
-assert.equal(context.testApi.getRules().length,80,'v7 addition runs only once');
+assert.equal(context.testApi.getRules().length,85,'v6 adds rules to an existing v5 rule set');
+assert.equal(context.testApi.getRules().length,85,'v7 addition runs only once');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:3[6-9]|4\d|5[0-5])-/.test(r.id)&&r.id!=='team-title-case')));
 data.delete('tw-demo-rules-expansion-v7');
-assert.equal(context.testApi.getRules().length,80,'v7 adds rules while preserving existing rules');
-assert.equal(context.testApi.getRules().length,80,'v7 migration is idempotent');
+assert.equal(context.testApi.getRules().length,85,'v7 adds rules while preserving existing rules');
+assert.equal(context.testApi.getRules().length,85,'v7 migration is idempotent');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:5[6-9]|6\d|7[0-5])-/.test(r.id)).map(r=>r.id==='space-unit'?{...r,name:'Number-unit spacing'}:r)));
 data.delete('tw-demo-rules-expansion-v8');
 const migrated=context.testApi.getRules();
-assert.equal(migrated.length,80,'v8 adds exactly 20 rules');
+assert.equal(migrated.length,85,'v8 adds exactly 20 rules');
 assert.ok(migrated.find(r=>r.id==='space-unit').name.startsWith('Team Manual Standard'));
-assert.equal(context.testApi.getRules().length,80,'v8 migration is idempotent');
+assert.equal(context.testApi.getRules().length,85,'v8 migration is idempotent');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>r.id!=='team-table-header-case').map(r=>r.id==='team-title-case'?{...r,name:'obsolete heading rule'}:r)));
 data.delete('tw-demo-rules-table-header-v9');
 const tableMigrated=context.testApi.getRules();
-assert.equal(tableMigrated.length,80,'table-header rule is added once to saved rules');
+assert.equal(tableMigrated.length,85,'table-header rule is added once to saved rules');
 assert.equal(tableMigrated.find(r=>r.id==='team-title-case').name,titleRuleName);
-assert.equal(context.testApi.getRules().length,80,'table-header migration is idempotent');
+assert.equal(context.testApi.getRules().length,85,'table-header migration is idempotent');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.map(r=>r.id==='team-title-case'?{...r,name:'obsolete heading rule',pattern:'legacy pattern',enabled:false}:r)));
 data.set('tw-demo-rules-title-label-v11','done');
 const renamedRule=context.testApi.getRules().find(r=>r.id==='team-title-case');
@@ -221,11 +221,11 @@ assert.ok(context.testApi.renderRuleRow(renamedRule).includes(titleRuleName),'ru
 assert.equal(context.testApi.getRules().find(r=>r.id==='team-title-case').name,titleRuleName,'name repair is idempotent');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:7[6-9]|8[0-7])-/.test(r.id))));
 data.delete('tw-demo-rules-cmos17-v9');
-assert.equal(context.testApi.getRules().length,80,'first demo_v3 rule batch migrates once');
+assert.equal(context.testApi.getRules().length,85,'first demo_v3 rule batch migrates once');
 data.set('tw-demo-rules-v4',JSON.stringify(rules.filter(r=>!/^chicago-(?:8[8-9]|9[0-6])-/.test(r.id))));
 data.delete('tw-demo-rules-cmos17-v10');
-assert.equal(context.testApi.getRules().length,80,'second demo_v3 rule batch migrates once');
-assert.equal(context.testApi.getRules().length,80,'demo_v3 rule migration is idempotent');
+assert.equal(context.testApi.getRules().length,85,'second demo_v3 rule batch migrates once');
+assert.equal(context.testApi.getRules().length,85,'demo_v3 rule migration is idempotent');
 assert.equal(context.testApi.titleCaseText('Figure 2: the airflow and iPhone control'),'Figure 2: The Airflow and iPhone Control');
 assert.equal(context.testApi.titleCaseText('the air and water system'),'The Air and Water System');
 assert.equal(context.testApi.titleCaseText('the flow of air in and on the device with or inside the chamber before shutdown'),'The Flow of Air in and on the Device with or inside the Chamber before Shutdown');

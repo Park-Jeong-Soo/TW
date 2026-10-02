@@ -199,6 +199,8 @@
   const TABLE_HEADER_RULE_KEY = "tw-demo-rules-table-header-v9";
   const RULES_CMOS17_KEY = "tw-demo-rules-cmos17-v9";
   const RULES_CMOS17_V2_KEY = "tw-demo-rules-cmos17-v10";
+  const RULES_POS_KEY = "tw-demo-rules-pos-v11";
+  const RULES_POS_V12_KEY = "tw-demo-rules-pos-v12";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -244,7 +246,8 @@
     { id: "chicago-01-double-space",   category: "punctuation", name: "Chicago 6.7 — One space after sentence-ending punctuation",
       pattern: "([.!?])  +", flags: "g", replacement: "$1 ", severity: "minor", enabled: true },
     { id: "chicago-02-serial-comma",   category: "punctuation", name: "Chicago 6.19 — Serial (Oxford) comma",
-      pattern: "(\\w+),\\s+(\\w+)\\s+(and|or)\\s+(\\w+)", flags: "g", replacement: "$1, $2, $3 $4", severity: "minor", enabled: false },
+      pattern: "(?<!(?:^|[.!?]\\s)(?:After|Before|During|When|While|If|Once|Since|Because|Although|In|On|At|For|With|By|To|From|Under|Without)\\b[^,.!?]*)\\b(\\w+),\\s+(\\w+)\\s+(and|or)\\s+(\\w+)",
+      flags: "g", replacement: "$1, $2, $3 $4", severity: "minor", enabled: true, pos: "NOUN|PROPN NOUN|PROPN CCONJ NOUN|PROPN" },
     { id: "chicago-04-comma-splice",   category: "grammar", name: "Chicago 6.23 — Comma splice between independent clauses (heuristic)",
       pattern: "\\b(is|are|was|were|has|have|had|will)\\s+\\w+[^.!?]{0,60},\\s+(it|this|that|these|those|they|we|you|he|she)\\s+(is|are|was|were|has|have|had|will)\\b",
       flags: "gi", replacement: ". (start new sentence)", severity: "major", enabled: false },
@@ -253,9 +256,11 @@
     { id: "chicago-10-list-punct",     category: "punctuation", name: "Chicago 6.130 — List items with inconsistent punctuation (heuristic)",
       pattern: "(^|\\n)\\s*[-•*]\\s+[a-z]",
       flags: "gm", replacement: "$&", severity: "minor", enabled: false },
-    { id: "chicago-11-hyphen-modifier",category: "hyphenation_terminology", name: "Chicago 7.85 — Hyphenate compound modifier before noun (heuristic)",
-      pattern: "\\b(high|low|long|short|full|part|real|multi|open|closed|wide|narrow|fine|coarse)\\s+(speed|resolution|term|scale|frequency|time|source|purpose|loop|range|band|precision|grained)\\s+(\\w+)",
-      flags: "gi", replacement: "$1-$2 $3", severity: "minor", enabled: false },
+    // POS condition: first word adjective-like, then a noun, then the noun it modifies.
+    // Rejects "at high speed for", "low frequency and", "high resolution is" etc.
+    { id: "chicago-11-hyphen-modifier",category: "hyphenation_terminology", name: "Chicago 7.85 — Hyphenate compound modifier before noun",
+      pattern: "\\b(high|low|long|short|full|part|real|multi|open|closed|wide|narrow|fine|coarse)\\s+(speed|resolution|term|scale|frequency|time|source|purpose|loop|range|band|precision|grained|voltage|power|pressure|temperature)\\s+(\\w+)",
+      flags: "gi", replacement: "$1-$2 $3", severity: "minor", enabled: true, pos: "ADJ|NOUN|X NOUN NOUN|PROPN" },
     { id: "chicago-12-no-hyphen-ly",   category: "hyphenation_terminology", name: "Chicago 7.86 — Do not hyphenate an -ly adverb compound",
       pattern: "\\b(\\w+ly)-(\\w+)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "chicago-13-suspended-hyphen",category:"hyphenation_terminology", name: "Chicago 7.88 — Suspended hyphens in shared compounds (heuristic)",
@@ -429,6 +434,33 @@
       pattern: "\\b(don't|doesn't|didn't|won't|wouldn't|can't|couldn't|isn't|aren't)\\b[^.!?]{0,60}\\b(nothing|nobody|nowhere|no one|never)\\b",
       flags: "gi", replacement: "(double negative — rewrite)", severity: "major", enabled: false },
   ];
+  // Style-guide rules that need part-of-speech checks.
+  const STYLE_RULES = [
+    // Source: Google developer documentation style guide, "Use active voice"
+    // (https://developers.google.com/style/voice). Passive is fine when the actor is
+    // unknown or unimportant, so this is a minor suggestion.
+    { id: "style-passive-voice", category: "grammar", name: "Google Developer Docs Style — Prefer active voice (passive voice detected)",
+      pattern: "\\b(am|is|are|was|were|be|been|being)\\s+(?!\\w+ing\\b)(\\w+)\\b", flags: "gi",
+      replacement: "(consider active voice)", severity: "minor", enabled: true, pos: "AUX VERB" },
+    // Source: Google "Present tense" (https://developers.google.com/style/tense). Future
+    // tense is fine for an action that really happens later, so this is a suggestion.
+    { id: "style-future-tense", category: "grammar", name: "Google Developer Docs Style — Use present tense (future 'will' detected)",
+      pattern: "\\b(will)\\s+(\\w+)\\b", flags: "gi",
+      replacement: "(use present tense unless the action happens later)", severity: "minor", enabled: true, pos: "AUX VERB|AUX" },
+    // Source: Google "Sentence structure" (https://developers.google.com/style/sentence-structure):
+    // put the condition or goal before the instruction. "..." = any number of words.
+    { id: "style-condition-first-if", category: "grammar", name: "Google Developer Docs Style — Put the condition before the instruction",
+      pattern: "(?<=^|[.!?]\\s)[A-Z][^.!?]*?\\bif\\s+you\\b[^.!?]*", flags: "g",
+      replacement: "(start with the condition: \"If you …, …\")", severity: "minor", enabled: true, pos: "VERB ... SCONJ PRON ..." },
+    { id: "style-condition-first-see", category: "grammar", name: "Google Developer Docs Style — Put \"For more information\" first",
+      pattern: "(?<=^|[.!?]\\s)(See|Refer to|Read)\\b[^.!?]*?\\bfor (?:more information|more details|details)\\b", flags: "g",
+      replacement: "(start with: \"For more information, see …\")", severity: "minor", enabled: true, pos: "VERB ..." },
+    // Goal after the instruction ("Press Start to begin the scan."). Off by default:
+    // very common in procedures, and "to" is sometimes mis-tagged ("to low frequency").
+    { id: "style-condition-first-to", category: "grammar", name: "Google Developer Docs Style — Put the goal before the instruction",
+      pattern: "(?<=^|[.!?]\\s)[A-Z][^.!?]*?(?<!\\b(?:want|wants|need|needs|have|has|try|going|able|how)\\s)\\bto\\s+(?!(?:low|high|zero|maximum|minimum|full|default)\\b)\\w+[^.!?]*", flags: "g",
+      replacement: "(start with the goal: \"To …, …\")", severity: "minor", enabled: false, pos: "VERB ... PART VERB ..." },
+  ];
   const TEAM_RULES = [
     { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
       pattern: "\\b(\\d+(?:\\.\\d+)?)(°C|°F|mm|cm|m|km|kg|g|mg|V|A|Hz|kHz|MHz|GHz|MPa|kPa|Pa|nm|um|μm|W|kW|s|ms|us|μs|ns)\\b", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
@@ -437,7 +469,10 @@
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
   ];
-  DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...TEAM_RULES];
+  DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
+  // Stored copy of chicago-11/chicago-02 before v11/v12, used to upgrade only if not edited.
+  const CHICAGO_02_V11_PATTERN = "(\\w+),\\s+(\\w+)\\s+(and|or)\\s+(\\w+)";
+  const CHICAGO_11_V10_PATTERN = "\\b(high|low|long|short|full|part|real|multi|open|closed|wide|narrow|fine|coarse)\\s+(speed|resolution|term|scale|frequency|time|source|purpose|loop|range|band|precision|grained)\\s+(\\w+)";
   const REMOVED_RULE_IDS = new Set(["chicago-03-intro-clause", "chicago-08-define-abbrev", "chicago-14-consistent-compound"]);
   const NEW_RULES = CHICAGO_RULES.filter((rule) => /^chicago-2[1-5]-/.test(rule.id));
   const ADDED_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:2[6-9]|3[0-5])-/.test(rule.id));
@@ -633,6 +668,27 @@
         rules.push(...CMOS17_V2_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_CMOS17_V2_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_POS_KEY) !== "done") {
+        // v11: POS conditions. Upgrade chicago-11 unless the user changed its pattern,
+        // and add the passive-voice rule.
+        const h = rules.find((rule) => rule.id === "chicago-11-hyphen-modifier");
+        const hDefault = CHICAGO_RULES.find((rule) => rule.id === "chicago-11-hyphen-modifier");
+        if (h && h.pattern === CHICAGO_11_V10_PATTERN) Object.assign(h, { ...hDefault });
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...STYLE_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_POS_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_POS_V12_KEY) !== "done") {
+        // v12: serial comma gets a POS condition (unless the user changed its pattern);
+        // add future-tense and condition-before-instruction rules.
+        const sc = rules.find((rule) => rule.id === "chicago-02-serial-comma");
+        if (sc && sc.pattern === CHICAGO_02_V11_PATTERN) Object.assign(sc, { ...CHICAGO_RULES.find((rule) => rule.id === "chicago-02-serial-comma") });
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...STYLE_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_POS_V12_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
