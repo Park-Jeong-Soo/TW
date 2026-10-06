@@ -166,6 +166,7 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
 <section id="drop">
   <div class="landing-actions">
     <button id="btn-fetch-github" class="btn primary" type="button">GitHub에서 최신 demo.js 열기</button>
+    <button id="btn-download-github" class="btn" type="button">최근 demo.js 다운로드</button>
     <button id="btn-claude-landing" class="btn" type="button">Claude에게 규칙 추가 요청</button>
   </div>
   <div class="zone" id="zone">
@@ -537,17 +538,18 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   $("file-claude").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
 
   // ── Claude prompt dialog ──
-  const CLAUDE_PROMPT = `demo.js 와 RULE_SPEC.md 두 파일을 이 대화에 첨부한 후 아래 내용을 채워서 전송하세요.
+  const CLAUDE_PROMPT = `demo.js 파일을 이 대화에 첨부한 후 아래 내용을 채워서 전송하세요.
+(RULE_SPEC이 프롬프트에 포함되어 있으므로 따로 첨부하지 않아도 됩니다.)
 
 ---
 You are editing demo.js, the rule engine for a PDF English reviewer tool.
-Attached: demo.js (current rule file) + RULE_SPEC.md (rule format specification).
+Attached: demo.js (current rule file). The rule specification is included below.
 
 Please add the following rules. For each rule:
-1. Choose the correct array per RULE_SPEC §3.
-2. Assign the next available id per RULE_SPEC §4.
-3. Add at least one SELF_CHECK_CASES test case per RULE_SPEC §8.
-4. Add a migration key only if editing an existing rule (RULE_SPEC §7).
+1. Choose the correct array (CHICAGO_RULES / STYLE_RULES / TEAM_RULES) per §3.
+2. Assign the next available id per §4.
+3. Add at least one SELF_CHECK_CASES test case per §8.
+4. Add a migration key only if editing an existing rule (§7).
 5. Do not change any other part of the file.
 
 Output: the complete updated demo.js file.
@@ -564,12 +566,109 @@ Output: the complete updated demo.js file.
 - Enabled by default: [yes / no]
 - POS condition needed: [no / yes → specify]
 - Source / reference: [Chicago 6.xx / Google Dev Docs / Team standard / etc.]
----`;
+
+---
+# Rule Specification (RULE_SPEC)
+
+## §1 Rule Object Fields
+
+\`\`\`js
+{
+  id:          string,   // REQUIRED. Unique kebab-case. Never change after first deploy.
+  category:    string,   // REQUIRED. See §2.
+  name:        string,   // REQUIRED. Human-readable. Format: "Source — Description".
+  pattern:     string,   // REQUIRED. JS regex string without /…/ delimiters.
+  flags:       string,   // REQUIRED. Usually "g" or "gi". Always include "g".
+  replacement: string,   // REQUIRED. Corrected text, "$1"/"$2" for groups, or "(note)" for advisory.
+  severity:    string,   // REQUIRED. "minor" | "major" | "critical".
+  enabled:     boolean,  // REQUIRED. true = on by default, false = off by default.
+  pos:         string,   // OPTIONAL. POS condition (STYLE_RULES only). See §5.
+}
+\`\`\`
+
+## §2 Categories
+
+typo | spacing | punctuation | grammar | capitalization | numbers_abbreviations | hyphenation_terminology | custom
+
+## §3 Rule Arrays
+
+CHICAGO_RULES — Chicago Manual of Style rules (regex-only, no pos field)
+STYLE_RULES   — Grammar rules that need POS (part-of-speech) conditions
+TEAM_RULES    — Internal team standards
+Rules go at the end of the matching array, just before the closing ];
+
+## §4 ID Naming
+
+CHICAGO_RULES: chicago-NN-keyword  (NN = next available number after the last chicago-NN)
+STYLE_RULES:   style-keyword
+TEAM_RULES:    team-keyword
+
+## §5 POS Condition (STYLE_RULES only)
+
+Space-separated UPOS tags, | for OR, * for any tag, ... for any number of tokens.
+Valid tags: ADJ ADP ADV AUX CCONJ DET INTJ NOUN NUM PART PRON PROPN PUNCT SCONJ SYM VERB X
+Examples:
+  "AUX VERB"               — auxiliary followed by verb
+  "ADJ|NOUN NOUN"          — adjective or noun, then noun
+  "VERB ... SCONJ PRON ..."  — verb, any words, then SCONJ + pronoun
+
+## §6 Replacement Field
+
+"$1 $2"       — use capture groups from pattern
+"(note text)" — advisory, not auto-applied
+""            — flag only, no suggestion
+"word"        — exact replacement
+
+## §7 Migration Key (only when editing existing rules)
+
+1. Add near other migration keys (~line 200 in demo.js):
+   const RULES_EDIT_YYYYMMDDTHHMMSS_KEY = "tw-demo-rules-edit-yyyymmddthhmmssZ";
+2. Add in getRules() after the last localStorage.setItem block:
+   if (localStorage.getItem(RULES_EDIT_YYYYMMDDTHHMMSS_KEY) !== "done") {
+     const r = rules.find((r) => r.id === "the-rule-id");
+     if (r) { /* apply the field change */ }
+     saveRules(rules);
+     localStorage.setItem(RULES_EDIT_YYYYMMDDTHHMMSS_KEY, "done");
+   }
+When only adding new rules: no migration key needed.
+
+## §8 Self-Check Test Cases
+
+Add to SELF_CHECK_CASES for each new rule:
+{
+  category: "same as rule.category",
+  ruleId:   "same as rule.id",
+  flag:     "the exact text the rule should match",
+  wrong:    "Full sentence containing the error.",
+  right:    "Full sentence with the error corrected.",
+  // optional: layout, noFixCheck: true (if advisory replacement), limit: "note"
+}
+
+## §9 Example Rules
+
+CHICAGO_RULES:
+{ id: "chicago-97-em-dash-spacing", category: "punctuation",
+  name: "Chicago 6.87 — No spaces around em dash",
+  pattern: "\\\\s+—\\\\s+|\\\\s+—|—\\\\s+", flags: "g", replacement: "—",
+  severity: "minor", enabled: true },
+
+STYLE_RULES (with POS):
+{ id: "style-noun-string", category: "grammar",
+  name: "Google Dev Docs — Avoid noun strings (3+ nouns in a row)",
+  pattern: "\\\\b(\\\\w+)\\\\s+(\\\\w+)\\\\s+(\\\\w+)\\\\b", flags: "g",
+  replacement: "(consider restructuring)", severity: "minor", enabled: false,
+  pos: "NOUN NOUN NOUN" },
+
+TEAM_RULES:
+{ id: "team-product-name", category: "typo",
+  name: "Team Manual Standard — Correct product name",
+  pattern: "\\\\bNanoScope\\\\b", flags: "g", replacement: "NanoScope",
+  severity: "minor", enabled: true },`;
 
   function showClaudeDialog() {
     $("dlg-body").innerHTML = `<h3>Claude에게 규칙 추가 요청</h3>
       <p style="font-size:13.5px;color:var(--muted);margin:0 0 10px;">
-        1. <strong>demo.js</strong>와 <strong>RULE_SPEC.md</strong>를 Claude 대화에 첨부합니다.<br>
+        1. <strong>최근 demo.js 다운로드</strong> 버튼으로 파일을 받아 Claude 대화에 첨부합니다.<br>
         2. 아래 프롬프트를 복사해서 붙여넣고 규칙 내용을 채워 전송합니다.<br>
         3. Claude가 반환한 demo.js를 <strong>Claude 결과물 열기</strong> 버튼으로 불러옵니다.
       </p>
@@ -589,6 +688,30 @@ Output: the complete updated demo.js file.
   }
   $("btn-claude-landing").addEventListener("click", showClaudeDialog);
   $("btn-claude-req").addEventListener("click", showClaudeDialog);
+
+  // ── GitHub download ──
+  $("btn-download-github").addEventListener("click", async () => {
+    const btn = $("btn-download-github");
+    btn.disabled = true;
+    btn.textContent = "다운로드 중…";
+    $("load-error").textContent = "";
+    try {
+      const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      const blob = new Blob([text], { type: "text/javascript" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "demo.js";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      btn.textContent = "다운로드 완료 ✓";
+      setTimeout(() => { btn.textContent = "최근 demo.js 다운로드"; btn.disabled = false; }, 2000);
+    } catch (err) {
+      $("load-error").textContent = "다운로드 실패: " + err.message;
+      btn.textContent = "최근 demo.js 다운로드"; btn.disabled = false;
+    }
+  });
 
   // ── loading ──
   const zone = $("zone");
