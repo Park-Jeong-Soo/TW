@@ -1211,7 +1211,7 @@
     tokens.forEach((t) => {
       if (t.pos !== "ADV") return;
       const lc = t.value.toLowerCase();
-      if (LY_NOUNS.has(lc)) t.pos = "NOUN";
+      if (/fly$/.test(lc) || LY_NOUNS.has(lc)) t.pos = "NOUN";
       else if (LY_ADJS.has(lc)) t.pos = "ADJ";
     });
     return tokens;
