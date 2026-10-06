@@ -148,6 +148,7 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
 .regex-guide td:last-child { color: var(--muted); }
 /* Claude dialog extras */
 dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font-size: 12.5px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--ink); resize: vertical; }
+.hdr-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; align-self: center; }
 </style>
 </head>
 <body>
@@ -157,11 +158,12 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   <span class="spacer"></span>
   <span id="file-chip" class="chip hidden"></span>
   <button id="btn-open" class="btn hidden" type="button">다른 파일 열기</button>
-  <label id="btn-load-claude" class="btn hidden" style="cursor:pointer;">Claude 결과물 열기<input id="file-claude" type="file" accept=".js,text/javascript" hidden></label>
   <button id="btn-changes" class="btn hidden" type="button">변경 0건</button>
+  <button id="btn-export" class="btn hidden" type="button">파일로 저장</button>
+  <span id="hdr-sep" class="hdr-sep hidden"></span>
+  <label id="btn-load-claude" class="btn hidden" style="cursor:pointer;">Claude 결과물 열기<input id="file-claude" type="file" accept=".js,text/javascript" hidden></label>
   <button id="btn-claude-req" class="btn hidden" type="button">Claude 요청</button>
-  <button id="btn-github-upload" class="btn hidden" type="button">GitHub 업로드</button>
-  <button id="btn-export" class="btn primary hidden" type="button">새 파일 만들기</button>
+  <button id="btn-github-upload" class="btn primary hidden" type="button">GitHub 업로드</button>
 </header>
 
 <section id="drop">
@@ -545,16 +547,26 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   const setToken = (t) => t ? localStorage.setItem(PAT_KEY, t) : localStorage.removeItem(PAT_KEY);
 
   async function backupFromGitHub() {
+    const d = new Date(), p = (x) => String(x).padStart(2, "0");
+    const ds = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
     try {
       const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
       if (!res.ok) return;
       const text = await res.text();
-      const d = new Date(), p = (x) => String(x).padStart(2, "0");
-      const ds = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
-      const url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
-      const a = document.createElement("a"); a.href = url; a.download = `demo_backup_${ds}.js`;
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      const tok = getToken();
+      if (tok) {
+        const backupApiUrl = `https://api.github.com/repos/Park-Jeong-Soo/TW/contents/pdf_english_reviewer/backup/demo_backup_${ds}.js`;
+        const headers = { "Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+        const existing = await fetch(backupApiUrl, { headers }).then((r) => r.ok ? r.json() : null).catch(() => null);
+        const body = { message: `Backup demo.js (${ds})`, content: btoa(unescape(encodeURIComponent(text))), branch: "main" };
+        if (existing?.sha) body.sha = existing.sha;
+        await fetch(backupApiUrl, { method: "PUT", headers, body: JSON.stringify(body) });
+      } else {
+        const url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+        const a = document.createElement("a"); a.href = url; a.download = `demo_backup_${ds}.js`;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      }
     } catch (_) {}
   }
 
@@ -755,7 +767,7 @@ TEAM_RULES:
     S.cases = parsed.cases.map((c, i) => ({ origIndex: i, orig: clone(c.c), c: clone(c.c), deleted: false, ruleKey: keyOf(c.c.ruleId) }));
     $("drop").classList.add("hidden");
     $("app").classList.remove("hidden");
-    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-github-upload", "btn-export"].forEach((id) => $(id).classList.remove("hidden"));
+    ["file-chip", "btn-open", "btn-changes", "btn-export", "hdr-sep", "btn-load-claude", "btn-claude-req", "btn-github-upload"].forEach((id) => $(id).classList.remove("hidden"));
     $("file-chip").textContent = `${name} · 규칙 ${S.rules.length}개`;
     $("cat-filter").innerHTML = `<option value="">모든 분류</option>` + Object.entries(CATS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")
       + `<option value=":changed">바뀐 규칙만</option><option value=":untested">점검 문장 없는 규칙</option><option value=":off">기본으로 꺼진 규칙</option>`;
@@ -768,7 +780,7 @@ TEAM_RULES:
     if (changeList().length && !exportedOnce && !(await ask("아직 내려받지 않은 변경이 있습니다", "다른 파일을 열면 지금까지의 변경이 사라집니다.", [["stay", "계속 편집"], ["go", "버리고 다른 파일 열기", "danger"]])) === "go") return;
     S = null; D = null;
     $("app").classList.add("hidden"); $("drop").classList.remove("hidden");
-    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-github-upload", "btn-export"].forEach((id) => $(id).classList.add("hidden"));
+    ["file-chip", "btn-open", "btn-changes", "btn-export", "hdr-sep", "btn-load-claude", "btn-claude-req", "btn-github-upload"].forEach((id) => $(id).classList.add("hidden"));
   });
 
   // ── saved-state helpers ──
@@ -1268,20 +1280,25 @@ TEAM_RULES:
     const list = changeList();
     const body = $("dlg-body"), foot = $("dlg-foot");
     foot.onclick = null;
-    if (!list.length) {
-      body.innerHTML = `<h3>저장한 변경이 없습니다</h3><p>규칙이나 점검 문장을 고치고 저장한 뒤 다시 누르세요.</p>`;
-      foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
-    }
-    let result;
-    try { result = build(); } catch (e) {
-      body.innerHTML = `<h3>파일을 만들 수 없습니다</h3><p class="err">${esc(e.message)}</p>`;
-      foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
+    let uploadText;
+    if (list.length) {
+      let result;
+      try { result = build(); } catch (e) {
+        body.innerHTML = `<h3>파일을 만들 수 없습니다</h3><p class="err">${esc(e.message)}</p>`;
+        foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
+      }
+      uploadText = result.text;
+    } else {
+      uploadText = S.src;
     }
     const d = new Date(), p = (x) => String(x).padStart(2, "0");
     const ds = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
     const hasPat = !!getToken();
+    const listHtml = list.length
+      ? `<div class="msgs"><ul>${list.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>`
+      : `<p style="color:var(--muted);font-size:13.5px;margin:0 0 8px;">에디터 변경 없음 — 현재 로드된 파일을 그대로 업로드합니다.</p>`;
     body.innerHTML = `<h3>GitHub 업로드</h3>
-      <div class="msgs"><ul>${list.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>
+      ${listHtml}
       <label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">커밋 메시지</label>
       <input id="upload-msg" value="Update demo.js via demo_editor (${ds})" style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);">
       ${hasPat
@@ -1314,14 +1331,14 @@ TEAM_RULES:
         const headers = { "Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
         const meta = await fetch(GITHUB_API_URL, { headers }).then((r) => r.json());
         if (!meta.sha) throw new Error("현재 파일 SHA를 읽을 수 없습니다. 토큰 권한(contents: write)을 확인하세요.");
-        const encoded = btoa(unescape(encodeURIComponent(result.text)));
+        const encoded = btoa(unescape(encodeURIComponent(uploadText)));
         const up = await fetch(GITHUB_API_URL, {
           method: "PUT", headers,
           body: JSON.stringify({ message: msg, content: encoded, sha: meta.sha, branch: "main" })
         });
         if (!up.ok) { const err = await up.json().catch(() => ({})); throw new Error(`HTTP ${up.status}${err.message ? ": " + err.message : ""}`); }
         const keep = D && ruleByKey(D.key) && !ruleByKey(D.key).deleted ? ruleByKey(D.key).rule.id : null;
-        start(S.name, result.text); exportedOnce = true;
+        start(S.name, uploadText); exportedOnce = true;
         const again = keep && S.rules.find((r) => r.rule.id === keep);
         if (again) { openRule(again.key); renderList(); }
         body.innerHTML = `<h3>업로드 완료</h3><p>demo.js가 GitHub에 업로드되었습니다.<br>GitHub Pages 반영까지 1~2분 소요됩니다.</p>`;
