@@ -32,7 +32,7 @@ h1, h2, h3, p { margin: 0; }
 .brand p { margin-top: 4px; color: var(--muted); font-size: 12px; }
 .topbar-actions { display: flex; gap: 10px; }
 .main-nav { align-self: stretch; display: flex; align-items: center; gap: 3px; }
-.nav-btn { height: 100%; padding: 0 16px; border: 0; border-radius: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); }
+.nav-btn { height: 100%; padding: 0 16px; border: 0; border-radius: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); font: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
 .nav-btn:hover { color: var(--navy); background: #f7f9fc; }
 .nav-btn.active { border-bottom-color: var(--blue); color: var(--navy); }
 
