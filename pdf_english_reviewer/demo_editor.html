@@ -160,6 +160,7 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   <label id="btn-load-claude" class="btn hidden" style="cursor:pointer;">Claude 결과물 열기<input id="file-claude" type="file" accept=".js,text/javascript" hidden></label>
   <button id="btn-changes" class="btn hidden" type="button">변경 0건</button>
   <button id="btn-claude-req" class="btn hidden" type="button">Claude 요청</button>
+  <button id="btn-github-upload" class="btn hidden" type="button">GitHub 업로드</button>
   <button id="btn-export" class="btn primary hidden" type="button">새 파일 만들기</button>
 </header>
 
@@ -534,8 +535,28 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
       $("btn-fetch-github").textContent = "GitHub에서 최신 demo.js 열기";
     }
   });
-  $("file-drop-claude").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
-  $("file-claude").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
+  $("file-drop-claude").addEventListener("change", (e) => { if (e.target.files[0]) { backupFromGitHub(); load(e.target.files[0]); } e.target.value = ""; });
+  $("file-claude").addEventListener("change", (e) => { if (e.target.files[0]) { backupFromGitHub(); load(e.target.files[0]); } e.target.value = ""; });
+
+  // ── GitHub API & PAT ──
+  const GITHUB_API_URL = "https://api.github.com/repos/Park-Jeong-Soo/TW/contents/pdf_english_reviewer/demo.js";
+  const PAT_KEY = "tw-editor-github-pat";
+  const getToken = () => localStorage.getItem(PAT_KEY) || "";
+  const setToken = (t) => t ? localStorage.setItem(PAT_KEY, t) : localStorage.removeItem(PAT_KEY);
+
+  async function backupFromGitHub() {
+    try {
+      const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
+      if (!res.ok) return;
+      const text = await res.text();
+      const d = new Date(), p = (x) => String(x).padStart(2, "0");
+      const ds = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+      const url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+      const a = document.createElement("a"); a.href = url; a.download = `demo_backup_${ds}.js`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    } catch (_) {}
+  }
 
   // ── Claude prompt dialog ──
   const CLAUDE_PROMPT = `demo.js 파일을 이 대화에 첨부한 후 아래 내용을 채워서 전송하세요.
@@ -734,7 +755,7 @@ TEAM_RULES:
     S.cases = parsed.cases.map((c, i) => ({ origIndex: i, orig: clone(c.c), c: clone(c.c), deleted: false, ruleKey: keyOf(c.c.ruleId) }));
     $("drop").classList.add("hidden");
     $("app").classList.remove("hidden");
-    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-export"].forEach((id) => $(id).classList.remove("hidden"));
+    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-github-upload", "btn-export"].forEach((id) => $(id).classList.remove("hidden"));
     $("file-chip").textContent = `${name} · 규칙 ${S.rules.length}개`;
     $("cat-filter").innerHTML = `<option value="">모든 분류</option>` + Object.entries(CATS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")
       + `<option value=":changed">바뀐 규칙만</option><option value=":untested">점검 문장 없는 규칙</option><option value=":off">기본으로 꺼진 규칙</option>`;
@@ -747,7 +768,7 @@ TEAM_RULES:
     if (changeList().length && !exportedOnce && !(await ask("아직 내려받지 않은 변경이 있습니다", "다른 파일을 열면 지금까지의 변경이 사라집니다.", [["stay", "계속 편집"], ["go", "버리고 다른 파일 열기", "danger"]])) === "go") return;
     S = null; D = null;
     $("app").classList.add("hidden"); $("drop").classList.remove("hidden");
-    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-export"].forEach((id) => $(id).classList.add("hidden"));
+    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-github-upload", "btn-export"].forEach((id) => $(id).classList.add("hidden"));
   });
 
   // ── saved-state helpers ──
@@ -1241,6 +1262,77 @@ TEAM_RULES:
       foot.innerHTML = `<button class="btn primary" type="button" data-close>확인</button>`;
     };
   });
+  // ── GitHub upload ──
+  $("btn-github-upload").addEventListener("click", async () => {
+    if (!(await settleDraft())) return;
+    const list = changeList();
+    const body = $("dlg-body"), foot = $("dlg-foot");
+    foot.onclick = null;
+    if (!list.length) {
+      body.innerHTML = `<h3>저장한 변경이 없습니다</h3><p>규칙이나 점검 문장을 고치고 저장한 뒤 다시 누르세요.</p>`;
+      foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
+    }
+    let result;
+    try { result = build(); } catch (e) {
+      body.innerHTML = `<h3>파일을 만들 수 없습니다</h3><p class="err">${esc(e.message)}</p>`;
+      foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>`; dlg.showModal(); return;
+    }
+    const d = new Date(), p = (x) => String(x).padStart(2, "0");
+    const ds = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    const hasPat = !!getToken();
+    body.innerHTML = `<h3>GitHub 업로드</h3>
+      <div class="msgs"><ul>${list.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>
+      <label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">커밋 메시지</label>
+      <input id="upload-msg" value="Update demo.js via demo_editor (${ds})" style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);">
+      ${hasPat
+        ? `<p id="pat-status" style="font-size:12px;color:var(--muted);margin:8px 0 0;">GitHub 토큰 저장됨. <a href="#" id="change-pat">변경</a></p>`
+        : `<label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">GitHub Personal Access Token</label>
+           <input id="upload-pat" type="password" placeholder="ghp_..." style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);">
+           <p style="font-size:12px;color:var(--muted);margin:4px 0 0;">이 브라우저 로컬스토리지에 저장됩니다. repo contents 쓰기 권한 필요.</p>`}`;
+    foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>
+      <button class="btn primary" type="button" id="do-upload">업로드</button>`;
+    dlg.showModal();
+    if (hasPat && $("change-pat")) {
+      $("change-pat").onclick = (e) => {
+        e.preventDefault();
+        $("pat-status").outerHTML = `
+          <label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">GitHub Personal Access Token</label>
+          <input id="upload-pat" type="password" placeholder="ghp_..." style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);" value="${esc(getToken())}">
+          <p style="font-size:12px;color:var(--muted);margin:4px 0 0;"><a href="#" id="clear-pat">토큰 삭제</a></p>`;
+        if ($("clear-pat")) $("clear-pat").onclick = (ev) => { ev.preventDefault(); setToken(""); $("upload-pat").value = ""; };
+      };
+    }
+    $("do-upload").onclick = async () => {
+      const patInput = document.getElementById("upload-pat");
+      if (patInput && patInput.value.trim()) setToken(patInput.value.trim());
+      const tok = getToken();
+      if (!tok) { if (patInput) patInput.focus(); return; }
+      const msg = ($("upload-msg")?.value.trim()) || `Update demo.js via demo_editor (${ds})`;
+      $("do-upload").disabled = true; $("do-upload").textContent = "업로드 중…";
+      document.querySelectorAll("#dlg-body .err").forEach((el) => el.remove());
+      try {
+        const headers = { "Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+        const meta = await fetch(GITHUB_API_URL, { headers }).then((r) => r.json());
+        if (!meta.sha) throw new Error("현재 파일 SHA를 읽을 수 없습니다. 토큰 권한(contents: write)을 확인하세요.");
+        const encoded = btoa(unescape(encodeURIComponent(result.text)));
+        const up = await fetch(GITHUB_API_URL, {
+          method: "PUT", headers,
+          body: JSON.stringify({ message: msg, content: encoded, sha: meta.sha, branch: "main" })
+        });
+        if (!up.ok) { const err = await up.json().catch(() => ({})); throw new Error(`HTTP ${up.status}${err.message ? ": " + err.message : ""}`); }
+        const keep = D && ruleByKey(D.key) && !ruleByKey(D.key).deleted ? ruleByKey(D.key).rule.id : null;
+        start(S.name, result.text); exportedOnce = true;
+        const again = keep && S.rules.find((r) => r.rule.id === keep);
+        if (again) { openRule(again.key); renderList(); }
+        body.innerHTML = `<h3>업로드 완료</h3><p>demo.js가 GitHub에 업로드되었습니다.<br>GitHub Pages 반영까지 1~2분 소요됩니다.</p>`;
+        foot.innerHTML = `<button class="btn primary" type="button" data-close>확인</button>`;
+      } catch (err) {
+        $("do-upload").disabled = false; $("do-upload").textContent = "업로드";
+        body.insertAdjacentHTML("beforeend", `<p class="err" style="margin-top:10px;">${esc(err.message)}</p>`);
+      }
+    };
+  });
+
   function build() {
     const changes = { added: [], edited: [], deleted: [], cases: { added: [], edited: [], deleted: [] } };
     for (const r of S.rules) {
