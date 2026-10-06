@@ -149,6 +149,10 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
 /* Claude dialog extras */
 dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font-size: 12.5px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--ink); resize: vertical; }
 .hdr-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; align-self: center; }
+.toggle-pill { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.02em; padding:1px 5px; border-radius:3px; margin-right:5px; vertical-align:middle; flex-shrink:0; }
+.toggle-pill.on  { background:#dcfce7; color:#15803d; }
+.toggle-pill.off { background:#fee2e2; color:#991b1b; }
+.row.is-deleted .toggle-pill { opacity:.4; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -1032,7 +1036,9 @@ Rule with skipOnItalic:
         const st = stateOf(r);
         const untested = !r.deleted && !casesOf(r.key).some((c) => !c.deleted);
         const dirty = D && D.key === r.key && isDirty();
+        const on = r.rule.enabled !== false;
         return `<button type="button" class="row ${D && r.key === D.key ? "active" : ""} ${r.deleted ? "is-deleted" : ""}" data-key="${r.key}">
+          <span class="toggle-pill ${on ? 'on' : 'off'}" data-toggle-key="${r.key}" title="${on ? '켜짐 — 클릭해서 끄기' : '꺼짐 — 클릭해서 켜기'}">${on ? 'ON' : 'OFF'}</span>
           <span class="nm">${esc(r.rule.name || "(이름 없음)")}</span>
           <span class="meta"><span class="mono">${esc(r.rule.id)}</span>${dirty ? '<span class="tag draft">저장 안 됨</span>' : ""}${st ? `<span class="tag ${st}">${tags[st]}</span>` : ""}${untested ? '<span class="tag warn">점검 문장 없음</span>' : ""}</span>
         </button>`;
@@ -1040,6 +1046,16 @@ Rule with skipOnItalic:
     $("rule-list").innerHTML = html || `<p style="padding:16px;color:var(--muted);">조건에 맞는 규칙이 없습니다.</p>`;
   }
   $("rule-list").addEventListener("click", async (e) => {
+    const tog = e.target.closest("[data-toggle-key]");
+    if (tog) {
+      const r = S.rules.find((r) => r.key === tog.dataset.toggleKey);
+      if (r && !r.deleted) {
+        r.rule.enabled = r.rule.enabled === false ? true : false;
+        if (D && D.key === r.key) { D.rule.enabled = r.rule.enabled; renderDetail(); }
+        renderList(); renderCount();
+      }
+      return;
+    }
     const b = e.target.closest("[data-key]"); if (!b || (D && b.dataset.key === D.key)) return;
     if (!(await settleDraft())) return;
     openRule(b.dataset.key); renderList();

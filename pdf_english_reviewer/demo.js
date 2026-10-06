@@ -1661,21 +1661,6 @@
     panel.querySelector('[data-self-check="all"]').onclick = (e) => { e.target.disabled = true; e.target.textContent = "Running…"; runSelfCheck(!selfCheck.forceAll); };
   }
 
-  // "Run self-check" button next to the upload button ("Run again" is in the report panel).
-  function injectSelfCheckButtons() {
-    const form = document.getElementById("upload-form");
-    if (form && !document.getElementById("self-check-btn")) {
-      const b = document.createElement("button");
-      b.type = "button"; b.id = "self-check-btn"; b.textContent = "Run self-check";
-      b.title = "Review a generated sample PDF with known errors in every category and report what the rules caught";
-      b.style.cssText = "margin-left:8px;";
-      b.addEventListener("click", () => runSelfCheck(false));
-      const submit = form.querySelector('button[type="submit"]');
-      if (submit && submit.parentNode) submit.parentNode.insertBefore(b, submit.nextSibling); else form.appendChild(b);
-    }
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectSelfCheckButtons);
-  else injectSelfCheckButtons();
 
   async function runPosRulesOnPdf(pdf) {
     const allActive = activeRules();

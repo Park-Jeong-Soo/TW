@@ -2177,7 +2177,7 @@ function attachEventHandlers() {
   });
   $("nav-reviewer").addEventListener("click", () => showView("reviewer"));
   $("nav-workspaces").addEventListener("click", () => showView("workspaces"));
-  $("nav-team-standard").addEventListener("click", () => showView("team-standard"));
+  $("nav-team-standard")?.addEventListener("click", () => showView("team-standard"));
   $("nav-glossary").addEventListener("click", () => showView("glossary"));
   $("manage-glossary-btn").addEventListener("click", async () => {
     if (!FEATURES.manualGlossaryUi) return;
