@@ -1008,8 +1008,9 @@
       const regexFindings = regexRes.value;
       const posFindings = posRes.status === "fulfilled" ? posRes.value : [];
       if (posRes.status === "rejected") console.warn("[demo] POS-condition rules skipped:", posRes.reason);
-      const valeFindings = valeRes.status === "fulfilled" ? valeRes.value : [];
+      const valeRaw = valeRes.status === "fulfilled" ? valeRes.value : [];
       if (valeRes.status === "rejected") console.warn("[demo] Vale check skipped:", valeRes.reason);
+      const valeFindings = selfCheck.running ? valeRaw : valeRaw.filter((f) => f.page !== 1 && f.page !== pdf.numPages);
       const allFindings = sortFindings([...regexFindings, ...posFindings]);
       const findings = mergeFindings(allFindings, valeFindings);
       viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
@@ -1697,6 +1698,7 @@
     const findings = [];
     let paraCount = 0;
     for (let p = 1; p <= pdf.numPages; p++) {
+      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       const page = await pdf.getPage(p);
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
@@ -1786,6 +1788,7 @@
 
     const findings = [];
     for (let p = 1; p <= pdf.numPages; p++) {
+      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       if (p === 1 || p % 10 === 0 || p === pdf.numPages) {
         setText("review-status", `Reviewing page ${p} / ${pdf.numPages}…`);
       }
