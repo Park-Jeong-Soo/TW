@@ -202,6 +202,10 @@
   const RULES_EDIT_20261002T171837_KEY = "tw-demo-rules-edit-20261002t171837";
   const RULES_CH12_FLY_KEY = "tw-demo-rules-ch12-fly-v14";
   const RULES_CH87_DATE_KEY = "tw-demo-rules-ch87-date-v15";
+  const RULES_CH87_URL_KEY  = "tw-demo-rules-ch87-url-v16";
+  const RULES_CH87_KOR_KEY  = "tw-demo-rules-ch87-kor-v17";
+  const RULES_CH87_STR_KEY  = "tw-demo-rules-ch87-str-v18";
+  const RULES_CH87_SKIP_KEY = "tw-demo-rules-ch87-skip-v19";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -407,8 +411,9 @@
     // Disabled / heuristic — require user review
     { id: "chicago-86-ordinal-2d",       category: "numbers_abbreviations", name: "Chicago 9.6 — Use 2nd/22nd not 2d/22d for ordinals (review: 12d is exception)",
       pattern: "\\b(\\d*2)d\\b", flags: "g", replacement: "$1nd", severity: "minor", enabled: false },
-    { id: "chicago-87-thousands-comma",  category: "numbers_abbreviations", name: "Chicago 9.55 — Comma separator in 4-digit numbers (excludes dates, ports, addresses)",
-      pattern: "(?<!:)(?<!(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s)\\b([1-9])(\\d{3})\\b(?!,)(?!\\s+(?:St(?:reet)?\\.?|Ave(?:nue)?\\.?|Rd\\.?|Road|Dr(?:ive)?\\.?|Blvd\\.?|Boulevard|Ln\\.?|Lane|Way|Ct\\.?|Court|Pl(?:ace)?\\.?|Circle|Terrace|Pkwy\\.?|Hwy\\.?)\\b)", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false },
+    { id: "chicago-87-thousands-comma",  category: "numbers_abbreviations", name: "Chicago 9.55 — Comma separator in 4-digit numbers (excludes dates, URLs, Korean/US addresses, italic text, last page)",
+      pattern: "(?<!:)(?<!\\/)(?<!https?:\\/\\/\\S{0,200})(?<!(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s)(?<!(?:로|길|대로)\\s)\\b([1-9])(\\d{3})\\b(?!,)(?!\\s*(?:번지|번길|층|호))(?!\\s+(?:\\w+\\s+)?(?:St(?:reet)?\\.?|Ave(?:nue)?\\.?|Rd\\.?|Road|Dr(?:ive)?\\.?|Blvd\\.?|Boulevard|Ln\\.?|Lane|Way|Ct\\.?|Court|Pl(?:ace)?\\.?|Circle|Terrace|Pkwy\\.?|Hwy\\.)\\b)", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false,
+      skipOnItalic: true, skipOnLastPage: true },
     // ── CMOS 17 rules (batch 2) — from chapters 1–5, 8, 11–15 ──────────────────
     // §13.61: [sic] must be in square brackets
     { id: "chicago-88-sic-brackets",     category: "punctuation", name: "Chicago 13.61 — [sic] in square brackets",
@@ -764,6 +769,33 @@
         saveRules(rules);
         localStorage.setItem(RULES_CH87_DATE_KEY, "done");
       }
+      if (localStorage.getItem(RULES_CH87_URL_KEY) !== "done") {
+        const ch87 = rules.find((r) => r.id === "chicago-87-thousands-comma");
+        const ch87Default = CHICAGO_RULES.find((r) => r.id === "chicago-87-thousands-comma");
+        if (ch87 && ch87Default) { ch87.pattern = ch87Default.pattern; ch87.name = ch87Default.name; }
+        saveRules(rules);
+        localStorage.setItem(RULES_CH87_URL_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CH87_KOR_KEY) !== "done") {
+        const ch87 = rules.find((r) => r.id === "chicago-87-thousands-comma");
+        const ch87Default = CHICAGO_RULES.find((r) => r.id === "chicago-87-thousands-comma");
+        if (ch87 && ch87Default) { ch87.pattern = ch87Default.pattern; ch87.name = ch87Default.name; }
+        saveRules(rules);
+        localStorage.setItem(RULES_CH87_KOR_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CH87_STR_KEY) !== "done") {
+        const ch87 = rules.find((r) => r.id === "chicago-87-thousands-comma");
+        const ch87Default = CHICAGO_RULES.find((r) => r.id === "chicago-87-thousands-comma");
+        if (ch87 && ch87Default) { ch87.pattern = ch87Default.pattern; ch87.name = ch87Default.name; }
+        saveRules(rules);
+        localStorage.setItem(RULES_CH87_STR_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CH87_SKIP_KEY) !== "done") {
+        const ch87 = rules.find((r) => r.id === "chicago-87-thousands-comma");
+        if (ch87) { ch87.skipOnItalic = true; ch87.skipOnLastPage = true; ch87.name = CHICAGO_RULES.find((r) => r.id === "chicago-87-thousands-comma")?.name || ch87.name; }
+        saveRules(rules);
+        localStorage.setItem(RULES_CH87_SKIP_KEY, "done");
+      }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
       if (titleRules.some((rule) => rule.name !== titleRuleDefault.name || rule.pattern !== titleRuleDefault.pattern)) {
@@ -976,8 +1008,9 @@
       const regexFindings = regexRes.value;
       const posFindings = posRes.status === "fulfilled" ? posRes.value : [];
       if (posRes.status === "rejected") console.warn("[demo] POS-condition rules skipped:", posRes.reason);
-      const valeFindings = valeRes.status === "fulfilled" ? valeRes.value : [];
+      const valeRaw = valeRes.status === "fulfilled" ? valeRes.value : [];
       if (valeRes.status === "rejected") console.warn("[demo] Vale check skipped:", valeRes.reason);
+      const valeFindings = selfCheck.running ? valeRaw : valeRaw.filter((f) => f.page !== 1 && f.page !== pdf.numPages);
       const allFindings = sortFindings([...regexFindings, ...posFindings]);
       const findings = mergeFindings(allFindings, valeFindings);
       viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
@@ -1628,21 +1661,6 @@
     panel.querySelector('[data-self-check="all"]').onclick = (e) => { e.target.disabled = true; e.target.textContent = "Running…"; runSelfCheck(!selfCheck.forceAll); };
   }
 
-  // "Run self-check" button next to the upload button ("Run again" is in the report panel).
-  function injectSelfCheckButtons() {
-    const form = document.getElementById("upload-form");
-    if (form && !document.getElementById("self-check-btn")) {
-      const b = document.createElement("button");
-      b.type = "button"; b.id = "self-check-btn"; b.textContent = "Run self-check";
-      b.title = "Review a generated sample PDF with known errors in every category and report what the rules caught";
-      b.style.cssText = "margin-left:8px;";
-      b.addEventListener("click", () => runSelfCheck(false));
-      const submit = form.querySelector('button[type="submit"]');
-      if (submit && submit.parentNode) submit.parentNode.insertBefore(b, submit.nextSibling); else form.appendChild(b);
-    }
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectSelfCheckButtons);
-  else injectSelfCheckButtons();
 
   async function runPosRulesOnPdf(pdf) {
     const allActive = activeRules();
@@ -1665,6 +1683,7 @@
     const findings = [];
     let paraCount = 0;
     for (let p = 1; p <= pdf.numPages; p++) {
+      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       const page = await pdf.getPage(p);
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
@@ -1754,6 +1773,7 @@
 
     const findings = [];
     for (let p = 1; p <= pdf.numPages; p++) {
+      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       if (p === 1 || p % 10 === 0 || p === pdf.numPages) {
         setText("review-status", `Reviewing page ${p} / ${pdf.numPages}…`);
       }
@@ -1799,6 +1819,8 @@
         }
 
         for (const { rule, re } of compiled) {
+          if (rule.skipOnItalic && isItalicItem(item)) continue;
+          if (rule.skipOnLastPage && !selfCheck.running && p === pdf.numPages) continue;
           re.lastIndex = 0;
           let m;
           while ((m = re.exec(item.str)) !== null) {
@@ -1862,6 +1884,9 @@
   }
   function isBoldItem(item) {
     return /bold|semibold|heavy|black/i.test(realFontName.get(item.fontName) || item.fontName || "");
+  }
+  function isItalicItem(item) {
+    return /italic|oblique/i.test(realFontName.get(item.fontName) || item.fontName || "");
   }
   function isBodyFontSize(size) { return Math.abs(size - 10.5) <= 0.15; }
   function isExcludedTitleFontSize(size) { return Math.abs(size - 10) <= 0.15 || isBodyFontSize(size); }
