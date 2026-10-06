@@ -193,7 +193,10 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
 <div id="app" class="hidden">
   <aside id="list-pane">
     <div class="list-tools">
-      <button id="btn-new" class="btn primary" type="button">새 규칙 추가</button>
+      <div style="display:flex;gap:6px;">
+        <button id="btn-new" class="btn primary" type="button" style="flex:1;">새 규칙 추가</button>
+        <button id="btn-toggle-all" class="btn" type="button" title="현재 목록의 모든 규칙 켜기/끄기">모두 켜기</button>
+      </div>
       <input id="q" type="search" placeholder="이름, id, 정규식으로 찾기">
       <select id="cat-filter"></select>
     </div>
@@ -1044,6 +1047,11 @@ Rule with skipOnItalic:
         </button>`;
       }).join("")}`).join("");
     $("rule-list").innerHTML = html || `<p style="padding:16px;color:var(--muted);">조건에 맞는 규칙이 없습니다.</p>`;
+    const visibleActive = rows.filter((r) => !r.deleted);
+    const allOn = visibleActive.length > 0 && visibleActive.every((r) => r.rule.enabled !== false);
+    const btn = $("btn-toggle-all");
+    btn.textContent = allOn ? "모두 끄기" : "모두 켜기";
+    btn.disabled = visibleActive.length === 0;
   }
   $("rule-list").addEventListener("click", async (e) => {
     const tog = e.target.closest("[data-toggle-key]");
@@ -1064,6 +1072,27 @@ Rule with skipOnItalic:
     if (!(await settleDraft())) return;
     openRule(b.dataset.key); renderList();
     if (matchMedia("(max-width: 900px)").matches) $("detail").scrollIntoView({ behavior: "smooth" });
+  });
+  $("btn-toggle-all").addEventListener("click", () => {
+    const q = $("q").value.trim().toLowerCase();
+    const f = $("cat-filter").value;
+    const visible = S.rules.filter((r) => {
+      if (r.deleted) return false;
+      const R = r.rule;
+      if (q && ![R.name, R.id, R.pattern].some((x) => String(x || "").toLowerCase().includes(q))) return false;
+      if (f === ":changed") return !!stateOf(r) && stateOf(r) !== "off";
+      if (f === ":untested") return !casesOf(r.key).some((c) => !c.deleted);
+      if (f === ":off") return R.enabled === false;
+      return !f || R.category === f;
+    });
+    const allOn = visible.every((r) => r.rule.enabled !== false);
+    const newVal = !allOn;
+    for (const r of visible) {
+      r.rule.enabled = newVal;
+      if (D && D.key === r.key) { D.rule.enabled = newVal; D.snapshot = snap(D); }
+    }
+    renderList(); renderCount();
+    if (D) renderDetail();
   });
   $("btn-new").addEventListener("click", async () => {
     if (!(await settleDraft())) return;
