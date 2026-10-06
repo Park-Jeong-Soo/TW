@@ -879,6 +879,8 @@ function categoryLabel(category) {
   return ({
     numbers_abbreviations: "numbers and abbreviations",
     hyphenation_terminology: "hyphenation and terminology",
+    custom: "custom",
+    spacing: "spacing",
   })[category] || category;
 }
 
