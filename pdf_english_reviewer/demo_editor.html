@@ -170,11 +170,12 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   <div class="landing-actions">
     <button id="btn-claude-landing" class="btn" type="button">Claude에게 규칙 추가 요청</button>
     <label id="lbl-claude-upload" class="btn" style="cursor:pointer;">Claude 결과물 업로드<input id="file-drop-claude" type="file" accept=".js,text/javascript" hidden></label>
-    <label class="btn primary" style="cursor:pointer;">현재 demo.js 직접 편집하기<input id="file" type="file" accept=".js,text/javascript" hidden></label>
+    <button id="btn-fetch-github" class="btn primary" type="button">현재 demo.js 직접 편집하기</button>
   </div>
   <div class="zone" id="zone">
     <h2>또는 파일을 여기에 끌어 놓으세요</h2>
     <p>demo.js 파일을 끌어 놓으면 규칙 목록이 열립니다. 파일은 이 브라우저 안에서만 읽습니다.</p>
+    <input id="file" type="file" accept=".js,text/javascript" hidden>
     <div id="load-error"></div>
   </div>
   <ol>
@@ -517,6 +518,23 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
 
   // ── GitHub URLs ──
   const GITHUB_RAW_URL = "https://raw.githubusercontent.com/Park-Jeong-Soo/TW/main/pdf_english_reviewer/demo.js";
+
+  $("btn-fetch-github").addEventListener("click", async () => {
+    $("btn-fetch-github").disabled = true;
+    $("btn-fetch-github").textContent = "불러오는 중…";
+    $("load-error").textContent = "";
+    try {
+      const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      start("demo.js", text);
+    } catch (e) {
+      $("load-error").textContent = "GitHub에서 파일을 가져올 수 없습니다: " + e.message;
+    } finally {
+      $("btn-fetch-github").disabled = false;
+      $("btn-fetch-github").textContent = "현재 demo.js 직접 편집하기";
+    }
+  });
   $("file-drop-claude").addEventListener("change", (e) => { if (e.target.files[0]) { backupFromGitHub(); load(e.target.files[0]); } e.target.value = ""; });
   $("file-claude").addEventListener("change", (e) => { if (e.target.files[0]) { backupFromGitHub(); load(e.target.files[0]); } e.target.value = ""; });
 
