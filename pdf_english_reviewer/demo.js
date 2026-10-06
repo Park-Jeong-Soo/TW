@@ -200,6 +200,7 @@
   const RULES_POS_V12_KEY = "tw-demo-rules-pos-v12";
   const RULES_FIX_V13_KEY = "tw-demo-rules-fix-v13";
   const RULES_EDIT_20261002T171837_KEY = "tw-demo-rules-edit-20261002t171837";
+  const RULES_CH12_FLY_KEY = "tw-demo-rules-ch12-fly-v14";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -266,7 +267,7 @@
       pattern: "\\b(high|low|long|short|full|part|real|multi|open|closed|wide|narrow|fine|coarse)\\s+(speed|resolution|term|scale|frequency|time|source|purpose|loop|range|band|precision|grained|voltage|power|pressure|temperature)\\s+(\\w+)",
       flags: "gi", replacement: "$1-$2 $3", severity: "minor", enabled: true, pos: "ADJ|NOUN|X NOUN NOUN|PROPN" },
     { id: "chicago-12-no-hyphen-ly",   category: "hyphenation_terminology", name: "Chicago 7.86 — Do not hyphenate an -ly adverb compound",
-      pattern: "\\b(\\w+ly)-(\\w+)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true, pos: "ADV *" },
+      pattern: "\\b((?!\\w*fly\\b)\\w+ly)-(\\w+)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
     { id: "chicago-13-suspended-hyphen",category:"hyphenation_terminology", name: "Chicago 7.88 — Suspended hyphens in shared compounds (heuristic)",
       pattern: "\\b(low|high|short|long|left|right|up|down)\\s+and\\s+(low|high|short|long|left|right|up|down)-(\\w+)",
       flags: "gi", replacement: "$1- and $2-$3", severity: "minor", enabled: false },
@@ -746,6 +747,12 @@
         }
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261002T171837_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CH12_FLY_KEY) !== "done") {
+        const ch12 = rules.find((r) => r.id === "chicago-12-no-hyphen-ly");
+        if (ch12) { ch12.pattern = "\\b((?!\\w*fly\\b)\\w+ly)-(\\w+)"; delete ch12.pos; }
+        saveRules(rules);
+        localStorage.setItem(RULES_CH12_FLY_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
