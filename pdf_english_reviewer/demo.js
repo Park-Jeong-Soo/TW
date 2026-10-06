@@ -206,6 +206,7 @@
   const RULES_CH87_KOR_KEY  = "tw-demo-rules-ch87-kor-v17";
   const RULES_CH87_STR_KEY  = "tw-demo-rules-ch87-str-v18";
   const RULES_CH87_SKIP_KEY = "tw-demo-rules-ch87-skip-v19";
+  const RULES_EDIT_20261006T081608_KEY = "tw-demo-rules-edit-20261006t081608Z";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -478,8 +479,11 @@
       pattern: "^(?:Figure|Fig\\.|Table)\\s+\\d+[.:]\\s+.+$", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
-    { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions",
-      pattern: "\\byou should\\b", flags: "gi", replacement: "(use the imperative: drop \"you should\" and start with the verb)", severity: "major", enabled: true },
+    // "You should press Start." -> "Press Start."; "If it breaks, you should replace it." -> "If it breaks, replace it."
+    // Not flagged: "should not" (rewrite as "Do not …" by hand) and results such as "You should see a green light."
+    // $U1 = group 1 with its first letter capitalized (see applyReplacement).
+    { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
+      pattern: "\\bYou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
   // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
@@ -795,6 +799,16 @@
         if (ch87) { ch87.skipOnItalic = true; ch87.skipOnLastPage = true; ch87.name = CHICAGO_RULES.find((r) => r.id === "chicago-87-thousands-comma")?.name || ch87.name; }
         saveRules(rules);
         localStorage.setItem(RULES_CH87_SKIP_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EDIT_20261006T081608_KEY) !== "done") {
+        // team-imperative: add it for users whose rules were saved before it existed, and
+        // upgrade the first version ("\\byou should\\b", advisory note) unless the user edited it.
+        const def = TEAM_RULES.find((rule) => rule.id === "team-imperative");
+        const r = rules.find((rule) => rule.id === "team-imperative");
+        if (!r) rules.push({ ...def });
+        else if (r.pattern === "\\byou should\\b") Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261006T081608_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1425,7 +1439,10 @@
     { category: "numbers_abbreviations", ruleId: "chicago-94-vs-period", flag: "vs", wrong: "Plot the height vs time for each line.", right: "Plot the height vs. time for each line." },
     { category: "numbers_abbreviations", ruleId: "chicago-95-author-date-comma", flag: "(Kim, 2020)", wrong: "The method follows (Kim, 2020) closely.", right: "The method follows (Kim 2020) closely." },
     // ── Custom ──
-    { category: "custom", ruleId: "team-imperative", flag: "You should", wrong: "You should use the imperative form as the default in manuals.", right: "Use the imperative form as the default in manuals.", noFixCheck: true },
+    { category: "custom", ruleId: "team-imperative", flag: "You should use", wrong: "You should use the imperative form as the default in manuals.", right: "Use the imperative form as the default in manuals." },
+    { category: "custom", ruleId: "team-imperative", flag: "you should replace", wrong: "If the tip breaks, you should replace it.", right: "If the tip breaks, replace it." },
+    // The corrected text keeps a result sentence, which the rule must not flag.
+    { category: "custom", ruleId: "team-imperative", flag: "You should press", wrong: "You should press Start. You should see a green light.", right: "Press Start. You should see a green light." },
   ];
   // Text in the header/footer bands (top/bottom MARGIN_CM) must never be flagged.
   const SELF_CHECK_MARGIN_TEXT = {
@@ -1991,7 +2008,10 @@
 
   function applyReplacement(template, match) {
     if (!template) return "";
-    return template.replace(/\$(\d+)/g, (_, n) => match[Number(n)] || "");
+    return template.replace(/\$(U?)(\d+)/g, (_, upper, n) => {
+      const v = match[Number(n)] || "";
+      return upper ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+    });
   }
 
   function itemBbox(item) {
