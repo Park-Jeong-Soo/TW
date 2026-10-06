@@ -138,6 +138,16 @@ dialog .err { color: var(--red); } dialog .warn { color: var(--amber); } dialog 
 dialog footer { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 14px 24px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-family: var(--mono); font-size: 13.5px; }
 @media (prefers-reduced-motion: no-preference) { .row, .btn { transition: background-color .12s, border-color .12s; } }
+/* landing extras */
+.landing-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+/* regex guide */
+.regex-guide { background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 4px 0 8px; font-size: 13px; }
+.regex-guide table { border-collapse: collapse; width: 100%; }
+.regex-guide td { padding: 2px 10px 2px 0; vertical-align: top; }
+.regex-guide td:first-child { font-family: var(--mono); font-size: 12.5px; color: var(--blue); white-space: nowrap; }
+.regex-guide td:last-child { color: var(--muted); }
+/* Claude dialog extras */
+dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font-size: 12.5px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--ink); resize: vertical; }
 </style>
 </head>
 <body>
@@ -147,15 +157,24 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
   <span class="spacer"></span>
   <span id="file-chip" class="chip hidden"></span>
   <button id="btn-open" class="btn hidden" type="button">다른 파일 열기</button>
+  <label id="btn-load-claude" class="btn hidden" style="cursor:pointer;">Claude 결과물 열기<input id="file-claude" type="file" accept=".js,text/javascript" hidden></label>
   <button id="btn-changes" class="btn hidden" type="button">변경 0건</button>
+  <button id="btn-claude-req" class="btn hidden" type="button">Claude 요청</button>
   <button id="btn-export" class="btn primary hidden" type="button">새 파일 만들기</button>
 </header>
 
 <section id="drop">
+  <div class="landing-actions">
+    <button id="btn-fetch-github" class="btn primary" type="button">GitHub에서 최신 demo.js 열기</button>
+    <button id="btn-claude-landing" class="btn" type="button">Claude에게 규칙 추가 요청</button>
+  </div>
   <div class="zone" id="zone">
-    <h2>demo 파일을 여기에 놓으세요</h2>
+    <h2>또는 파일을 직접 여세요</h2>
     <p>demo.js 파일을 끌어 놓거나 선택하면 규칙 목록이 열립니다. 파일은 이 브라우저 안에서만 읽습니다.</p>
-    <label class="btn primary" style="display:inline-block;">파일 선택<input id="file" type="file" accept=".js,text/javascript" hidden></label>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <label class="btn primary" style="display:inline-block;">현재 demo.js 열기<input id="file" type="file" accept=".js,text/javascript" hidden></label>
+      <label class="btn" style="display:inline-block;">Claude 결과물 열기<input id="file-drop-claude" type="file" accept=".js,text/javascript" hidden></label>
+    </div>
     <div id="load-error"></div>
   </div>
   <ol>
@@ -496,6 +515,81 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
   // D: the draft of the rule open on the right (edits go here until "저장").
   let S = null, D = null, exportedOnce = false;
 
+  // ── GitHub fetch ──
+  const GITHUB_RAW_URL = "https://raw.githubusercontent.com/Park-Jeong-Soo/TW/main/pdf_english_reviewer/demo.js";
+  $("btn-fetch-github").addEventListener("click", async () => {
+    $("btn-fetch-github").disabled = true;
+    $("btn-fetch-github").textContent = "불러오는 중…";
+    $("load-error").textContent = "";
+    try {
+      const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      start("demo.js", text);
+    } catch (e) {
+      $("load-error").textContent = "GitHub에서 파일을 가져올 수 없습니다: " + e.message;
+    } finally {
+      $("btn-fetch-github").disabled = false;
+      $("btn-fetch-github").textContent = "GitHub에서 최신 demo.js 열기";
+    }
+  });
+  $("file-drop-claude").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
+  $("file-claude").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
+
+  // ── Claude prompt dialog ──
+  const CLAUDE_PROMPT = `demo.js 와 RULE_SPEC.md 두 파일을 이 대화에 첨부한 후 아래 내용을 채워서 전송하세요.
+
+---
+You are editing demo.js, the rule engine for a PDF English reviewer tool.
+Attached: demo.js (current rule file) + RULE_SPEC.md (rule format specification).
+
+Please add the following rules. For each rule:
+1. Choose the correct array per RULE_SPEC §3.
+2. Assign the next available id per RULE_SPEC §4.
+3. Add at least one SELF_CHECK_CASES test case per RULE_SPEC §8.
+4. Add a migration key only if editing an existing rule (RULE_SPEC §7).
+5. Do not change any other part of the file.
+
+Output: the complete updated demo.js file.
+
+## Rules to Add
+
+### Rule 1
+- Description: [무엇을 잡아야 하는지]
+- Should flag: [예시 틀린 텍스트]
+- Should suggest: [예시 고친 텍스트]
+- Category: [typo / spacing / punctuation / grammar / capitalization / numbers_abbreviations / hyphenation_terminology / custom]
+- Array: [CHICAGO_RULES / STYLE_RULES / TEAM_RULES]
+- Severity: [minor / major / critical]
+- Enabled by default: [yes / no]
+- POS condition needed: [no / yes → specify]
+- Source / reference: [Chicago 6.xx / Google Dev Docs / Team standard / etc.]
+---`;
+
+  function showClaudeDialog() {
+    $("dlg-body").innerHTML = `<h3>Claude에게 규칙 추가 요청</h3>
+      <p style="font-size:13.5px;color:var(--muted);margin:0 0 10px;">
+        1. <strong>demo.js</strong>와 <strong>RULE_SPEC.md</strong>를 Claude 대화에 첨부합니다.<br>
+        2. 아래 프롬프트를 복사해서 붙여넣고 규칙 내용을 채워 전송합니다.<br>
+        3. Claude가 반환한 demo.js를 <strong>Claude 결과물 열기</strong> 버튼으로 불러옵니다.
+      </p>
+      <textarea id="claude-prompt-text" readonly>${esc(CLAUDE_PROMPT)}</textarea>`;
+    $("dlg-foot").innerHTML = `
+      <button class="btn" type="button" data-close>닫기</button>
+      <button class="btn primary" type="button" id="btn-copy-prompt">프롬프트 복사</button>`;
+    $("dlg-foot").onclick = null;
+    $("btn-copy-prompt").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(CLAUDE_PROMPT);
+        $("btn-copy-prompt").textContent = "복사됨 ✓";
+        setTimeout(() => { if ($("btn-copy-prompt")) $("btn-copy-prompt").textContent = "프롬프트 복사"; }, 2000);
+      } catch { $("claude-prompt-text").select(); document.execCommand("copy"); }
+    };
+    dlg.showModal();
+  }
+  $("btn-claude-landing").addEventListener("click", showClaudeDialog);
+  $("btn-claude-req").addEventListener("click", showClaudeDialog);
+
   // ── loading ──
   const zone = $("zone");
   $("file").addEventListener("change", (e) => { if (e.target.files[0]) load(e.target.files[0]); e.target.value = ""; });
@@ -519,7 +613,7 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
     S.cases = parsed.cases.map((c, i) => ({ origIndex: i, orig: clone(c.c), c: clone(c.c), deleted: false, ruleKey: keyOf(c.c.ruleId) }));
     $("drop").classList.add("hidden");
     $("app").classList.remove("hidden");
-    ["file-chip", "btn-open", "btn-changes", "btn-export"].forEach((id) => $(id).classList.remove("hidden"));
+    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-export"].forEach((id) => $(id).classList.remove("hidden"));
     $("file-chip").textContent = `${name} · 규칙 ${S.rules.length}개`;
     $("cat-filter").innerHTML = `<option value="">모든 분류</option>` + Object.entries(CATS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")
       + `<option value=":changed">바뀐 규칙만</option><option value=":untested">점검 문장 없는 규칙</option><option value=":off">기본으로 꺼진 규칙</option>`;
@@ -532,7 +626,7 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
     if (changeList().length && !exportedOnce && !(await ask("아직 내려받지 않은 변경이 있습니다", "다른 파일을 열면 지금까지의 변경이 사라집니다.", [["stay", "계속 편집"], ["go", "버리고 다른 파일 열기", "danger"]])) === "go") return;
     S = null; D = null;
     $("app").classList.add("hidden"); $("drop").classList.remove("hidden");
-    ["file-chip", "btn-open", "btn-changes", "btn-export"].forEach((id) => $(id).classList.add("hidden"));
+    ["file-chip", "btn-open", "btn-load-claude", "btn-changes", "btn-claude-req", "btn-export"].forEach((id) => $(id).classList.add("hidden"));
   });
 
   // ── saved-state helpers ──
@@ -819,6 +913,19 @@ dialog footer input { flex: 1 1 200px; padding: 7px 10px; border: 1px solid var(
         ${field("id", "id", R.id, { cls: fromFile ? "c6" : "c3", mono: true, ro: fromFile, err: E.id, hint: fromFile ? "" : "이름을 쓰면 자동으로 채워집니다. 한 번 배포한 뒤에는 바꾸지 마세요." })}
         ${field("정규식 (/ / 없이)", "pattern", R.pattern, { cls: "c4", mono: true, ro: layoutRule, err: E.pattern })}
         ${field("플래그", "flags", R.flags ?? "g", { cls: "c2", mono: true, err: E.flags, hint: "g 전체, i 대소문자 무시" })}
+        <div class="c6" style="margin-top:-4px;">
+          <details><summary style="font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;">정규식 기초 참고표 ▸</summary>
+          <div class="regex-guide"><table><tbody>
+            <tr><td>\\b</td><td>단어 경계 (단어 시작/끝)</td><td style="width:24px"></td><td>\\d</td><td>숫자 [0-9]</td></tr>
+            <tr><td>\\w</td><td>영문자·숫자·밑줄</td><td></td><td>\\s</td><td>공백(스페이스·탭)</td></tr>
+            <tr><td>.</td><td>아무 문자 1개</td><td></td><td>[abc]</td><td>a, b, c 중 하나</td></tr>
+            <tr><td>+</td><td>1개 이상</td><td></td><td>*</td><td>0개 이상</td></tr>
+            <tr><td>?</td><td>0개 또는 1개</td><td></td><td>{3}</td><td>정확히 3개</td></tr>
+            <tr><td>(...)</td><td>캡처 그룹 → $1 $2로 사용</td><td></td><td>(?:...)</td><td>그룹 (캡처 안 함)</td></tr>
+            <tr><td>(?!...)</td><td>이 뒤에 …가 없어야 매칭</td><td></td><td>(?&lt;!...)</td><td>이 앞에 …가 없어야 매칭</td></tr>
+            <tr><td>a|b</td><td>a 또는 b</td><td></td><td>[^abc]</td><td>a b c 제외한 문자</td></tr>
+          </tbody></table></div></details>
+        </div>
         ${field("수정 제안", "replacement", R.replacement, { cls: "c3", mono: true, ro: layoutRule, hint: "$1, $2로 괄호 그룹을 씁니다. 괄호로 시작하면 메모로 표시됩니다." })}
         ${field("품사 조건 (선택)", "pos", R.pos || "", { cls: "c3", mono: true, ro: layoutRule, err: E.pos, hint: "예: ADJ NOUN NOUN · \"|\" 둘 중 하나 · \"...\" 단어 여러 개" })}
         ${field("심각도", "severity", R.severity, { cls: "c2", options: { minor: "Minor", major: "Major", critical: "Critical" } })}
