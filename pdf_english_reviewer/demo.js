@@ -2759,4 +2759,6 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
+
+  on("self-check-btn", "click", () => runSelfCheck(false));
 })();
