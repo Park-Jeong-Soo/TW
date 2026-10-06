@@ -1051,7 +1051,11 @@ Rule with skipOnItalic:
       const r = S.rules.find((r) => r.key === tog.dataset.toggleKey);
       if (r && !r.deleted) {
         r.rule.enabled = r.rule.enabled === false ? true : false;
-        if (D && D.key === r.key) { D.rule.enabled = r.rule.enabled; renderDetail(); }
+        if (D && D.key === r.key) {
+          D.rule.enabled = r.rule.enabled;
+          D.snapshot = snap(D); // keep D clean so settleDraft doesn't prompt for the toggle alone
+          renderDetail();
+        }
         renderList(); renderCount();
       }
       return;
