@@ -9,17 +9,21 @@ When adding or editing rules, follow this spec exactly.
 
 ```js
 {
-  id:          string,   // REQUIRED. Unique kebab-case. Never change after first deploy.
-  category:    string,   // REQUIRED. See §2.
-  name:        string,   // REQUIRED. Human-readable. Format: "Source — Description".
-  pattern:     string,   // REQUIRED (except layout rules). JS regex without /…/ delimiters.
-  flags:       string,   // REQUIRED. Usually "g" or "gi". Always include "g".
-  replacement: string,   // REQUIRED. Corrected text, "$1"/"$2" for groups, or "(note)" for advisory.
-  severity:    string,   // REQUIRED. "minor" | "major" | "critical".
-  enabled:     boolean,  // REQUIRED. true = on by default, false = off by default.
-  pos:         string,   // OPTIONAL. POS condition (STYLE_RULES only). See §5.
+  id:             string,   // REQUIRED. Unique kebab-case. Never change after first deploy.
+  category:       string,   // REQUIRED. See §2.
+  name:           string,   // REQUIRED. Human-readable. Format: "Source — Description".
+  pattern:        string,   // REQUIRED (except layout rules). JS regex without /…/ delimiters.
+  flags:          string,   // REQUIRED. Usually "g" or "gi". Always include "g".
+  replacement:    string,   // REQUIRED. Corrected text, "$1"/"$2" for groups, or "(note)" for advisory.
+  severity:       string,   // REQUIRED. "minor" | "major" | "critical".
+  enabled:        boolean,  // REQUIRED. true = on by default, false = off by default.
+  pos:            string,   // OPTIONAL. POS condition (STYLE_RULES only). See §5.
+  skipOnItalic:   boolean,  // OPTIONAL. When true, skip this rule for italic text items.
+  skipOnLastPage: boolean,  // OPTIONAL. When true, skip this rule for the document's last page.
 }
 ```
+
+> **Engine behavior**: The cover page (p = 1) and the back cover (last page) are **globally excluded** from all rules — no findings are ever generated for those pages regardless of individual rule fields.
 
 ---
 
@@ -88,7 +92,7 @@ Examples:
 
 ## 7. Migration Key Requirement
 
-When **editing an existing rule** (changing `pattern`, `name`, `flags`, `replacement`, `severity`, or `pos`):
+When **editing an existing rule** (changing `pattern`, `name`, `flags`, `replacement`, `severity`, `pos`, `skipOnItalic`, or `skipOnLastPage`):
 
 1. Add a new `const` key near the other migration keys (around line 200):
    ```js
@@ -126,6 +130,8 @@ Each new rule should have at least one test case added to `SELF_CHECK_CASES`:
 }
 ```
 
+> Self-check cases are placed on interior pages of a generated test PDF, so the global cover/back-cover exclusion does not affect self-check results.
+
 ---
 
 ## 9. Example Rule (CHICAGO_RULES)
@@ -149,4 +155,13 @@ Each new rule should have at least one test case added to `SELF_CHECK_CASES`:
 ```js
 { id: "team-product-name", category: "typo", name: "Team Manual Standard — Correct product name spelling",
   pattern: "\\bNanoScope\\b", flags: "g", replacement: "NanoScope", severity: "minor", enabled: true },
+```
+
+## 12. Example Rule (with skipOnItalic)
+
+```js
+{ id: "chicago-87-thousands-comma", category: "numbers_abbreviations",
+  name: "Chicago 9.55 — Comma separator in 4-digit numbers (excludes dates, URLs, Korean/US addresses, italic text, last page)",
+  pattern: "...", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false,
+  skipOnItalic: true, skipOnLastPage: true },
 ```

@@ -598,6 +598,7 @@ Output: the complete updated demo.js file.
 - Severity: [minor / major / critical]
 - Enabled by default: [yes / no]
 - POS condition needed: [no / yes → specify]
+- Skip on italic text: [no / yes]
 - Source / reference: [Chicago 6.xx / Google Dev Docs / Team standard / etc.]
 
 ---
@@ -607,17 +608,22 @@ Output: the complete updated demo.js file.
 
 \`\`\`js
 {
-  id:          string,   // REQUIRED. Unique kebab-case. Never change after first deploy.
-  category:    string,   // REQUIRED. See §2.
-  name:        string,   // REQUIRED. Human-readable. Format: "Source — Description".
-  pattern:     string,   // REQUIRED. JS regex string without /…/ delimiters.
-  flags:       string,   // REQUIRED. Usually "g" or "gi". Always include "g".
-  replacement: string,   // REQUIRED. Corrected text, "$1"/"$2" for groups, or "(note)" for advisory.
-  severity:    string,   // REQUIRED. "minor" | "major" | "critical".
-  enabled:     boolean,  // REQUIRED. true = on by default, false = off by default.
-  pos:         string,   // OPTIONAL. POS condition (STYLE_RULES only). See §5.
+  id:             string,   // REQUIRED. Unique kebab-case. Never change after first deploy.
+  category:       string,   // REQUIRED. See §2.
+  name:           string,   // REQUIRED. Human-readable. Format: "Source — Description".
+  pattern:        string,   // REQUIRED. JS regex string without /…/ delimiters.
+  flags:          string,   // REQUIRED. Usually "g" or "gi". Always include "g".
+  replacement:    string,   // REQUIRED. Corrected text, "$1"/"$2" for groups, or "(note)" for advisory.
+  severity:       string,   // REQUIRED. "minor" | "major" | "critical".
+  enabled:        boolean,  // REQUIRED. true = on by default, false = off by default.
+  pos:            string,   // OPTIONAL. POS condition (STYLE_RULES only). See §5.
+  skipOnItalic:   boolean,  // OPTIONAL. When true, skip this rule for italic text items.
+  skipOnLastPage: boolean,  // OPTIONAL. When true, skip this rule for the document's last page.
 }
 \`\`\`
+
+Engine behavior: the cover page (p=1) and back cover (last page) are globally excluded from ALL rules.
+No findings are ever generated for those pages regardless of rule fields.
 
 ## §2 Categories
 
@@ -654,6 +660,7 @@ Examples:
 
 ## §7 Migration Key (only when editing existing rules)
 
+Triggers: changing pattern, name, flags, replacement, severity, pos, skipOnItalic, or skipOnLastPage.
 1. Add near other migration keys (~line 200 in demo.js):
    const RULES_EDIT_YYYYMMDDTHHMMSS_KEY = "tw-demo-rules-edit-yyyymmddthhmmssZ";
 2. Add in getRules() after the last localStorage.setItem block:
@@ -676,6 +683,8 @@ Add to SELF_CHECK_CASES for each new rule:
   right:    "Full sentence with the error corrected.",
   // optional: layout, noFixCheck: true (if advisory replacement), limit: "note"
 }
+Self-check cases are placed on interior pages of a generated test PDF,
+so the global cover/back-cover exclusion does not affect self-check results.
 
 ## §9 Example Rules
 
@@ -696,7 +705,14 @@ TEAM_RULES:
 { id: "team-product-name", category: "typo",
   name: "Team Manual Standard — Correct product name",
   pattern: "\\\\bNanoScope\\\\b", flags: "g", replacement: "NanoScope",
-  severity: "minor", enabled: true },`;
+  severity: "minor", enabled: true },
+
+Rule with skipOnItalic:
+{ id: "chicago-87-thousands-comma", category: "numbers_abbreviations",
+  name: "Chicago 9.55 — Comma separator in 4-digit numbers (...)",
+  pattern: "...", flags: "g", replacement: "$1,$2",
+  severity: "minor", enabled: false,
+  skipOnItalic: true, skipOnLastPage: true },`;
 
   function showClaudeDialog() {
     $("dlg-body").innerHTML = `<h3>Claude에게 규칙 추가 요청</h3>
