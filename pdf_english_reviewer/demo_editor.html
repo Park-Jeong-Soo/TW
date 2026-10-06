@@ -168,17 +168,13 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
 
 <section id="drop">
   <div class="landing-actions">
-    <button id="btn-fetch-github" class="btn primary" type="button">GitHub에서 최신 demo.js 열기</button>
-    <button id="btn-download-github" class="btn" type="button">최근 demo.js 다운로드</button>
     <button id="btn-claude-landing" class="btn" type="button">Claude에게 규칙 추가 요청</button>
+    <label id="lbl-claude-upload" class="btn" style="cursor:pointer;">Claude 결과물 업로드<input id="file-drop-claude" type="file" accept=".js,text/javascript" hidden></label>
+    <label class="btn primary" style="cursor:pointer;">현재 demo.js 직접 편집하기<input id="file" type="file" accept=".js,text/javascript" hidden></label>
   </div>
   <div class="zone" id="zone">
-    <h2>또는 파일을 직접 여세요</h2>
-    <p>demo.js 파일을 끌어 놓거나 선택하면 규칙 목록이 열립니다. 파일은 이 브라우저 안에서만 읽습니다.</p>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-      <label class="btn primary" style="display:inline-block;">현재 demo.js 열기<input id="file" type="file" accept=".js,text/javascript" hidden></label>
-      <label class="btn" style="display:inline-block;">Claude 결과물 열기<input id="file-drop-claude" type="file" accept=".js,text/javascript" hidden></label>
-    </div>
+    <h2>또는 파일을 여기에 끌어 놓으세요</h2>
+    <p>demo.js 파일을 끌어 놓으면 규칙 목록이 열립니다. 파일은 이 브라우저 안에서만 읽습니다.</p>
     <div id="load-error"></div>
   </div>
   <ol>
@@ -519,24 +515,8 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   // D: the draft of the rule open on the right (edits go here until "저장").
   let S = null, D = null, exportedOnce = false;
 
-  // ── GitHub fetch ──
+  // ── GitHub URLs ──
   const GITHUB_RAW_URL = "https://raw.githubusercontent.com/Park-Jeong-Soo/TW/main/pdf_english_reviewer/demo.js";
-  $("btn-fetch-github").addEventListener("click", async () => {
-    $("btn-fetch-github").disabled = true;
-    $("btn-fetch-github").textContent = "불러오는 중…";
-    $("load-error").textContent = "";
-    try {
-      const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const text = await res.text();
-      start("demo.js", text);
-    } catch (e) {
-      $("load-error").textContent = "GitHub에서 파일을 가져올 수 없습니다: " + e.message;
-    } finally {
-      $("btn-fetch-github").disabled = false;
-      $("btn-fetch-github").textContent = "GitHub에서 최신 demo.js 열기";
-    }
-  });
   $("file-drop-claude").addEventListener("change", (e) => { if (e.target.files[0]) { backupFromGitHub(); load(e.target.files[0]); } e.target.value = ""; });
   $("file-claude").addEventListener("change", (e) => { if (e.target.files[0]) { backupFromGitHub(); load(e.target.files[0]); } e.target.value = ""; });
 
@@ -716,14 +696,16 @@ Rule with skipOnItalic:
 
   function showClaudeDialog() {
     $("dlg-body").innerHTML = `<h3>Claude에게 규칙 추가 요청</h3>
-      <p style="font-size:13.5px;color:var(--muted);margin:0 0 10px;">
-        아래 프롬프트를 복사 → demo.js 첨부 → 규칙 내용 채워서 전송. Claude가 반환한 demo.js는 <strong>Claude 결과물 열기</strong>로 불러오세요.
+      <p style="font-size:13.5px;color:var(--muted);margin:0 0 4px;">
+        ① demo.js 다운로드 → ② 프롬프트 복사 → ③ Claude에 demo.js 첨부 후 전송 → ④ 결과물을 <strong>Claude 결과물 업로드</strong>로 불러오세요.
       </p>
       <textarea id="claude-prompt-text" readonly>${esc(CLAUDE_PROMPT)}</textarea>`;
     $("dlg-foot").innerHTML = `
       <button class="btn" type="button" data-close>닫기</button>
+      <button class="btn" type="button" id="btn-download-in-dialog">최근 demo.js 다운로드</button>
       <button class="btn primary" type="button" id="btn-copy-prompt">프롬프트 복사</button>`;
     $("dlg-foot").onclick = null;
+    $("btn-download-in-dialog").onclick = () => downloadLatestDemoJs($("btn-download-in-dialog"));
     $("btn-copy-prompt").onclick = async () => {
       try {
         await navigator.clipboard.writeText(CLAUDE_PROMPT);
@@ -736,12 +718,11 @@ Rule with skipOnItalic:
   $("btn-claude-landing").addEventListener("click", showClaudeDialog);
   $("btn-claude-req").addEventListener("click", showClaudeDialog);
 
-  // ── GitHub download ──
-  $("btn-download-github").addEventListener("click", async () => {
-    const btn = $("btn-download-github");
+  // ── GitHub download (called from Claude dialog) ──
+  async function downloadLatestDemoJs(btn) {
+    const orig = btn.textContent;
     btn.disabled = true;
     btn.textContent = "다운로드 중…";
-    $("load-error").textContent = "";
     try {
       const res = await fetch(GITHUB_RAW_URL + "?t=" + Date.now());
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -753,12 +734,12 @@ Rule with skipOnItalic:
       document.body.appendChild(a); a.click();
       setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
       btn.textContent = "다운로드 완료 ✓";
-      setTimeout(() => { btn.textContent = "최근 demo.js 다운로드"; btn.disabled = false; }, 2000);
+      setTimeout(() => { if (btn.isConnected) { btn.textContent = orig; btn.disabled = false; } }, 2000);
     } catch (err) {
-      $("load-error").textContent = "다운로드 실패: " + err.message;
-      btn.textContent = "최근 demo.js 다운로드"; btn.disabled = false;
+      btn.textContent = orig; btn.disabled = false;
+      alert("다운로드 실패: " + err.message);
     }
-  });
+  }
 
   // ── loading ──
   const zone = $("zone");
