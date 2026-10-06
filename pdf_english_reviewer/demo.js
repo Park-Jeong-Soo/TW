@@ -473,8 +473,6 @@
       pattern: "^(?:Figure|Fig\\.|Table)\\s+\\d+[.:]\\s+.+$", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
-    { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions",
-      pattern: "\\byou should\\b", flags: "gi", replacement: "(use the imperative: drop \"you should\" and start with the verb)", severity: "major", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
   // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
@@ -1391,8 +1389,6 @@
     { category: "numbers_abbreviations", ruleId: "chicago-91-et-al-period", flag: "et al", wrong: "Kim et al reported the same drift.", right: "Kim et al. reported the same drift." },
     { category: "numbers_abbreviations", ruleId: "chicago-94-vs-period", flag: "vs", wrong: "Plot the height vs time for each line.", right: "Plot the height vs. time for each line." },
     { category: "numbers_abbreviations", ruleId: "chicago-95-author-date-comma", flag: "(Kim, 2020)", wrong: "The method follows (Kim, 2020) closely.", right: "The method follows (Kim 2020) closely." },
-    // ── Custom ──
-    { category: "custom", ruleId: "team-imperative", flag: "You should", wrong: "You should use the imperative form as the default in manuals.", right: "Use the imperative form as the default in manuals.", noFixCheck: true },
   ];
   // Text in the header/footer bands (top/bottom MARGIN_CM) must never be flagged.
   const SELF_CHECK_MARGIN_TEXT = {
