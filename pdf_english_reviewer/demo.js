@@ -266,7 +266,7 @@
       pattern: "\\b(high|low|long|short|full|part|real|multi|open|closed|wide|narrow|fine|coarse)\\s+(speed|resolution|term|scale|frequency|time|source|purpose|loop|range|band|precision|grained|voltage|power|pressure|temperature)\\s+(\\w+)",
       flags: "gi", replacement: "$1-$2 $3", severity: "minor", enabled: true, pos: "ADJ|NOUN|X NOUN NOUN|PROPN" },
     { id: "chicago-12-no-hyphen-ly",   category: "hyphenation_terminology", name: "Chicago 7.86 — Do not hyphenate an -ly adverb compound",
-      pattern: "\\b(\\w+ly)-(\\w+)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true },
+      pattern: "\\b(\\w+ly)-(\\w+)", flags: "g", replacement: "$1 $2", severity: "minor", enabled: true, pos: "ADV *" },
     { id: "chicago-13-suspended-hyphen",category:"hyphenation_terminology", name: "Chicago 7.88 — Suspended hyphens in shared compounds (heuristic)",
       pattern: "\\b(low|high|short|long|left|right|up|down)\\s+and\\s+(low|high|short|long|left|right|up|down)-(\\w+)",
       flags: "gi", replacement: "$1- and $2-$3", severity: "minor", enabled: false },
