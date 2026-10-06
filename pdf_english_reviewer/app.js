@@ -1029,7 +1029,7 @@ function issueY(issue) {
 
 function renderSummary() {
   const counts = issueCounts();
-  const order = ["content", "grammar", "awkward", "typo", "consistency", "format", "punctuation", "capitalization", "numbers_abbreviations", "hyphenation_terminology"];
+  const order = ["content", "grammar", "awkward", "typo", "consistency", "format", "punctuation", "capitalization", "numbers_abbreviations", "hyphenation_terminology", "spacing", "custom"];
   const engineOrder = ["publishing_standard", "team_rule", "glossary", "vale", "basic", "ollama"];
   const engines = engineCounts();
   const standards = standardCounts();

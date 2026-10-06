@@ -2313,6 +2313,7 @@
         <option value="capitalization">Capitalization</option>
         <option value="numbers_abbreviations">Numbers &amp; abbreviations</option>
         <option value="hyphenation_terminology">Hyphenation &amp; terminology</option>
+        <option value="custom">Custom</option>
         `;
     }
     on("category-filter", "change", () => { renderIssuesPanel(); renderCurrentPages(); });
