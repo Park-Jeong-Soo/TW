@@ -668,9 +668,7 @@ TEAM_RULES:
   function showClaudeDialog() {
     $("dlg-body").innerHTML = `<h3>Claude에게 규칙 추가 요청</h3>
       <p style="font-size:13.5px;color:var(--muted);margin:0 0 10px;">
-        1. <strong>최근 demo.js 다운로드</strong> 버튼으로 파일을 받아 Claude 대화에 첨부합니다.<br>
-        2. 아래 프롬프트를 복사해서 붙여넣고 규칙 내용을 채워 전송합니다.<br>
-        3. Claude가 반환한 demo.js를 <strong>Claude 결과물 열기</strong> 버튼으로 불러옵니다.
+        아래 프롬프트를 복사 → demo.js 첨부 → 규칙 내용 채워서 전송. Claude가 반환한 demo.js는 <strong>Claude 결과물 열기</strong>로 불러오세요.
       </p>
       <textarea id="claude-prompt-text" readonly>${esc(CLAUDE_PROMPT)}</textarea>`;
     $("dlg-foot").innerHTML = `
