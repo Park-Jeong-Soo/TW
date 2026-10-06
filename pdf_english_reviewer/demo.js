@@ -201,6 +201,7 @@
   const RULES_FIX_V13_KEY = "tw-demo-rules-fix-v13";
   const RULES_EDIT_20261002T171837_KEY = "tw-demo-rules-edit-20261002t171837";
   const RULES_CH12_FLY_KEY = "tw-demo-rules-ch12-fly-v14";
+  const RULES_CH87_DATE_KEY = "tw-demo-rules-ch87-date-v15";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -406,8 +407,8 @@
     // Disabled / heuristic — require user review
     { id: "chicago-86-ordinal-2d",       category: "numbers_abbreviations", name: "Chicago 9.6 — Use 2nd/22nd not 2d/22d for ordinals (review: 12d is exception)",
       pattern: "\\b(\\d*2)d\\b", flags: "g", replacement: "$1nd", severity: "minor", enabled: false },
-    { id: "chicago-87-thousands-comma",  category: "numbers_abbreviations", name: "Chicago 9.55 — Comma separator in 4-digit numbers (heuristic; review page nums/years)",
-      pattern: "\\b([1-9])(\\d{3})\\b(?!,)", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false },
+    { id: "chicago-87-thousands-comma",  category: "numbers_abbreviations", name: "Chicago 9.55 — Comma separator in 4-digit numbers (excludes dates, ports, addresses)",
+      pattern: "(?<!:)(?<!(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s)\\b([1-9])(\\d{3})\\b(?!,)(?!\\s+(?:St(?:reet)?\\.?|Ave(?:nue)?\\.?|Rd\\.?|Road|Dr(?:ive)?\\.?|Blvd\\.?|Boulevard|Ln\\.?|Lane|Way|Ct\\.?|Court|Pl(?:ace)?\\.?|Circle|Terrace|Pkwy\\.?|Hwy\\.?)\\b)", flags: "g", replacement: "$1,$2", severity: "minor", enabled: false },
     // ── CMOS 17 rules (batch 2) — from chapters 1–5, 8, 11–15 ──────────────────
     // §13.61: [sic] must be in square brackets
     { id: "chicago-88-sic-brackets",     category: "punctuation", name: "Chicago 13.61 — [sic] in square brackets",
@@ -753,6 +754,13 @@
         if (ch12) { ch12.pattern = "\\b((?!\\w*fly\\b)\\w+ly)-(\\w+)"; delete ch12.pos; }
         saveRules(rules);
         localStorage.setItem(RULES_CH12_FLY_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_CH87_DATE_KEY) !== "done") {
+        const ch87 = rules.find((r) => r.id === "chicago-87-thousands-comma");
+        const ch87Default = CHICAGO_RULES.find((r) => r.id === "chicago-87-thousands-comma");
+        if (ch87 && ch87Default) { ch87.pattern = ch87Default.pattern; ch87.name = ch87Default.name; }
+        saveRules(rules);
+        localStorage.setItem(RULES_CH87_DATE_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
