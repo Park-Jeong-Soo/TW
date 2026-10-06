@@ -1197,6 +1197,23 @@
       const sentence = rest.slice(0, (rest.search(/[.!?](\s|$)/) + 1) || rest.length);
       if (looksImperative(nlp, sentence)) t.pos = "VERB";
     });
+    const LY_NOUNS = new Set([
+      "butterfly", "dragonfly", "firefly", "mayfly", "horsefly", "blowfly",
+      "sawfly", "whitefly", "gadfly", "barfly", "damselfly", "stonefly", "family",
+    ]);
+    const LY_ADJS = new Set([
+      "friendly", "lonely", "lovely", "ugly", "silly", "surly", "curly", "burly",
+      "oily", "woolly", "beastly", "costly", "elderly", "fatherly", "ghostly",
+      "goodly", "holy", "homely", "kingly", "lively", "lofty", "lordly", "lowly",
+      "manly", "masterly", "matronly", "miserly", "motherly", "orderly", "princely",
+      "scholarly", "shapely", "sickly", "stately", "timely", "womanly", "worldly",
+    ]);
+    tokens.forEach((t) => {
+      if (t.pos !== "ADV") return;
+      const lc = t.value.toLowerCase();
+      if (LY_NOUNS.has(lc)) t.pos = "NOUN";
+      else if (LY_ADJS.has(lc)) t.pos = "ADJ";
+    });
     return tokens;
   }
   function parsePosCondition(condition) {
