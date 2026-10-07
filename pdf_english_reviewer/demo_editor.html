@@ -506,7 +506,7 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
 <script>
 (() => {
   const C = window.DemoEditorCore;
-  const CATS = { typo: "Typo", spacing: "Spacing", punctuation: "Punctuation", grammar: "Grammar", capitalization: "Capitalization",
+  const CATS = { spelling: "Spelling", spacing: "Spacing", punctuation: "Punctuation", grammar: "Grammar", capitalization: "Capitalization",
     numbers_abbreviations: "Numbers & abbreviations", hyphenation_terminology: "Hyphenation & terminology", custom: "Custom" };
   const ARRAYS = { TEAM_RULES: "팀 표준 (TEAM_RULES)", STYLE_RULES: "스타일 가이드 (STYLE_RULES)", CHICAGO_RULES: "Chicago (CHICAGO_RULES)", _BASE_RULES: "기본 오타 (_BASE_RULES)" };
   const LAYOUTS = { body: "본문 문장", lines: "여러 줄 (| 로 줄 구분)", heading: "제목 (굵게 14 pt)", figure: "그림·표 라벨 (9 pt)",
@@ -623,7 +623,7 @@ Output:
   - [잡으면 안 되는 문장]  (이유: [결과 설명 / 고유명사 / 약어 등])
 - Fix type: [exact replacement / advisory note / flag only]
 - Advisory note text (Fix type이 advisory일 때): [예: (use "clear", such as "Clear the checkbox.")]
-- Category: [typo / spacing / punctuation / grammar / capitalization / numbers_abbreviations / hyphenation_terminology / custom]
+- Category: [spelling / spacing / punctuation / grammar / capitalization / numbers_abbreviations / hyphenation_terminology / custom]
 - Array: [CHICAGO_RULES / STYLE_RULES / TEAM_RULES / 모름]
 - Severity: [minor / major / critical]
 - Enabled by default: [yes / no]
@@ -784,7 +784,7 @@ STYLE_RULES (with POS):
   pos: "NOUN NOUN NOUN" },
 
 TEAM_RULES (exact replacement; the pattern matches only wrong spellings):
-{ id: "team-product-name", category: "typo",
+{ id: "team-product-name", category: "spelling",
   name: "Team Manual Standard — Correct product name",
   pattern: "\\\\b(?:[Nn]anoscope|NANOSCOPE|Nano [Ss]cope)\\\\b", flags: "g",
   replacement: "NanoScope", severity: "minor", enabled: true },
@@ -1488,7 +1488,7 @@ Rule with skipOnItalic:
         start(S.name, uploadText); exportedOnce = true;
         const again = keep && S.rules.find((r) => r.rule.id === keep);
         if (again) { openRule(again.key); renderList(); }
-        body.innerHTML = `<h3>업로드 완료</h3><p>demo.js가 GitHub에 업로드되었습니다.<br>GitHub Pages 반영까지 1~2분 소요됩니다.</p>`;
+        body.innerHTML = `<h3>업로드 완료</h3><p>demo.js가 GitHub에 업로드되었습니다.<br>GitHub Pages 반영까지 1~2분 소요됩니다.<br>로컬 파일에 반영하려면 <code>git pull</code>을 실행하세요.</p>`;
         foot.innerHTML = `<button class="btn primary" type="button" data-close>확인</button>`;
       } catch (err) {
         $("do-upload").disabled = false; $("do-upload").textContent = "업로드";
