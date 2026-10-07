@@ -37,14 +37,14 @@ h1, h2, h3, p { margin: 0; }
 .nav-btn.active { border-bottom-color: var(--blue); color: var(--navy); }
 
 main { min-height: calc(100vh - 76px); }
-.upload-panel { width: min(1050px, calc(100vw - 80px)); margin: 0 auto; padding: 84px 0; display: grid; grid-template-columns: 1.15fr .85fr; gap: 64px; align-items: center; }
+.upload-panel { width: min(1050px, calc(100vw - 80px)); margin: 0 auto; padding: 84px 0; display: flex; justify-content: center; align-items: center; }
 .eyebrow { letter-spacing: .11em; font-size: 10px; color: var(--blue); font-weight: 800; }
 .intro-copy h2 { max-width: 620px; margin-top: 15px; font-size: 36px; line-height: 1.15; letter-spacing: -0.035em; }
 .intro-copy p { max-width: 580px; margin-top: 18px; color: var(--muted); font-size: 16px; line-height: 1.65; }
 .feature-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .feature-list span { border: 1px solid #cbd9ea; background: white; border-radius: 999px; color: var(--navy); padding: 8px 11px; font-size: 12px; font-weight: 650; }
 .upload-card, .run-review-card, .dictionary-card { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
-.upload-card { display: grid; gap: 14px; }
+.upload-card { display: grid; gap: 14px; width: min(460px, 100%); }
 .file-drop { min-height: 205px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; padding: 24px; border: 1.5px dashed #9fb8d1; border-radius: 12px; text-align: center; background: #f9fcff; cursor: pointer; }
 .file-drop:hover { background: #f1f8ff; border-color: var(--blue); }
 .file-drop input { display: none; }
