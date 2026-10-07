@@ -217,7 +217,7 @@ function failureGuidance(error, operation) {
   } else if (status === 422) {
     guidance.reason = message;
     guidance.steps = [
-      "Grammar, Typos, and Context are fixed Full Review checks.",
+      "Grammar, Spelling, and Context are fixed Full Review checks.",
       "Refresh the page and run Full Review again.",
     ];
   } else if (status === 503) {
@@ -1029,7 +1029,7 @@ function issueY(issue) {
 
 function renderSummary() {
   const counts = issueCounts();
-  const order = ["content", "grammar", "awkward", "typo", "consistency", "format", "punctuation", "capitalization", "numbers_abbreviations", "hyphenation_terminology", "spacing", "custom"];
+  const order = ["content", "grammar", "awkward", "spelling", "consistency", "format", "punctuation", "capitalization", "numbers_abbreviations", "hyphenation_terminology", "spacing", "custom"];
   const engineOrder = ["publishing_standard", "team_rule", "glossary", "vale", "basic", "ollama"];
   const engines = engineCounts();
   const standards = standardCounts();
@@ -1297,7 +1297,7 @@ async function loadEngineStatus(probe = false) {
     const preflight = status.preflight;
     $("engine-status-list").innerHTML = `
       <span>Style Engine: Vale ${status.vale ? "Local / Ready" : "Optional"}</span>
-      <span>Typo Engine: Basic Rules Only</span>
+      <span>Spelling Engine: Basic Rules Only</span>
       <span>Context AI: ${escapeHtml(status.ollama?.mode || "Unavailable")}</span>
       <span class="safe-status">External Data Transfer: ${escapeHtml(preflight?.external_data_transfer || "Disabled")}</span>
     `;
