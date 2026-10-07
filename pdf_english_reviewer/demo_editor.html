@@ -201,6 +201,9 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
       <select id="cat-filter"></select>
     </div>
     <nav id="rule-list" aria-label="규칙 목록"></nav>
+    <div style="padding:8px 10px;border-top:1px solid var(--line);">
+      <button id="btn-word-list" class="btn" type="button" style="width:100%;">단어 목록 관리</button>
+    </div>
   </aside>
   <main id="detail"></main>
 </div>
@@ -392,6 +395,28 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   }
   function indentOf(src, i) { const s = lineStart(src, i); return /^\s*/.exec(src.slice(s, i))[0]; }
 
+  // Locate SPELL_TEAM_WORDS in src. Returns { start, end, words } or null.
+  // start = index of 'c' in `const SPELL_TEAM_WORDS = [`, end = index past `];`.
+  function parseSpellWords(src) {
+    const m = /const SPELL_TEAM_WORDS\s*=\s*\[/.exec(src);
+    if (!m) return null;
+    const open = src.indexOf("[", m.index);
+    const close = matchingClose(src, open);
+    const inner = src.slice(open + 1, close);
+    const words = [];
+    let i = 0;
+    while (i < inner.length) {
+      while (i < inner.length && /[\s,]/.test(inner[i])) i++;
+      if (i >= inner.length) break;
+      if (inner[i] === "/" && (inner[i + 1] === "/" || inner[i + 1] === "*")) { i = skipComment(inner, i); continue; }
+      if (inner[i] === '"' || inner[i] === "'") {
+        const s = i; i = skipString(inner, i);
+        try { words.push(parseLiteral(inner.slice(s, i))); } catch { }
+      } else i++;
+    }
+    return { start: m.index, end: close + 2, words };
+  }
+
   function migrationKeyName(stamp) { return `RULES_EDIT_${stamp}_KEY`; }
 
   // changes: { added: [{array, rule, note}], edited: [{id, rule}], deleted: [id],
@@ -474,6 +499,26 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
         ops.push({ at: br, end: br, text: `, ${keyName}`, order: order++ });
       }
     }
+    // word list changes
+    const wc = changes.words;
+    if (wc && (wc.added.length || wc.removed.length)) {
+      const wp = parseSpellWords(src);
+      if (!wp) throw new Error("Could not find SPELL_TEAM_WORDS in this file.");
+      const removedSet = new Set(wc.removed);
+      const kept = wp.words.filter((w) => !removedSet.has(w));
+      const indent = indentOf(src, wp.start);
+      const inner = indent + "  ";
+      const lines = [];
+      for (let i = 0; i < kept.length; i += 6)
+        lines.push(inner + kept.slice(i, i + 6).map((w) => JSON.stringify(w)).join(", ") + ",");
+      if (wc.added.length) {
+        lines.push(inner + "// Added via demo_editor");
+        for (let i = 0; i < wc.added.length; i += 6)
+          lines.push(inner + wc.added.slice(i, i + 6).map((w) => JSON.stringify(w)).join(", ") + ",");
+      }
+      ops.push({ at: wp.start, end: wp.end, text: `const SPELL_TEAM_WORDS = [\n${lines.join("\n")}\n${indent}];`, order: order++ });
+    }
+
     // header note
     const summary = [];
     if (changes.added.length) summary.push(`${changes.added.length} rule(s) added`);
@@ -481,6 +526,8 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
     if (changes.deleted.length) summary.push(`${changes.deleted.length} deleted`);
     const caseCount = cs.added.length + cs.edited.length + cs.deleted.length;
     if (caseCount) summary.push(`${caseCount} self-check test change(s)`);
+    if (wc?.added.length) summary.push(`${wc.added.length} word(s) added to team list`);
+    if (wc?.removed.length) summary.push(`${wc.removed.length} word(s) removed from team list`);
     if (summary.length) {
       const first = lineEnd(src, 0);
       ops.push({ at: first, end: first, text: `// Edited with demo_editor (${stamp}): ${summary.join(", ")}.\n`, order: order++ });
@@ -498,7 +545,7 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
     return template.replace(/\$(\d+)/g, (_, n) => match[Number(n)] || "");
   }
 
-  const api = { parseDemo, applyChanges, parseLiteral, ruleText, caseText, applyReplacement, RULE_ARRAYS };
+  const api = { parseDemo, applyChanges, parseSpellWords, parseLiteral, ruleText, caseText, applyReplacement, RULE_ARRAYS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.DemoEditorCore = api;
 })(typeof window !== "undefined" ? window : globalThis);
@@ -863,8 +910,11 @@ Rule with skipOnItalic:
   function start(name, src) {
     const parsed = C.parseDemo(src);
     let k = 0;
+    const wp = C.parseSpellWords(src);
     S = {
       name, src, parsed,
+      words: wp ? wp.words : [],
+      wordChanges: { added: [], removed: [] },
       rules: parsed.rules.map((r) => ({ key: "r" + k++, orig: clone(r.rule), rule: clone(r.rule), array: r.array, note: "", deleted: false })),
       cases: [],
     };
@@ -914,6 +964,8 @@ Rule with skipOnItalic:
       const kind = c.origIndex === null ? (c.deleted ? "" : "점검 문장 추가") : c.deleted ? "점검 문장 삭제" : caseChanged(c) ? "점검 문장 수정" : "";
       if (kind) out.push({ key: r.key, text: `${kind}: ${r.rule.name}` });
     }
+    if (S.wordChanges?.added.length) out.push({ key: "__words__", text: `단어 추가: ${S.wordChanges.added.join(", ")}` });
+    if (S.wordChanges?.removed.length) out.push({ key: "__words__", text: `단어 삭제: ${S.wordChanges.removed.join(", ")}` });
     return out;
   }
   function renderCount() {
@@ -1510,9 +1562,60 @@ Rule with skipOnItalic:
       else if (cs.deleted || (r && r.deleted)) changes.cases.deleted.push(cs.origIndex);
       else if (caseChanged(cs)) changes.cases.edited.push({ index: cs.origIndex, c: cs.c });
     }
-    return C.applyChanges(S.src, S.parsed, changes, stamp());
+    return C.applyChanges(S.src, S.parsed, { ...changes, words: S.wordChanges }, stamp());
   }
   function clean(rule) { const o = { ...rule }; if (!o.pos) delete o.pos; o.enabled = o.enabled !== false; return o; }
+
+  // ── Word List panel ──
+  function renderWordList() {
+    const allWords = [
+      ...S.words.filter((w) => !S.wordChanges.removed.includes(w)),
+      ...S.wordChanges.added,
+    ].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    const items = allWords.map((w) => {
+      const isNew = S.wordChanges.added.includes(w);
+      const badge = isNew ? ` <span style="font-size:11px;color:#22c55e;font-weight:600;margin-left:4px;">NEW</span>` : "";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);">
+        <span style="flex:1;font-family:var(--mono);font-size:13.5px;">${esc(w)}${badge}</span>
+        <button class="btn" type="button" data-rm-word="${esc(w)}" style="padding:3px 8px;font-size:12px;">삭제</button>
+      </div>`;
+    }).join("");
+    $("detail").innerHTML = `<div style="padding:28px;max-width:600px;">
+      <h2 style="margin:0 0 6px;">Team Word List</h2>
+      <p style="margin:0 0 18px;color:var(--muted);font-size:13.5px;">이 목록에 있는 단어는 US English 사전에 없어도 맞춤법 검사에서 제외됩니다.<br>
+      현재 ${allWords.length}개 · GitHub 업로드 시 demo.js에 반영됩니다.</p>
+      <div style="display:flex;gap:8px;margin-bottom:18px;">
+        <input id="word-input" type="text" placeholder="단어 추가 (Enter 또는 추가 버튼)..."
+          style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);">
+        <button id="btn-add-word" class="btn primary" type="button">추가</button>
+      </div>
+      <div id="word-list-items">${items || "<p style='color:var(--muted);font-size:13.5px;'>단어가 없습니다.</p>"}</div>
+    </div>`;
+    $("word-list-items").addEventListener("click", (e) => {
+      const w = e.target.dataset.rmWord;
+      if (!w) return;
+      if (S.wordChanges.added.includes(w)) S.wordChanges.added = S.wordChanges.added.filter((x) => x !== w);
+      else if (!S.wordChanges.removed.includes(w)) S.wordChanges.removed.push(w);
+      renderWordList(); renderCount();
+    });
+    const addWord = () => {
+      const val = $("word-input").value.trim();
+      if (!val) return;
+      const existing = [...S.words, ...S.wordChanges.added];
+      if (existing.includes(val)) { $("word-input").select(); return; }
+      S.wordChanges.added.push(val);
+      $("word-input").value = "";
+      renderWordList(); renderCount();
+      $("word-input").focus();
+    };
+    $("btn-add-word").addEventListener("click", addWord);
+    $("word-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addWord(); } });
+  }
+  $("btn-word-list").addEventListener("click", async () => {
+    if (!(await settleDraft())) return;
+    D = null;
+    renderWordList();
+  });
 })();
 
 </script>
