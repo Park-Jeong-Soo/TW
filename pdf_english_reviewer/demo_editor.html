@@ -576,35 +576,70 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   }
 
   // ── Claude prompt dialog ──
-  const CLAUDE_PROMPT = `demo.js 파일을 이 대화에 첨부한 후 아래 내용을 채워서 전송하세요.
-(RULE_SPEC이 프롬프트에 포함되어 있으므로 따로 첨부하지 않아도 됩니다.)
+  const CLAUDE_PROMPT = `최신 demo.js 파일을 이 대화에 첨부한 후, 아래 [요청 A: 규칙 추가] 또는 [요청 B: 규칙 수정] 중
+필요한 블록만 채워서 전송하세요. (RULE_SPEC이 프롬프트에 포함되어 있으므로 따로 첨부하지 않아도 됩니다.)
+
+작성 요령
+- 예시는 최소 2개 이상 적어 주세요. 예시가 1개뿐이면 두 문장의 "차이"만 바꾸는 규칙이 됩니다.
+- "Do not flag"(잡으면 안 되는 문장)를 꼭 적어 주세요. 오탐을 막는 가장 확실한 정보입니다.
+- 모르는 칸은 비워 두세요. 비운 칸은 Claude가 정하고, 무엇을 정했는지 답변에 알려 줍니다.
+- 규칙이 여러 개면 [요청 A] 블록을 복사해서 Rule 2, Rule 3 …으로 추가하세요.
 
 ---
 You are editing demo.js, the rule engine for a PDF English reviewer tool.
-Attached: demo.js (current rule file). The rule specification is included below.
+Attached: the latest demo.js. The rule specification (RULE_SPEC) is included below.
 
-Please add the following rules. For each rule:
-1. Choose the correct array (CHICAGO_RULES / STYLE_RULES / TEAM_RULES) per §3.
-2. Assign the next available id per §4.
-3. Add at least one SELF_CHECK_CASES test case per §8.
-4. Add a migration key only if editing an existing rule (§7).
-5. Do not change any other part of the file.
+For each request:
+1. Choose the array per §3 and the id per §4. Check that no existing rule already
+   covers the same text (search ids, names and patterns) before adding one.
+2. Write the pattern from "Triggers" and "Examples" so that every "Do not flag"
+   sentence is NOT matched. One rule has one replacement (§6): split into several
+   rules if the examples need different fixes.
+3. Add SELF_CHECK_CASES per §8: one case per example, plus cases that prove the
+   "Do not flag" sentences are not matched.
+4. Add a migration per §7 (needed for new CHICAGO_RULES / TEAM_RULES rules and for
+   every edit of an existing rule).
+5. Verify before answering: syntax check, self-check simulation of the new cases,
+   no existing case newly failing, and the migration for users with saved rules.
+6. Do not change any other part of the file.
 
-Output: the complete updated demo.js file.
+Output:
+- The complete updated demo.js file.
+- The line numbers of every added or changed block.
+- Anything that could not be implemented as requested, and why.
 
-## Rules to Add
+## [요청 A] Rules to Add
 
 ### Rule 1
-- Description: [무엇을 잡아야 하는지]
-- Should flag: [예시 틀린 텍스트]
-- Should suggest: [예시 고친 텍스트]
+- Guideline (KR/EN): [한 문장 원칙. 예: 동작 설명은 명령형 동사로 시작합니다. / Start instructions with an imperative verb.]
+- Why (optional): [근거 한 줄]
+- Source / reference: [Chicago 6.xx / Google Dev Docs / Team standard / …]
+- Link (optional): [https://…]
+- Triggers: [잡을 표현 목록. 예: You should, You need to, You have to]
+- Examples (2+, Wrong → Right):
+  - [틀린 문장] → [고친 문장]
+  - [틀린 문장] → [고친 문장]
+- Do not flag:
+  - [잡으면 안 되는 문장]  (이유: [결과 설명 / 고유명사 / 약어 등])
+- Fix type: [exact replacement / advisory note / flag only]
+- Advisory note text (Fix type이 advisory일 때): [예: (use "clear", such as "Clear the checkbox.")]
 - Category: [typo / spacing / punctuation / grammar / capitalization / numbers_abbreviations / hyphenation_terminology / custom]
-- Array: [CHICAGO_RULES / STYLE_RULES / TEAM_RULES]
+- Array: [CHICAGO_RULES / STYLE_RULES / TEAM_RULES / 모름]
 - Severity: [minor / major / critical]
 - Enabled by default: [yes / no]
-- POS condition needed: [no / yes → specify]
+- POS condition needed: [no / yes → specify (§5)]
 - Skip on italic text: [no / yes]
-- Source / reference: [Chicago 6.xx / Google Dev Docs / Team standard / etc.]
+- Conflicts to check (optional): [충돌이 걱정되는 기존 규칙 id]
+
+## [요청 B] Rules to Edit
+
+### Edit 1
+- Rule id: [예: team-imperative]
+- What to change: [pattern / replacement / name / severity / enabled / pos / skipOnItalic …]
+- New behavior: [바뀐 뒤 어떻게 동작해야 하는지]
+- Examples (Wrong → Right): [새로 잡아야 하는 문장]
+- Do not flag: [바뀐 뒤에도 잡으면 안 되는 문장]
+- Users who edited this rule in the browser: [keep their version (default) / overwrite]
 
 ---
 # Rule Specification (RULE_SPEC)
@@ -613,22 +648,31 @@ Output: the complete updated demo.js file.
 
 \`\`\`js
 {
-  id:             string,   // REQUIRED. Unique kebab-case. Never change after first deploy.
+  id:             string,   // REQUIRED. Unique kebab-case. Never change or reuse after first deploy.
   category:       string,   // REQUIRED. See §2.
   name:           string,   // REQUIRED. Human-readable. Format: "Source — Description".
   pattern:        string,   // REQUIRED. JS regex string without /…/ delimiters.
   flags:          string,   // REQUIRED. Usually "g" or "gi". Always include "g".
-  replacement:    string,   // REQUIRED. Corrected text, "$1"/"$2" for groups, or "(note)" for advisory.
+  replacement:    string,   // REQUIRED. See §6.
   severity:       string,   // REQUIRED. "minor" | "major" | "critical".
   enabled:        boolean,  // REQUIRED. true = on by default, false = off by default.
-  pos:            string,   // OPTIONAL. POS condition (STYLE_RULES only). See §5.
+  pos:            string,   // OPTIONAL. POS condition. See §5.
   skipOnItalic:   boolean,  // OPTIONAL. When true, skip this rule for italic text items.
-  skipOnLastPage: boolean,  // OPTIONAL. When true, skip this rule for the document's last page.
+  skipOnLastPage: boolean,  // OPTIONAL. Currently has no effect (see "Pages" below). Kept for compatibility.
 }
 \`\`\`
 
-Engine behavior: the cover page (p=1) and back cover (last page) are globally excluded from ALL rules.
-No findings are ever generated for those pages regardless of rule fields.
+There are no message or link fields. Put the guideline, reason, source link, and
+examples in a comment directly above the rule. Advisory text goes in replacement as "(…)".
+
+Engine behavior:
+- Pages: the cover page (p=1) and back cover (last page) are excluded from ALL rules,
+  so no findings are generated there regardless of rule fields. During the self-check
+  this exclusion is off.
+- Matching unit: rules without pos run on one PDF text line at a time, so a phrase
+  broken across two lines is not matched. Rules with pos run on whole paragraphs.
+- Rules cannot be limited to headings or numbered steps; they run on all body text.
+  (team-title-case and team-table-header-case are special-cased in the engine.)
 
 ## §2 Categories
 
@@ -636,81 +680,120 @@ typo | spacing | punctuation | grammar | capitalization | numbers_abbreviations 
 
 ## §3 Rule Arrays
 
-CHICAGO_RULES — Chicago Manual of Style rules (regex-only, no pos field)
-STYLE_RULES   — Grammar rules that need POS (part-of-speech) conditions
-TEAM_RULES    — Internal team standards
+CHICAGO_RULES — Chicago Manual of Style rules. Usually regex only; a pos field is
+                allowed (chicago-02-serial-comma and chicago-11-hyphen-modifier use one).
+STYLE_RULES   — Google Developer Docs Style rules, with or without pos.
+                Rules in this array are added automatically for users with saved rules
+                (getRules() self-heal), and they come back if a user deletes them
+                (users can only turn them off).
+TEAM_RULES    — Internal team standards.
 Rules go at the end of the matching array, just before the closing ];
 
 ## §4 ID Naming
 
-CHICAGO_RULES: chicago-NN-keyword  (NN = next available number after the last chicago-NN)
+CHICAGO_RULES: chicago-NN-keyword  (NN = next number after the highest chicago-NN;
+               never reuse a deleted number such as chicago-74)
 STYLE_RULES:   style-keyword
 TEAM_RULES:    team-keyword
 
-## §5 POS Condition (STYLE_RULES only)
+## §5 POS Condition
 
 Space-separated UPOS tags, | for OR, * for any tag, ... for any number of tokens.
 Valid tags: ADJ ADP ADV AUX CCONJ DET INTJ NOUN NUM PART PRON PROPN PUNCT SCONJ SYM VERB X
 Examples:
-  "AUX VERB"               — auxiliary followed by verb
-  "ADJ|NOUN NOUN"          — adjective or noun, then noun
+  "AUX VERB"                 — auxiliary followed by verb
+  "ADJ|NOUN NOUN"            — adjective or noun, then noun
   "VERB ... SCONJ PRON ..."  — verb, any words, then SCONJ + pronoun
 
 ## §6 Replacement Field
 
-"$1 $2"       — use capture groups from pattern
+"$1 $2"       — capture groups from the pattern. A group that did not match gives "".
+"$U1"         — group 1 with its first letter capitalized (for sentence-initial fixes).
 "(note text)" — advisory, not auto-applied
 ""            — flag only, no suggestion
 "word"        — exact replacement
 
-## §7 Migration Key (only when editing existing rules)
+- One rule has one replacement. If examples need different fixes (e.g. "Do not" at the
+  start of a sentence and "do not" mid-sentence), use separate rules.
+- The engine can only capitalize text captured from the match. To keep the case of the
+  original, capture the part that stays: "\\\\b([Cc])heck box\\\\b" → "$1heckbox".
+- The pattern must not match the corrected text, or the rule flags its own fix.
 
-Triggers: changing pattern, name, flags, replacement, severity, pos, skipOnItalic, or skipOnLastPage.
-1. Add near other migration keys (~line 200 in demo.js):
-   const RULES_EDIT_YYYYMMDDTHHMMSS_KEY = "tw-demo-rules-edit-yyyymmddthhmmssZ";
-2. Add in getRules() after the last localStorage.setItem block:
+## §7 Migration (users who already have saved rules)
+
+Saved rules are not replaced by the new defaults. A migration is needed when:
+- adding a rule to CHICAGO_RULES or TEAM_RULES (STYLE_RULES are added automatically, §3), or
+- editing an existing rule: pattern, name, flags, replacement, severity, pos,
+  skipOnItalic, or skipOnLastPage.
+
+1. Add the key after the last RULES_*_KEY constant (near the top of demo.js):
+   const RULES_EDIT_YYYYMMDDTHHMMSS_KEY = "tw-demo-rules-edit-yyyymmddthhmmssz";
+2. Add the block in getRules() after the last \`localStorage.setItem(…, "done")\` block:
+
    if (localStorage.getItem(RULES_EDIT_YYYYMMDDTHHMMSS_KEY) !== "done") {
-     const r = rules.find((r) => r.id === "the-rule-id");
-     if (r) { /* apply the field change */ }
+     // Add new rules (only if missing).
+     const ids = new Set(rules.map((rule) => rule.id));
+     rules.push(...TEAM_RULES.filter((rule) => ["team-new-rule"].includes(rule.id) && !ids.has(rule.id)));
+     // Edit a rule, only where the user has not changed it in the browser.
+     const PREVIOUS_PATTERN = "…the previous default pattern…";
+     const def = TEAM_RULES.find((rule) => rule.id === "team-edited-rule");
+     const r = rules.find((rule) => rule.id === "team-edited-rule");
+     if (r && r.pattern === PREVIOUS_PATTERN) Object.assign(r, { name: def.name, pattern: def.pattern, replacement: def.replacement });
      saveRules(rules);
      localStorage.setItem(RULES_EDIT_YYYYMMDDTHHMMSS_KEY, "done");
    }
-When only adding new rules: no migration key needed.
+Use one key per request, and a new key for every later change.
 
 ## §8 Self-Check Test Cases
 
-Add to SELF_CHECK_CASES for each new rule:
+Add to SELF_CHECK_CASES, at the end of the section for the rule's category
+(the report groups cases by category: // ── Typo ──, // ── Spacing ──, …):
 {
   category: "same as rule.category",
   ruleId:   "same as rule.id",
-  flag:     "the exact text the rule should match",
+  flag:     "text the rule must match (part of its match)",
   wrong:    "Full sentence containing the error.",
   right:    "Full sentence with the error corrected.",
-  // optional: layout, noFixCheck: true (if advisory replacement), limit: "note"
+  // optional:
+  //   noFixCheck: true   — advisory replacement (no exact fix to compare)
+  //   layout: "heading" | "figure" | "table" | "table10" | "lines"
+  //   limit: "why this rule cannot work in the PDF pipeline" (reported as KNOWN LIMITATION)
 }
-Self-check cases are placed on interior pages of a generated test PDF,
-so the global cover/back-cover exclusion does not affect self-check results.
+- Applying the suggestion to "wrong" must give exactly "right" (unless noFixCheck).
+- No enabled rule may flag "right". Put "Do not flag" sentences into "right" to test them:
+  wrong: "You should press Start. You should see a green light."
+  right: "Press Start. You should see a green light."
+- Keep test sentences free of patterns other rules catch (passive "is + verb",
+  "will", "if you", first person "we/I", etc.).
+- Self-check cases are placed on interior pages of a generated test PDF, so the
+  cover/back-cover exclusion does not affect self-check results.
 
 ## §9 Example Rules
 
-CHICAGO_RULES:
-{ id: "chicago-97-em-dash-spacing", category: "punctuation",
-  name: "Chicago 6.87 — No spaces around em dash",
-  pattern: "\\\\s+—\\\\s+|\\\\s+—|—\\\\s+", flags: "g", replacement: "—",
+CHICAGO_RULES (format example only; Chicago 6.91 em dash spacing already exists as chicago-22):
+{ id: "chicago-97-keyword", category: "punctuation",
+  name: "Chicago 6.xx — Description",
+  pattern: "…", flags: "g", replacement: "…",
   severity: "minor", enabled: true },
 
 STYLE_RULES (with POS):
 { id: "style-noun-string", category: "grammar",
-  name: "Google Dev Docs — Avoid noun strings (3+ nouns in a row)",
+  name: "Google Developer Docs Style — Avoid noun strings (3+ nouns in a row)",
   pattern: "\\\\b(\\\\w+)\\\\s+(\\\\w+)\\\\s+(\\\\w+)\\\\b", flags: "g",
   replacement: "(consider restructuring)", severity: "minor", enabled: false,
   pos: "NOUN NOUN NOUN" },
 
-TEAM_RULES:
+TEAM_RULES (exact replacement; the pattern matches only wrong spellings):
 { id: "team-product-name", category: "typo",
   name: "Team Manual Standard — Correct product name",
-  pattern: "\\\\bNanoScope\\\\b", flags: "g", replacement: "NanoScope",
-  severity: "minor", enabled: true },
+  pattern: "\\\\b(?:[Nn]anoscope|NANOSCOPE|Nano [Ss]cope)\\\\b", flags: "g",
+  replacement: "NanoScope", severity: "minor", enabled: true },
+
+TEAM_RULES (sentence-initial and mid-sentence in one rule, with $U):
+{ id: "team-imperative", category: "custom",
+  name: "Team Manual Standard — Use the imperative form for instructions (not \\"You should …\\")",
+  pattern: "\\\\bYou should (\\\\w+)|\\\\byou should (\\\\w+)", flags: "g",
+  replacement: "$U1$2", severity: "major", enabled: true },
 
 Rule with skipOnItalic:
 { id: "chicago-87-thousands-comma", category: "numbers_abbreviations",
