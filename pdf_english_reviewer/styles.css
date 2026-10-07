@@ -37,7 +37,7 @@ h1, h2, h3, p { margin: 0; }
 .nav-btn.active { border-bottom-color: var(--blue); color: var(--navy); }
 
 main { min-height: calc(100vh - 76px); }
-.upload-panel { width: min(1050px, calc(100vw - 80px)); margin: 0 auto; padding: 84px 0; display: flex; justify-content: center; align-items: center; }
+.upload-panel { min-height: calc(100vh - 76px); padding: 40px; display: flex; justify-content: center; align-items: center; }
 .eyebrow { letter-spacing: .11em; font-size: 10px; color: var(--blue); font-weight: 800; }
 .intro-copy h2 { max-width: 620px; margin-top: 15px; font-size: 36px; line-height: 1.15; letter-spacing: -0.035em; }
 .intro-copy p { max-width: 580px; margin-top: 18px; color: var(--muted); font-size: 16px; line-height: 1.65; }
