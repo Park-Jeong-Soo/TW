@@ -1,4 +1,5 @@
 // demo_v4.js — PDF English Reviewer (client-side preview shim), v4
+// Edited with demo_editor (20261007T164042): 1 deleted, 6 self-check test change(s).
 // Edited with demo_editor (20261007T113215): 3 edited, 3 deleted, 6 self-check test change(s).
 // Edited with demo_editor (20261002T171837): 1 deleted, 1 self-check test change(s).
 //
@@ -222,6 +223,7 @@
   const RULES_EDIT_20261007T113215_KEY = "tw-demo-rules-edit-20261007t113215";
   const RULES_EDIT_20261007T140724_KEY = "tw-demo-rules-edit-20261007t140724";
   const RULES_EDIT_20261007T180000_KEY = "tw-demo-rules-edit-20261007t180000";
+  const RULES_EDIT_20261007T164042_KEY = "tw-demo-rules-edit-20261007t164042";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -658,22 +660,6 @@
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
     // ── team-imperative (v3) ─────────────────────────────────────────────
-    // Guideline: Start instructions with an imperative verb.
-    //            동작 설명은 명령형 동사로 시작합니다.
-    // Why:       The reader sees the action first, and the sentence is shorter.
-    // Source:    Team standard, based on Google "Procedures"
-    //            (https://developers.google.com/style/procedures).
-    // Scope:     All body text (the engine has no "numbered steps only" scope).
-    // Triggers:  You should / need to / have to …
-    //            ("You must" is left alone: safety notes use it on purpose.)
-    // Fix:       Automatic. $U1 = group 1 with its first letter capitalized.
-    //   You should use the imperative form.        -> Use the imperative form.
-    //   If the tip breaks, you should replace it.  -> If the tip breaks, replace it.
-    // Do not flag (result or ability, not an action):
-    //   You should see a green light.  /  You should be able to scan the sample.
-    // "should not" is handled by team-imperative-negative(-mid), "Please" by team-please.
-    { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
-      pattern: "\\bYou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
     // ── team-spelling ─────────────────────────────────────────────────────
     // Body text only: every word is checked against the US English dictionary
     // (vendor/en_US.dic) and the team word list (SPELL_TEAM_WORDS below, plus words added
@@ -1095,6 +1081,25 @@
         rules.forEach((rule) => { if (rule.category === "typo") rule.category = "spelling"; });
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261007T180000_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EDIT_20261007T164042_KEY) !== "done") {
+        // demo_editor: rule changes for users who already have saved rules.
+        const added = [];
+        const removed = ["team-imperative"];
+        const previous = {};
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...DEFAULT_RULES.filter((rule) => added.includes(rule.id) && !existingIds.has(rule.id)));
+        for (let i = rules.length - 1; i >= 0; i--) if (removed.includes(rules[i].id)) rules.splice(i, 1);
+        // Changed rules are updated only where the user has not edited them in the browser.
+        const fields = ["name", "category", "pattern", "flags", "replacement", "severity", "pos"];
+        for (const [id, prev] of Object.entries(previous)) {
+          const r = rules.find((rule) => rule.id === id), now = DEFAULT_RULES.find((rule) => rule.id === id);
+          if (!r || !now) continue;
+          if (fields.every((f) => (r[f] ?? "") === (prev[f] ?? ""))) fields.forEach((f) => { if (now[f] === undefined) delete r[f]; else r[f] = now[f]; });
+          if (r.enabled === prev.enabled) r.enabled = now.enabled !== false;
+        }
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261007T164042_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1775,14 +1780,6 @@
     { category: "numbers_abbreviations", ruleId: "style-date-day-month", flag: "31 July 2016", wrong: "Firmware 2.1 shipped on 31 July 2016.", right: "Firmware 2.1 shipped on July 31, 2016." },
     { category: "numbers_abbreviations", ruleId: "style-date-numeric", flag: "07/10/2026", wrong: "The calibration expires on 07/10/2026.", right: "The calibration expires on October 7, 2026.", noFixCheck: true },
     // ── Custom ──
-    { category: "custom", ruleId: "team-imperative", flag: "You should use", wrong: "You should use the imperative form as the default in manuals.", right: "Use the imperative form as the default in manuals." },
-    { category: "custom", ruleId: "team-imperative", flag: "you should replace", wrong: "If the tip breaks, you should replace it.", right: "If the tip breaks, replace it." },
-    // The corrected text keeps a result sentence, which the rule must not flag.
-    { category: "custom", ruleId: "team-imperative", flag: "You should press", wrong: "You should press Start. You should see a green light.", right: "Press Start. You should see a green light." },
-    // team-imperative v3: examples from the rule request (Not recommended -> Recommended, Do not flag)
-    { category: "custom", ruleId: "team-imperative", flag: "You need to", wrong: "You need to press Start. You should be able to scan the sample.", right: "Press Start. You should be able to scan the sample." },
-    { category: "custom", ruleId: "team-imperative", flag: "You have to", wrong: "You have to calibrate the stage. You must wear gloves.", right: "Calibrate the stage. You must wear gloves." },
-    { category: "custom", ruleId: "team-imperative", flag: "you need to restart", wrong: "If the LED blinks, you need to restart the tool.", right: "If the LED blinks, restart the tool." },
     // Google Developer Docs Style (errata-ai/Google port)
     { category: "grammar", ruleId: "style-timeless", flag: "currently", wrong: "The tool currently supports two scan modes.", right: "The tool supports two scan modes.", noFixCheck: true },
     { category: "grammar", ruleId: "style-excessive-claims", flag: "fastest", wrong: "The fastest method needs one step.", right: "This method needs one step.", noFixCheck: true },
