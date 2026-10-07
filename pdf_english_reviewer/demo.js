@@ -192,7 +192,6 @@
   const SPELL_BUNDLE_URL = window.SPELL_BUNDLE_URL || "vendor/spell-bundle.min.js";
   const SPELL_AFF_URL = window.SPELL_AFF_URL || "vendor/en_US.aff";
   const SPELL_DIC_URL = window.SPELL_DIC_URL || "vendor/en_US.dic";
-  const SPELL_USER_WORDS_KEY = "tw-demo-spell-user-words-v1"; // words added in the browser
   const SPELL_SUGGEST_LIMIT = 200; // unknown words per review that get suggestions (~40 ms each)
   const VALE_STYLES = window.VALE_STYLES || "EnTech";
   const VALE_TIMEOUT_MS = window.VALE_TIMEOUT_MS || 10 * 60 * 1000;
@@ -222,6 +221,7 @@
   const RULES_EDIT_20261007T113215_KEY = "tw-demo-rules-edit-20261007t113215";
   const RULES_EDIT_20261007T140724_KEY = "tw-demo-rules-edit-20261007t140724";
   const RULES_EDIT_20261007T180000_KEY = "tw-demo-rules-edit-20261007t180000";
+  const RULES_EDIT_20261007T162842_KEY = "tw-demo-rules-edit-20261007t162842";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -657,27 +657,10 @@
       pattern: "^(?:Figure|Fig\\.|Table)\\s+\\d+[.:]\\s+.+$", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
-    // ── team-imperative (v3) ─────────────────────────────────────────────
-    // Guideline: Start instructions with an imperative verb.
-    //            동작 설명은 명령형 동사로 시작합니다.
-    // Why:       The reader sees the action first, and the sentence is shorter.
-    // Source:    Team standard, based on Google "Procedures"
-    //            (https://developers.google.com/style/procedures).
-    // Scope:     All body text (the engine has no "numbered steps only" scope).
-    // Triggers:  You should / need to / have to …
-    //            ("You must" is left alone: safety notes use it on purpose.)
-    // Fix:       Automatic. $U1 = group 1 with its first letter capitalized.
-    //   You should use the imperative form.        -> Use the imperative form.
-    //   If the tip breaks, you should replace it.  -> If the tip breaks, replace it.
-    // Do not flag (result or ability, not an action):
-    //   You should see a green light.  /  You should be able to scan the sample.
-    // "should not" is handled by team-imperative-negative(-mid), "Please" by team-please.
-    { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
-      pattern: "\\bYou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
     // ── team-spelling ─────────────────────────────────────────────────────
     // Body text only: every word is checked against the US English dictionary
-    // (vendor/en_US.dic) and the team word list (SPELL_TEAM_WORDS below, plus words added
-    // in the browser). Body = paragraphs set in 10 or 10.5 pt (the team body sizes, as in
+    // (vendor/en_US.dic) and the team word list (SPELL_TEAM_WORDS below; edit it in this
+    // file, there is no word list stored in the browser). Body = paragraphs set in 10 or 10.5 pt (the team body sizes, as in
     // team-title-case); headings, figure/table labels and table cells use other sizes and
     // are not checked. A bold body-size paragraph without a final period is a heading too.
     // Checked by runSpellCheckOnPdf(); the pattern and replacement are shown for reference.
@@ -1045,8 +1028,9 @@
         // upgrade the first version ("\\byou should\\b", advisory note) unless the user edited it.
         const def = TEAM_RULES.find((rule) => rule.id === "team-imperative");
         const r = rules.find((rule) => rule.id === "team-imperative");
-        if (!r) rules.push({ ...def });
-        else if (r.pattern === "\\byou should\\b") Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
+        // team-imperative was deleted later (RULES_EDIT_20261007T162842_KEY): skip when it is gone.
+        if (def && !r) rules.push({ ...def });
+        else if (def && r.pattern === "\\byou should\\b") Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261006T081608_KEY, "done");
       }
@@ -1056,8 +1040,8 @@
         const V2_PATTERN = "\\bYou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)";
         const def = TEAM_RULES.find((rule) => rule.id === "team-imperative");
         const r = rules.find((rule) => rule.id === "team-imperative");
-        if (!r) rules.push({ ...def });
-        else if (r.pattern === V2_PATTERN) Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
+        if (def && !r) rules.push({ ...def });
+        else if (def && r && r.pattern === V2_PATTERN) Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
         const ids = new Set(rules.map((rule) => rule.id));
         rules.push(...TEAM_RULES.filter((rule) => ["team-imperative-negative", "team-imperative-negative-mid", "team-please"].includes(rule.id) && !ids.has(rule.id)));
         saveRules(rules);
@@ -1095,6 +1079,14 @@
         rules.forEach((rule) => { if (rule.category === "typo") rule.category = "spelling"; });
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261007T180000_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EDIT_20261007T162842_KEY) !== "done") {
+        // Delete team-imperative from saved rules, and the browser-only spelling word list
+        // (removed with the "Add to the team word list" button; use SPELL_TEAM_WORDS).
+        for (let i = rules.length - 1; i >= 0; i--) if (rules[i].id === "team-imperative") rules.splice(i, 1);
+        try { localStorage.removeItem("tw-demo-spell-user-words-v1"); } catch { /* ignore */ }
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261007T162842_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1775,14 +1767,6 @@
     { category: "numbers_abbreviations", ruleId: "style-date-day-month", flag: "31 July 2016", wrong: "Firmware 2.1 shipped on 31 July 2016.", right: "Firmware 2.1 shipped on July 31, 2016." },
     { category: "numbers_abbreviations", ruleId: "style-date-numeric", flag: "07/10/2026", wrong: "The calibration expires on 07/10/2026.", right: "The calibration expires on October 7, 2026.", noFixCheck: true },
     // ── Custom ──
-    { category: "custom", ruleId: "team-imperative", flag: "You should use", wrong: "You should use the imperative form as the default in manuals.", right: "Use the imperative form as the default in manuals." },
-    { category: "custom", ruleId: "team-imperative", flag: "you should replace", wrong: "If the tip breaks, you should replace it.", right: "If the tip breaks, replace it." },
-    // The corrected text keeps a result sentence, which the rule must not flag.
-    { category: "custom", ruleId: "team-imperative", flag: "You should press", wrong: "You should press Start. You should see a green light.", right: "Press Start. You should see a green light." },
-    // team-imperative v3: examples from the rule request (Not recommended -> Recommended, Do not flag)
-    { category: "custom", ruleId: "team-imperative", flag: "You need to", wrong: "You need to press Start. You should be able to scan the sample.", right: "Press Start. You should be able to scan the sample." },
-    { category: "custom", ruleId: "team-imperative", flag: "You have to", wrong: "You have to calibrate the stage. You must wear gloves.", right: "Calibrate the stage. You must wear gloves." },
-    { category: "custom", ruleId: "team-imperative", flag: "you need to restart", wrong: "If the LED blinks, you need to restart the tool.", right: "If the LED blinks, restart the tool." },
     // Google Developer Docs Style (errata-ai/Google port)
     { category: "grammar", ruleId: "style-timeless", flag: "currently", wrong: "The tool currently supports two scan modes.", right: "The tool supports two scan modes.", noFixCheck: true },
     { category: "grammar", ruleId: "style-excessive-claims", flag: "fastest", wrong: "The fastest method needs one step.", right: "This method needs one step.", noFixCheck: true },
@@ -2085,17 +2069,6 @@
   // Words are read from paragraphs (buildParagraphs), so a word hyphenated across two
   // lines ("calibra-" + "ted") is checked joined.
   let spellerReady = null;
-  function spellUserWords() {
-    try {
-      const v = JSON.parse(localStorage.getItem(SPELL_USER_WORDS_KEY) || "[]");
-      return Array.isArray(v) ? v.filter((w) => typeof w === "string" && w.trim()).map((w) => w.trim()) : [];
-    } catch { return []; }
-  }
-  function saveSpellUserWords(words) {
-    const unique = [...new Set(words.map((w) => String(w).trim()).filter(Boolean))];
-    try { localStorage.setItem(SPELL_USER_WORDS_KEY, JSON.stringify(unique)); } catch (err) { console.warn("[demo][spell] word list not saved:", err); }
-    spellerReady = null; // rebuilt with the new list on the next review
-  }
   async function ensureSpeller() {
     if (!spellerReady) spellerReady = (async () => {
       if (!window.SpellBundle) await loadScript(SPELL_BUNDLE_URL);
@@ -2106,7 +2079,7 @@
       }));
       const speller = window.SpellBundle.nspell(aff, dic);
       const exact = new Map(); // folded form -> team spelling with capitals or accents
-      for (const w of [...SPELL_TEAM_WORDS, ...spellUserWords()]) {
+      for (const w of SPELL_TEAM_WORDS) {
         speller.add(w);
         if (w === w.toLowerCase() && !/[^\x00-\x7f]/.test(w)) speller.add(spellPlural(w));
         else exact.set(spellFold(w), w);
@@ -2216,7 +2189,7 @@
         }
       }
     }
-    console.info(`[demo][spell] done — ${findings.length} findings. Flagged words (add correct ones to the team word list):`,
+    console.info(`[demo][spell] done — ${findings.length} findings. Flagged words (add correct ones to SPELL_TEAM_WORDS in demo.js):`,
       [...flagged.entries()].sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w} ×${n}`).join(", ") || "none");
     return findings;
   }
@@ -2246,7 +2219,7 @@
     const spell = await ensureSpeller();
     let tokens = [];
     try { tokens = tagParagraph(await ensureTagger(), String(text)); } catch { /* POS column left empty */ }
-    const team = new Set([...SPELL_TEAM_WORDS, ...spellUserWords()]);
+    const team = new Set(SPELL_TEAM_WORDS);
     const rows = [...String(text).matchAll(SPELL_WORD_RE)].map((m) => {
       const word = spellNormalize(m[0].replace(/['’]s?$/, ""));
       const pos = tokens.filter((t) => t.start < m.index + m[0].length && t.end > m.index && t.pos !== "SPACE").map((t) => t.pos).join("+");
@@ -2269,7 +2242,7 @@
     const pass = shouldPass.filter((w) => !spell.speller.correct(w));
     const fail = shouldFail.filter((w) => spell.speller.correct(w));
     const ok = !pass.length && !fail.length;
-    console.info(`[demo][spell] self-test ${ok ? "OK" : "FAILED"} — dictionary: ${SPELL_DIC_URL}, team words: ${SPELL_TEAM_WORDS.length} + ${spellUserWords().length} added`
+    console.info(`[demo][spell] self-test ${ok ? "OK" : "FAILED"} — dictionary: ${SPELL_DIC_URL}, team words: ${SPELL_TEAM_WORDS.length}`
       + (pass.length ? ` · not accepted (should be): ${pass.join(", ")}` : "")
       + (fail.length ? ` · accepted (should not be): ${fail.join(", ")}` : ""));
     return ok;
@@ -2878,16 +2851,6 @@
       const action = btn.dataset.demoAction;
       const f = viewerState.findings.find((x) => x.id === id);
       if (!f) return;
-      if (action === "add-word") {
-        // Add the word to the team word list; drop every finding for the same word.
-        saveSpellUserWords([...spellUserWords(), f.text]);
-        viewerState.findings = viewerState.findings.filter((x) => !(x.ruleId === "team-spelling" && x.text === f.text));
-        if (viewerState.activeFindingId === f.id) viewerState.activeFindingId = null;
-        saveReviewDecisions();
-        renderIssuesPanel();
-        renderCurrentPages();
-        return;
-      }
       if (action === "accept") f.status = f.status === "accepted" ? "pending" : "accepted";
       if (action === "reject") f.status = f.status === "rejected" ? "pending" : "rejected";
       saveReviewDecisions();
@@ -2960,10 +2923,6 @@
               ${f.status === "rejected" ? "✕ Ignored" : "Ignore"}
             </button>
           </div>
-          ${f.ruleId === "team-spelling" && !String(f.suggestion || "").startsWith("(") ? "" : f.ruleId === "team-spelling" ? `<button data-demo-action="add-word" data-demo-finding-id="${f.id}" title="The word passes from the next review on (Rules → team-spelling → Edit to remove it)"
-              style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid #6b7280;background:#fff;color:#374151;border-radius:6px;cursor:pointer;font-size:12px;">
-              Add "${escapeHtml(f.text)}" to the team word list
-            </button>` : ""}
         </article>`;
     }).join("");
   }
@@ -3231,11 +3190,7 @@
           </label>
           ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Heading: Bold/Semibold/Heavy, spaced from nearby lines, and no period. Body: 10 or 10.5 pt (±0.15 pt) ending in a period. Figure/Table labels: recognized outside those font sizes. Callouts follow the heading criteria. This rule uses PDF layout; the pattern is shown for reference.</p>' : ''}
           ${r.id === "team-table-header-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Table headers are identified from PDF layout and checked separately. The pattern is shown for reference.</p>' : ''}
-          ${r.id === "team-spelling" ? `<p style="margin:0;color:#6b7280;font-size:12px;">Body text only (10 or 10.5 pt; headings, labels and table cells are skipped). Nouns only: a word missing from both lists is reported when the POS tagger reads it as a common noun. Every word is checked against the US English dictionary and the team word list (${SPELL_TEAM_WORDS.length} built-in words). The pattern and replacement are shown for reference.</p>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Added team words (one per line)
-            <textarea name="spellWords" rows="6" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;font-size:12px;">${escapeHtml(spellUserWords().join("\n"))}</textarea>
-            <span style="color:#6b7280;font-size:11px;">Lowercase word: any capitalization and the plural pass. Word with capitals or accents (SmartScan): only that exact form passes.</span>
-          </label>` : ''}
+          ${r.id === "team-spelling" ? `<p style="margin:0;color:#6b7280;font-size:12px;">Body text only (10 or 10.5 pt; headings, labels and table cells are skipped). Nouns only: a word missing from both lists is reported when the POS tagger reads it as a common noun. Every word is checked against the US English dictionary and the team word list (${SPELL_TEAM_WORDS.length} built-in words). The pattern and replacement are shown for reference.</p>` : ''}
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">POS condition (optional) — one part of speech per matched word
             <input name="pos" value="${escapeHtml(r.pos || "")}" ${layoutRule ? "readonly" : ""} placeholder="e.g. ADJ|NOUN NOUN NOUN|PROPN — leave empty for a text-only rule" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
             <span style="color:#6b7280;font-size:11px;">${POS_TAGS.join(" ")} · "|" = either · "*" = any one word · "..." = any number of words</span>
@@ -3297,7 +3252,6 @@
       try { new RegExp(rule.pattern, rule.flags); } catch (err) { alert("Invalid regex: " + err.message); return; }
       const posErr = posConditionError(rule.pos);
       if (posErr) { alert(posErr); return; }
-      if (r.id === "team-spelling") saveSpellUserWords(String(fd.get("spellWords") || "").split(/\r?\n/));
       upsertRule(rule);
       modal.style.display = "none";
       renderRuleEditor();
