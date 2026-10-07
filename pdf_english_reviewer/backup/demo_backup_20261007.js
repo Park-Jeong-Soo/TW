@@ -675,13 +675,23 @@
     { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
       pattern: "\\bYou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
     // ── team-spelling ─────────────────────────────────────────────────────
-    // Every word is checked against the US English dictionary (vendor/en_US.dic) and the
-    // team word list (SPELL_TEAM_WORDS below, plus words added in the browser).
+    // Body text only: every word is checked against the US English dictionary
+    // (vendor/en_US.dic) and the team word list (SPELL_TEAM_WORDS below, plus words added
+    // in the browser). Body = paragraphs set in 10 or 10.5 pt (the team body sizes, as in
+    // team-title-case); headings, figure/table labels and table cells use other sizes and
+    // are not checked. A bold body-size paragraph without a final period is a heading too.
     // Checked by runSpellCheckOnPdf(); the pattern and replacement are shown for reference.
     // Not checked: one letter, words with digits (XE7), all caps (AFM), a capital after
     // the first letter (SmartScan, MPa), URLs, e-mail addresses, paths, "et al", "[sic]".
-    // Suggestion: the team spelling for a case or accent slip ("Smartscan" -> "SmartScan"),
-    // otherwise up to three dictionary suggestions as a note.
+    // Nouns only: a word that is in neither list is reported only when the POS tagger reads
+    // it as a common noun (NOUN). The tagger reads almost every unknown word as NOUN, so
+    // misspellings are still caught; what this drops is proper nouns (PROPN: Bruker,
+    // Keysight) and words read as verbs or adjectives. Case or accent slips of team words
+    // ("Smartscan" -> "SmartScan", "Lyncee" -> "Lyncée") are always reported.
+    // Suggestion: the team spelling for a case or accent slip, otherwise up to three
+    // dictionary suggestions as a note.
+    // Console (F12): twSpell("some words") shows how each word is judged;
+    // twSpell.selfTest() checks that the dictionary files load and work.
     { id: "team-spelling", category: "spelling", name: "Team Manual Standard — Spelling (US English dictionary + team word list)",
       pattern: "(checked against the spelling dictionary)", flags: "g", replacement: "(spelling suggestions)", severity: "minor", enabled: true },
     // Team terminology (Park_pronouns_reviewed_2.xlsx, 확인필요 #6 and #7).
@@ -1611,8 +1621,9 @@
     { category: "spelling", ruleId: "style-us-spelling-ize", flag: "organises", wrong: "The tool organises the scan files.", right: "The tool organizes the scan files." },
     { category: "spelling", ruleId: "style-us-spelling-our", flag: "colour", wrong: "Check the colour of the LED.", right: "Check the color of the LED." },
     { category: "spelling", ruleId: "style-us-spelling-center", flag: "centre", wrong: "Place the sample in the centre of the stage.", right: "Place the sample in the center of the stage." },
-    // team-spelling: dictionary + team word list (setpoint, SmartScan)
-    { category: "spelling", ruleId: "team-spelling", flag: "calibraton", wrong: "Run the calibraton before the scan.", right: "Run the calibration before the scan.", noFixCheck: true },
+    // team-spelling: dictionary + team word list (setpoint, SmartScan); a proper noun
+    // that is in neither list (Keysight, PROPN) is not reported
+    { category: "spelling", ruleId: "team-spelling", flag: "calibraton", wrong: "Run the calibraton with the Keysight analyzer.", right: "Run the calibration with the Keysight analyzer.", noFixCheck: true },
     { category: "spelling", ruleId: "team-spelling", flag: "Smartscan", wrong: "Open Smartscan and adjust the setpoint.", right: "Open SmartScan and adjust the setpoint." },
     // ── Spacing ──
     { category: "spacing", ruleId: "space-double", flag: "  ", wrong: "Connect the  probe holder to the stage.", right: "Connect the probe holder to the stage.",
@@ -2104,7 +2115,9 @@
     })().catch((err) => { spellerReady = null; throw err; });
     return spellerReady;
   }
-  const SPELL_WORD_RE = /[A-Za-zÀ-ÖØ-öø-ÿ0-9]+(?:['’-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*['’]?/g;
+  // Letters include PDF ligatures (ﬁ ﬂ ﬀ ﬃ ﬄ) and the soft hyphen, so "conﬁgure" stays one word.
+  const SPELL_WORD_RE = /[A-Za-zÀ-ÖØ-öø-ÿ0-9\u00AD\uFB00-\uFB06]+(?:['’-][A-Za-zÀ-ÖØ-öø-ÿ0-9\u00AD\uFB00-\uFB06]+)*['’]?/g;
+  const spellNormalize = (w) => w.replace(/’/g, "'").replace(/\u00AD/g, "").replace(/[\uFB00-\uFB06]/g, (ch) => ch.normalize("NFKC"));
   // Never checked: URLs, e-mail addresses, "et al", and a word marked "[sic]".
   const SPELL_SKIP_SPAN_RE = /\b(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\bet al\b|\S+\s*\[sic\]/g;
   // Not checked: one letter, digits (XE7, v2.1), all caps (AFM), and a capital after the
@@ -2139,7 +2152,7 @@
       if (/[_\\/@#<>=~$%&]/.test(before + after)) continue;                              // paths, code, markup
       if (after === "." && /[A-Za-z]/.test(text[end + 1] || "")) continue;                // file.ext, e.g.
       if (before === "." && /[A-Za-z]/.test(text[start - 2] || "")) continue;
-      const word = raw.replace(/’/g, "'");
+      const word = spellNormalize(raw);
       const skip = word.includes("-") ? word.split("-").every((p) => !p || spellSkipWord(p)) : spellSkipWord(word);
       if (skip || knownWord(word)) continue;
       const breaks = [...raw].map((ch, i) => (ch === "-" && isLineBreakHyphen(start + i) ? i : -1)).filter((i) => i >= 0);
@@ -2154,7 +2167,10 @@
     const rule = activeRules().find((r) => r.id === "team-spelling");
     if (!rule) return [];
     const spell = await ensureSpeller();
-    const cache = new Map(), suggestions = new Map();
+    let nlp = null;
+    try { nlp = await ensureTagger(); }
+    catch (err) { console.warn("[demo][spell] POS tagger unavailable — only case/accent slips of team words are reported:", err); }
+    const cache = new Map(), suggestions = new Map(), flagged = new Map();
     const suggest = (word) => {
       if (!suggestions.has(word)) {
         suggestions.set(word, suggestions.size < SPELL_SUGGEST_LIMIT ? spell.speller.suggest(word).slice(0, 3) : []);
@@ -2167,18 +2183,28 @@
       const page = await pdf.getPage(p);
       let content;
       try { content = await page.getTextContent(); } catch { continue; }
+      rememberStyles(content);
+      await resolveFontNames(page, content.items);
       for (const para of buildParagraphs(content.items, page.view[3])) {
+        if (!isSpellBodyParagraph(para)) continue;
         // A hyphen that is the last character of one line, followed by the next line.
         const lineBreakHyphen = (i) => {
           const a = para.map[i], b = para.map[i + 1];
           return !!(a && b && a.item !== b.item && a.i === a.item.str.length - 1
             && Math.abs(a.item.transform[5] - b.item.transform[5]) > 1);
         };
+        let tokens = null; // tagged only when the paragraph has a dictionary miss
         for (const hit of spellCheckText(para.text, spell, cache, lineBreakHyphen)) {
+          if (!hit.team) {
+            if (!nlp) continue;
+            tokens = tokens || tagParagraph(nlp, para.text);
+            if (!tokens.some((t) => t.start < hit.end && t.end > hit.start && t.pos === "NOUN")) continue;
+          }
           if (rule.skipOnItalic && para.map[hit.start] && isItalicItem(para.map[hit.start].item)) continue;
           const boxes = boxesForRange(para, hit.start, hit.end);
           if (!boxes.length) continue;
           const options = hit.team ? [] : suggest(hit.word);
+          flagged.set(hit.word, (flagged.get(hit.word) || 0) + 1);
           findings.push({
             id: newId(), page: p, ruleId: rule.id, ruleName: rule.name,
             category: rule.category, severity: rule.severity,
@@ -2190,8 +2216,18 @@
         }
       }
     }
-    console.info(`[demo][spell] done — ${findings.length} findings, ${suggestions.size} words with suggestions`);
+    console.info(`[demo][spell] done — ${findings.length} findings. Flagged words (add correct ones to the team word list):`,
+      [...flagged.entries()].sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w} ×${n}`).join(", ") || "none");
     return findings;
+  }
+  // Body paragraph: its main text item (most characters) is set in a body size (10 or
+  // 10.5 pt, isExcludedTitleItem), and it is not a bold line without a final period.
+  function isSpellBodyParagraph(para) {
+    const chars = new Map();
+    for (const m of para.map) if (m) chars.set(m.item, (chars.get(m.item) || 0) + 1);
+    const main = [...chars.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!main || !isExcludedTitleItem(main)) return false;
+    return !(isBoldItem(main) && !/[.!?:]["”’)]*$/.test(para.text.trim()));
   }
   // A spelling finding is dropped when a rule already flags the same word (typo-recieve,
   // style-us-spelling-our, ...). Only short matches count, so a whole-heading finding
@@ -2202,6 +2238,42 @@
       && normText(f.text).toLowerCase().includes(normText(s.text).toLowerCase().split("-")[0])
       && (f.bboxes || [f.bbox]).some((fb) => (s.bboxes || [s.bbox]).some((sb) => bboxOverlap(fb, sb) > 0.5))));
   }
+
+  // Console tools for checking the dictionary (F12 → Console).
+  //   twSpell("setpoints Smartscan calibraton Bruker")  how each word is judged
+  //   twSpell.selfTest()                                 do the dictionary files work?
+  window.twSpell = async (text) => {
+    const spell = await ensureSpeller();
+    let tokens = [];
+    try { tokens = tagParagraph(await ensureTagger(), String(text)); } catch { /* POS column left empty */ }
+    const team = new Set([...SPELL_TEAM_WORDS, ...spellUserWords()]);
+    const rows = [...String(text).matchAll(SPELL_WORD_RE)].map((m) => {
+      const word = spellNormalize(m[0].replace(/['’]s?$/, ""));
+      const pos = tokens.filter((t) => t.start < m.index + m[0].length && t.end > m.index && t.pos !== "SPACE").map((t) => t.pos).join("+");
+      let result;
+      if (spellSkipWord(word)) result = "skipped (one letter, digits, all caps, or inner capital)";
+      else if (team.has(word)) result = "OK — team word list";
+      else if (spell.speller.correct(word)) result = "OK — dictionary";
+      else if (spell.exact.get(spellFold(word))) result = `case/accent slip → ${spell.exact.get(spellFold(word))} (reported)`;
+      else result = `not found${pos.includes("NOUN") ? " (reported: NOUN)" : ` (not reported: ${pos || "no POS"})`} → ${spell.speller.suggest(word).slice(0, 3).join(", ") || "no suggestion"}`;
+      return { word, pos, result };
+    });
+    console.table(rows);
+    return rows;
+  };
+  window.twSpell.selfTest = async () => {
+    const spell = await ensureSpeller();
+    const shouldPass = ["receive", "measurement", "analyze", "color", "center", "aluminum", "calibration", "microscope",
+      "resolution", "temperature", "configure", "wafer", "voltages", "don't", "setpoint", "setpoints", "toolkits", "probehand", "Lyncée"];
+    const shouldFail = ["recieve", "calibraton", "temprature", "seperate", "occured", "colour", "Lyncee"];
+    const pass = shouldPass.filter((w) => !spell.speller.correct(w));
+    const fail = shouldFail.filter((w) => spell.speller.correct(w));
+    const ok = !pass.length && !fail.length;
+    console.info(`[demo][spell] self-test ${ok ? "OK" : "FAILED"} — dictionary: ${SPELL_DIC_URL}, team words: ${SPELL_TEAM_WORDS.length} + ${spellUserWords().length} added`
+      + (pass.length ? ` · not accepted (should be): ${pass.join(", ")}` : "")
+      + (fail.length ? ` · accepted (should not be): ${fail.join(", ")}` : ""));
+    return ok;
+  };
 
   //
   // ─── Vale (server-side, POS/grammar-aware) ─────────────────────────────
@@ -3159,7 +3231,7 @@
           </label>
           ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Heading: Bold/Semibold/Heavy, spaced from nearby lines, and no period. Body: 10 or 10.5 pt (±0.15 pt) ending in a period. Figure/Table labels: recognized outside those font sizes. Callouts follow the heading criteria. This rule uses PDF layout; the pattern is shown for reference.</p>' : ''}
           ${r.id === "team-table-header-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Table headers are identified from PDF layout and checked separately. The pattern is shown for reference.</p>' : ''}
-          ${r.id === "team-spelling" ? `<p style="margin:0;color:#6b7280;font-size:12px;">Every word is checked against the US English dictionary and the team word list (${SPELL_TEAM_WORDS.length} built-in words). The pattern and replacement are shown for reference.</p>
+          ${r.id === "team-spelling" ? `<p style="margin:0;color:#6b7280;font-size:12px;">Body text only (10 or 10.5 pt; headings, labels and table cells are skipped). Nouns only: a word missing from both lists is reported when the POS tagger reads it as a common noun. Every word is checked against the US English dictionary and the team word list (${SPELL_TEAM_WORDS.length} built-in words). The pattern and replacement are shown for reference.</p>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Added team words (one per line)
             <textarea name="spellWords" rows="6" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;font-size:12px;">${escapeHtml(spellUserWords().join("\n"))}</textarea>
             <span style="color:#6b7280;font-size:11px;">Lowercase word: any capitalization and the plural pass. Word with capitals or accents (SmartScan): only that exact form passes.</span>
