@@ -1,4 +1,5 @@
 // demo_v4.js — PDF English Reviewer (client-side preview shim), v4
+// Edited with demo_editor (20261007T113215): 3 edited, 3 deleted, 6 self-check test change(s).
 // Edited with demo_editor (20261002T171837): 1 deleted, 1 self-check test change(s).
 //
 // v4 changes from the previous demo.js:
@@ -208,6 +209,7 @@
   const RULES_CH87_SKIP_KEY = "tw-demo-rules-ch87-skip-v19";
   const RULES_EDIT_20261006T081608_KEY = "tw-demo-rules-edit-20261006t081608Z";
   const RULES_EDIT_20261007T014023_KEY = "tw-demo-rules-edit-20261007t014023Z";
+  const RULES_EDIT_20261007T113215_KEY = "tw-demo-rules-edit-20261007t113215";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -509,7 +511,7 @@
     //
     // Timeless.yml — https://developers.google.com/style/timeless-documentation
     // "now", "new" and "recently" are left out, as in the package (too many false positives).
-    { id: "style-timeless", category: "custom", name: "Google Developer Docs Style — Avoid time-based words (timeless documentation)",
+    { id: "style-timeless", category: "grammar", name: "Google Developer Docs Style — Avoid time-based words (timeless documentation)",
       pattern: "\\b(?:currently|latest|soon)\\b", flags: "gi", replacement: "(remove the time-based word, or name the version or date)", severity: "minor", enabled: true },
     // FirstPerson.yml — https://developers.google.com/style/pronouns#personal-pronouns
     // Case-sensitive "I", skipping roman numerals such as "Class I" and "Type I".
@@ -525,10 +527,10 @@
       pattern: "\\b(\\w+)!(?=\\s|$)", flags: "g", replacement: "$1.", severity: "major", enabled: false },
     // ExcessiveClaims.yml — https://developers.google.com/style/excessive-claims
     // "never", "always" and "ensure" are left out, as in the package; "best practices" is allowed.
-    { id: "style-excessive-claims", category: "custom", name: "Google Developer Docs Style — Avoid unverifiable claims (best, simplest, fastest, guarantee)",
+    { id: "style-excessive-claims", category: "grammar", name: "Google Developer Docs Style — Avoid unverifiable claims (best, simplest, fastest, guarantee)",
       pattern: "\\b(?:best(?! practices?\\b)|simplest|fastest|guarantees?)\\b", flags: "gi", replacement: "(remove the claim or support it with data)", severity: "minor", enabled: true },
     // Anthropomorphism.yml — https://developers.google.com/style/anthropomorphism
-    { id: "style-anthropomorphism", category: "custom", name: "Google Developer Docs Style — Don't attribute human qualities to software or hardware",
+    { id: "style-anthropomorphism", category: "grammar", name: "Google Developer Docs Style — Don't attribute human qualities to software or hardware",
       pattern: "\\b(?:sees|tells)\\b", flags: "gi", replacement: "(describe what the product does, such as \"shows\" or \"detects\")", severity: "minor", enabled: true },
     // OptionalPlurals.yml — https://developers.google.com/style/plurals-parentheses
     // Suggestion drops "(s)", as the package does; use the plural instead where it reads better.
@@ -660,21 +662,6 @@
     // "should not" is handled by team-imperative-negative(-mid), "Please" by team-please.
     { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
       pattern: "\\bYou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
-    // Negative instructions -> "Do not …". The engine cannot capitalize a word that is
-    // not in the text, so sentence-initial ("You …") and mid-sentence ("…, you …")
-    // forms are two rules with fixed "Do not" / "do not".
-    //   You should not touch the tip.               -> Do not touch the tip.
-    //   If the tip is hot, you should not touch it. -> If the tip is hot, do not touch it.
-    { id: "team-imperative-negative", category: "custom", name: "Team Manual Standard — Use \"Do not …\" for negative instructions (not \"You should not …\")",
-      pattern: "\\bYou should not (\\w+)", flags: "g", replacement: "Do not $1", severity: "major", enabled: true },
-    { id: "team-imperative-negative-mid", category: "custom", name: "Team Manual Standard — Use \"do not …\" for negative instructions mid-sentence (not \"you should not …\")",
-      pattern: "\\byou should not (\\w+)", flags: "g", replacement: "do not $1", severity: "major", enabled: true },
-    // Instructions start with the verb, without "please" (team standard; separate rule so
-    // it can be turned off on its own).
-    //   Please close the lid.            -> Close the lid.
-    //   To continue, please click OK.    -> To continue, click OK.
-    { id: "team-please", category: "custom", name: "Team Manual Standard — Omit \"please\" in instructions",
-      pattern: "\\bPlease (\\w+)|\\bplease (\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
   // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
@@ -1013,6 +1000,25 @@
         rules.push(...TEAM_RULES.filter((rule) => ["team-imperative-negative", "team-imperative-negative-mid", "team-please"].includes(rule.id) && !ids.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261007T014023_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EDIT_20261007T113215_KEY) !== "done") {
+        // demo_editor: rule changes for users who already have saved rules.
+        const added = [];
+        const removed = ["team-imperative-negative","team-imperative-negative-mid","team-please"];
+        const previous = {"style-timeless":{"name":"Google Developer Docs Style — Avoid time-based words (timeless documentation)","category":"custom","pattern":"\\b(?:currently|latest|soon)\\b","flags":"gi","replacement":"(remove the time-based word, or name the version or date)","severity":"minor","enabled":true},"style-excessive-claims":{"name":"Google Developer Docs Style — Avoid unverifiable claims (best, simplest, fastest, guarantee)","category":"custom","pattern":"\\b(?:best(?! practices?\\b)|simplest|fastest|guarantees?)\\b","flags":"gi","replacement":"(remove the claim or support it with data)","severity":"minor","enabled":true},"style-anthropomorphism":{"name":"Google Developer Docs Style — Don't attribute human qualities to software or hardware","category":"custom","pattern":"\\b(?:sees|tells)\\b","flags":"gi","replacement":"(describe what the product does, such as \"shows\" or \"detects\")","severity":"minor","enabled":true}};
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...DEFAULT_RULES.filter((rule) => added.includes(rule.id) && !existingIds.has(rule.id)));
+        for (let i = rules.length - 1; i >= 0; i--) if (removed.includes(rules[i].id)) rules.splice(i, 1);
+        // Changed rules are updated only where the user has not edited them in the browser.
+        const fields = ["name", "category", "pattern", "flags", "replacement", "severity", "pos"];
+        for (const [id, prev] of Object.entries(previous)) {
+          const r = rules.find((rule) => rule.id === id), now = DEFAULT_RULES.find((rule) => rule.id === id);
+          if (!r || !now) continue;
+          if (fields.every((f) => (r[f] ?? "") === (prev[f] ?? ""))) fields.forEach((f) => { if (now[f] === undefined) delete r[f]; else r[f] = now[f]; });
+          if (r.enabled === prev.enabled) r.enabled = now.enabled !== false;
+        }
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261007T113215_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1691,13 +1697,10 @@
     { category: "custom", ruleId: "team-imperative", flag: "You need to", wrong: "You need to press Start. You should be able to scan the sample.", right: "Press Start. You should be able to scan the sample." },
     { category: "custom", ruleId: "team-imperative", flag: "You have to", wrong: "You have to calibrate the stage. You must wear gloves.", right: "Calibrate the stage. You must wear gloves." },
     { category: "custom", ruleId: "team-imperative", flag: "you need to restart", wrong: "If the LED blinks, you need to restart the tool.", right: "If the LED blinks, restart the tool." },
-    { category: "custom", ruleId: "team-please", flag: "Please close", wrong: "Please close the lid before the scan.", right: "Close the lid before the scan." },
-    { category: "custom", ruleId: "team-imperative-negative", flag: "You should not touch", wrong: "You should not touch the tip.", right: "Do not touch the tip." },
-    { category: "custom", ruleId: "team-imperative-negative-mid", flag: "you should not touch", wrong: "If the tip is hot, you should not touch it.", right: "If the tip is hot, do not touch it." },
     // Google Developer Docs Style (errata-ai/Google port)
-    { category: "custom", ruleId: "style-timeless", flag: "currently", wrong: "The tool currently supports two scan modes.", right: "The tool supports two scan modes.", noFixCheck: true },
-    { category: "custom", ruleId: "style-excessive-claims", flag: "fastest", wrong: "The fastest method needs one step.", right: "This method needs one step.", noFixCheck: true },
-    { category: "custom", ruleId: "style-anthropomorphism", flag: "tells", wrong: "The status LED tells you the scan state.", right: "The status LED shows the scan state.", noFixCheck: true },
+    { category: "grammar", ruleId: "style-timeless", flag: "currently", wrong: "The tool currently supports two scan modes.", right: "The tool supports two scan modes.", noFixCheck: true },
+    { category: "grammar", ruleId: "style-excessive-claims", flag: "fastest", wrong: "The fastest method needs one step.", right: "This method needs one step.", noFixCheck: true },
+    { category: "grammar", ruleId: "style-anthropomorphism", flag: "tells", wrong: "The status LED tells you the scan state.", right: "The status LED shows the scan state.", noFixCheck: true },
   ];
   // Text in the header/footer bands (top/bottom MARGIN_CM) must never be flagged.
   const SELF_CHECK_MARGIN_TEXT = {
