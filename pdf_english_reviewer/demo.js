@@ -12,6 +12,11 @@
 // - Highlights use measured glyph widths (also fixes regex-rule highlights).
 // - Multi-line highlights in the viewer and in the exported PDF.
 // - Optional Vale server: set window.VALE_API_URL (e.g. "/api/vale").
+// - Spelling check (team-spelling): vendor/spell-bundle.min.js (nspell, MIT) with
+//   vendor/en_US.aff + vendor/en_US.dic (SCOWL en_US Hunspell dictionary; see
+//   vendor/en_US-LICENSE.txt) and the team word list SPELL_TEAM_WORDS. Loaded on the
+//   first review with the rule on. Override the paths with window.SPELL_BUNDLE_URL,
+//   window.SPELL_AFF_URL and window.SPELL_DIC_URL.
 
 // Browser-side grammar rules on wink-nlp part-of-speech tags.
 // No backend: the tagger runs in the page (wink-nlp + wink-eng-lite-web-model, MIT).
@@ -184,6 +189,11 @@
   const POS_TAGS = ["ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
     "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X"];
   const WINK_BUNDLE_URL = window.WINK_BUNDLE_URL || "vendor/wink-bundle.min.js";
+  const SPELL_BUNDLE_URL = window.SPELL_BUNDLE_URL || "vendor/spell-bundle.min.js";
+  const SPELL_AFF_URL = window.SPELL_AFF_URL || "vendor/en_US.aff";
+  const SPELL_DIC_URL = window.SPELL_DIC_URL || "vendor/en_US.dic";
+  const SPELL_USER_WORDS_KEY = "tw-demo-spell-user-words-v1"; // words added in the browser
+  const SPELL_SUGGEST_LIMIT = 200; // unknown words per review that get suggestions (~40 ms each)
   const VALE_STYLES = window.VALE_STYLES || "EnTech";
   const VALE_TIMEOUT_MS = window.VALE_TIMEOUT_MS || 10 * 60 * 1000;
 
@@ -210,6 +220,7 @@
   const RULES_EDIT_20261006T081608_KEY = "tw-demo-rules-edit-20261006t081608Z";
   const RULES_EDIT_20261007T014023_KEY = "tw-demo-rules-edit-20261007t014023Z";
   const RULES_EDIT_20261007T113215_KEY = "tw-demo-rules-edit-20261007t113215";
+  const RULES_EDIT_20261007T140724_KEY = "tw-demo-rules-edit-20261007t140724";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -662,6 +673,46 @@
     // "should not" is handled by team-imperative-negative(-mid), "Please" by team-please.
     { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
       pattern: "\\bYou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
+    // ── team-spelling ─────────────────────────────────────────────────────
+    // Every word is checked against the US English dictionary (vendor/en_US.dic) and the
+    // team word list (SPELL_TEAM_WORDS below, plus words added in the browser).
+    // Checked by runSpellCheckOnPdf(); the pattern and replacement are shown for reference.
+    // Not checked: one letter, words with digits (XE7), all caps (AFM), a capital after
+    // the first letter (SmartScan, MPa), URLs, e-mail addresses, paths, "et al", "[sic]".
+    // Suggestion: the team spelling for a case or accent slip ("Smartscan" -> "SmartScan"),
+    // otherwise up to three dictionary suggestions as a note.
+    { id: "team-spelling", category: "typo", name: "Team Manual Standard — Spelling (US English dictionary + team word list)",
+      pattern: "(checked against the spelling dictionary)", flags: "g", replacement: "(spelling suggestions)", severity: "minor", enabled: true },
+    // Team terminology (Park_pronouns_reviewed_2.xlsx, 확인필요 #6 and #7).
+    //   STM Tool Kit -> STM Toolkit;  a tool kit -> a toolkit
+    { id: "team-toolkit", category: "hyphenation_terminology", name: "Team Manual Standard — Use \"Toolkit\" (not \"Tool Kit\")",
+      pattern: "\\b([Tt])ool [Kk]it(s)?\\b", flags: "g", replacement: "$1oolkit$2", severity: "minor", enabled: true },
+    //   Liquid probehand -> Liquid Probehand (product name)
+    { id: "team-liquid-probehand", category: "hyphenation_terminology", name: "Team Manual Standard — Product name \"Liquid Probehand\"",
+      pattern: "\\b(?!Liquid Probehand\\b)[Ll]iquid [Pp]robehand\\b", flags: "g", replacement: "Liquid Probehand", severity: "minor", enabled: true },
+  ];
+
+  // Team word list for team-spelling. Source: Park_pronouns_reviewed_2.xlsx, sheet 허용목록
+  // (product list + parksystems.com terms).
+  // - lowercase word: any capitalization passes, and the plural (-s/-es/-ies) is added.
+  // - word with capitals or accents: only that exact form passes; a different case or a
+  //   missing accent ("Smartscan", "Lyncee") gets the exact form as the suggestion.
+  const SPELL_TEAM_WORDS = [
+    // Technical terms not in the dictionary ("toolkit" is, but its plural is not)
+    "electrochemical", "electrochemistry", "ellipsometer", "ellipsometry", "heterodyne",
+    "interferometry", "metrology", "nano", "nanoelectronics", "nanoindentation",
+    "nanolithography", "nanomanipulation", "nanomechanical", "nanometrology", "photodetector",
+    "photomask", "piezoresponse", "probehand", "profilometry", "setpoint", "sideband",
+    "toolkit",
+    // Product and proper names
+    "Lyncée", "MBraun", "NANOscientific", "Hivac", "Interferom",
+    // Product and mode names with inner capitals: skipped by the check, listed so a case
+    // slip ("Smartscan", "Pinpoint scan") gets the exact form as the suggestion
+    "GloveBox", "KnowItAll", "NanoStandard", "PinPoint", "SmartAnalysis", "SmartLitho",
+    "SmartScan", "SmartSimulator", "qPlus", "NX-WaferBasic", "NX-WaferPlus", "NX-HybridWLI",
+    "NX-eAFM", "SThM", "sMIM",
+    // Required by other rules: chicago-59-esports and style-word-wi-fi suggest these
+    "esports", "Wi-Fi",
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
   // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
@@ -1020,6 +1071,14 @@
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261007T113215_KEY, "done");
       }
+      if (localStorage.getItem(RULES_EDIT_20261007T140724_KEY) !== "done") {
+        // Add team-spelling, team-toolkit and team-liquid-probehand for users whose rules
+        // were saved before they existed (TEAM_RULES are not added automatically).
+        const ids = new Set(rules.map((rule) => rule.id));
+        rules.push(...TEAM_RULES.filter((rule) => ["team-spelling", "team-toolkit", "team-liquid-probehand"].includes(rule.id) && !ids.has(rule.id)).map((rule) => ({ ...rule })));
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261007T140724_KEY, "done");
+      }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
       if (titleRules.some((rule) => rule.name !== titleRuleDefault.name || rule.pattern !== titleRuleDefault.pattern)) {
@@ -1227,7 +1286,7 @@
   function runReviewFlow(pdf, name) {
     setText("review-status", "Extracting text and matching rules…");
     enableRunReviewButtons(false);
-    Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runValeOnPdf(pdf)]).then(([regexRes, posRes, valeRes]) => {
+    Promise.allSettled([runRulesOnPdf(pdf), runPosRulesOnPdf(pdf), runValeOnPdf(pdf), runSpellCheckOnPdf(pdf)]).then(([regexRes, posRes, valeRes, spellRes]) => {
       if (regexRes.status === "rejected") throw regexRes.reason;
       const regexFindings = regexRes.value;
       const posFindings = posRes.status === "fulfilled" ? posRes.value : [];
@@ -1235,12 +1294,15 @@
       const valeRaw = valeRes.status === "fulfilled" ? valeRes.value : [];
       if (valeRes.status === "rejected") console.warn("[demo] Vale check skipped:", valeRes.reason);
       const valeFindings = selfCheck.running ? valeRaw : valeRaw.filter((f) => f.page !== 1 && f.page !== pdf.numPages);
-      const allFindings = sortFindings([...regexFindings, ...posFindings]);
+      if (spellRes.status === "rejected") console.warn("[demo] spelling check skipped:", spellRes.reason);
+      const spellFindings = spellRes.status === "fulfilled" ? dropDuplicateSpelling(spellRes.value, [...regexFindings, ...posFindings]) : [];
+      const allFindings = sortFindings([...regexFindings, ...posFindings, ...spellFindings]);
       const findings = mergeFindings(allFindings, valeFindings);
       viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
       setText("issue-total", String(findings.length));
       const cnt = findings.length;
-      const posNote = posRes.status === "rejected" ? " · part-of-speech tagger unavailable: rules with a POS condition were skipped" : "";
+      const posNote = (posRes.status === "rejected" ? " · part-of-speech tagger unavailable: rules with a POS condition were skipped" : "")
+        + (spellRes.status === "rejected" ? " · spelling dictionary unavailable: team-spelling was skipped (check vendor/spell-bundle.min.js, en_US.aff, en_US.dic)" : "");
       const valeNote = posNote + (!VALE_ENABLED ? ""
         : valeRes.status === "fulfilled" ? ` · Vale: ${valeFindings.length}`
         : " · Vale server unavailable");
@@ -1542,6 +1604,9 @@
     { category: "typo", ruleId: "style-us-spelling-ize", flag: "organises", wrong: "The tool organises the scan files.", right: "The tool organizes the scan files." },
     { category: "typo", ruleId: "style-us-spelling-our", flag: "colour", wrong: "Check the colour of the LED.", right: "Check the color of the LED." },
     { category: "typo", ruleId: "style-us-spelling-center", flag: "centre", wrong: "Place the sample in the centre of the stage.", right: "Place the sample in the center of the stage." },
+    // team-spelling: dictionary + team word list (setpoint, SmartScan)
+    { category: "typo", ruleId: "team-spelling", flag: "calibraton", wrong: "Run the calibraton before the scan.", right: "Run the calibration before the scan.", noFixCheck: true },
+    { category: "typo", ruleId: "team-spelling", flag: "Smartscan", wrong: "Open Smartscan and adjust the setpoint.", right: "Open SmartScan and adjust the setpoint." },
     // ── Spacing ──
     { category: "spacing", ruleId: "space-double", flag: "  ", wrong: "Connect the  probe holder to the stage.", right: "Connect the probe holder to the stage.",
       limit: "PDF.js merges consecutive spaces when it extracts text, so a double space never reaches the rules." },
@@ -1641,6 +1706,9 @@
     { category: "hyphenation_terminology", ruleId: "style-word-also-known-as", flag: "aka", wrong: "Use the Z stage, aka the focus stage.", right: "Use the Z stage, also known as the focus stage." },
     { category: "hyphenation_terminology", ruleId: "style-word-url", flag: "url", wrong: "Copy the url into the browser.", right: "Copy the URL into the browser." },
     { category: "hyphenation_terminology", ruleId: "style-word-https", flag: "HTTPs", wrong: "The portal uses HTTPs only.", right: "The portal uses HTTPS only." },
+    // Team terminology (Park_pronouns review)
+    { category: "hyphenation_terminology", ruleId: "team-toolkit", flag: "Tool Kit", wrong: "Install the STM Tool Kit before the scan.", right: "Install the STM Toolkit before the scan." },
+    { category: "hyphenation_terminology", ruleId: "team-liquid-probehand", flag: "Liquid probehand", wrong: "Mount the cantilever on the Liquid probehand.", right: "Mount the cantilever on the Liquid Probehand." },
     // ── Numbers & abbreviations ──
     { category: "numbers_abbreviations", ruleId: "chicago-23-decimal-zero", flag: ".5", wrong: "Set the gain to .5 before the scan.", right: "Set the gain to 0.5 before the scan." },
     { category: "numbers_abbreviations", ruleId: "chicago-24-number-range", flag: "pages 10-12", wrong: "See pages 10-12 in the user guide.", right: "See pages 10–12 in the user guide." },
@@ -1993,6 +2061,142 @@
   }
 
   //
+  // ─── Spelling (team-spelling) ──────────────────────────────────────────
+  //
+  // nspell + the en_US Hunspell dictionary, loaded on first use like the POS tagger.
+  // Words are read from paragraphs (buildParagraphs), so a word hyphenated across two
+  // lines ("calibra-" + "ted") is checked joined.
+  let spellerReady = null;
+  function spellUserWords() {
+    try {
+      const v = JSON.parse(localStorage.getItem(SPELL_USER_WORDS_KEY) || "[]");
+      return Array.isArray(v) ? v.filter((w) => typeof w === "string" && w.trim()).map((w) => w.trim()) : [];
+    } catch { return []; }
+  }
+  function saveSpellUserWords(words) {
+    const unique = [...new Set(words.map((w) => String(w).trim()).filter(Boolean))];
+    try { localStorage.setItem(SPELL_USER_WORDS_KEY, JSON.stringify(unique)); } catch (err) { console.warn("[demo][spell] word list not saved:", err); }
+    spellerReady = null; // rebuilt with the new list on the next review
+  }
+  async function ensureSpeller() {
+    if (!spellerReady) spellerReady = (async () => {
+      if (!window.SpellBundle) await loadScript(SPELL_BUNDLE_URL);
+      const [aff, dic] = await Promise.all([SPELL_AFF_URL, SPELL_DIC_URL].map(async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+        return res.text();
+      }));
+      const speller = window.SpellBundle.nspell(aff, dic);
+      const exact = new Map(); // folded form -> team spelling with capitals or accents
+      for (const w of [...SPELL_TEAM_WORDS, ...spellUserWords()]) {
+        speller.add(w);
+        if (w === w.toLowerCase() && !/[^\x00-\x7f]/.test(w)) speller.add(spellPlural(w));
+        else exact.set(spellFold(w), w);
+      }
+      return { speller, exact };
+    })().catch((err) => { spellerReady = null; throw err; });
+    return spellerReady;
+  }
+  const SPELL_WORD_RE = /[A-Za-zÀ-ÖØ-öø-ÿ0-9]+(?:['’-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*['’]?/g;
+  // Never checked: URLs, e-mail addresses, "et al", and a word marked "[sic]".
+  const SPELL_SKIP_SPAN_RE = /\b(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\bet al\b|\S+\s*\[sic\]/g;
+  // Not checked: one letter, digits (XE7, v2.1), all caps (AFM), and a capital after the
+  // first letter (SmartScan, MPa, PDFs).
+  function spellSkipWord(w) {
+    const letters = w.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g, "");
+    return letters.length < 2 || /\d/.test(w) || /.[A-Z]/.test(w) || letters === letters.toUpperCase();
+  }
+  function spellPlural(w) {
+    if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + "ies";
+    if (/(?:s|x|z|ch|sh)$/.test(w)) return w + "es";
+    return w + "s";
+  }
+  const spellFold = (w) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // Words of `text` that are in neither the dictionary nor the team word list:
+  // [{ start, end, word, team }] (team = exact team spelling for a case/accent slip).
+  // isLineBreakHyphen(i): the hyphen at text[i] ends a PDF line ("calibra-" + "ted").
+  function spellCheckText(text, spell, cache, isLineBreakHyphen = () => false) {
+    const { speller, exact } = spell;
+    const known = (w) => {
+      if (!cache.has(w)) cache.set(w, speller.correct(w));
+      return cache.get(w);
+    };
+    const knownWord = (w) => known(w) || (w.includes("-") && w.split("-").every((p) => !p || spellSkipWord(p) || known(p)));
+    const skipSpans = [...text.matchAll(SPELL_SKIP_SPAN_RE)].map((m) => [m.index, m.index + m[0].length]);
+    const out = [];
+    for (const m of text.matchAll(SPELL_WORD_RE)) {
+      const raw = m[0].replace(/['’]s?$/, "");
+      const start = m.index, end = start + raw.length;
+      if (skipSpans.some(([a, b]) => start < b && end > a)) continue;
+      const before = text[start - 1] || "", after = text[end] || "";
+      if (/[_\\/@#<>=~$%&]/.test(before + after)) continue;                              // paths, code, markup
+      if (after === "." && /[A-Za-z]/.test(text[end + 1] || "")) continue;                // file.ext, e.g.
+      if (before === "." && /[A-Za-z]/.test(text[start - 2] || "")) continue;
+      const word = raw.replace(/’/g, "'");
+      const skip = word.includes("-") ? word.split("-").every((p) => !p || spellSkipWord(p)) : spellSkipWord(word);
+      if (skip || knownWord(word)) continue;
+      const breaks = [...raw].map((ch, i) => (ch === "-" && isLineBreakHyphen(start + i) ? i : -1)).filter((i) => i >= 0);
+      if (breaks.length && knownWord([...word].filter((_, i) => !breaks.includes(i)).join(""))) continue;
+      const team = exact.get(spellFold(word));
+      out.push({ start, end, word, team: team && team !== word ? team : null });
+    }
+    return out;
+  }
+
+  async function runSpellCheckOnPdf(pdf) {
+    const rule = activeRules().find((r) => r.id === "team-spelling");
+    if (!rule) return [];
+    const spell = await ensureSpeller();
+    const cache = new Map(), suggestions = new Map();
+    const suggest = (word) => {
+      if (!suggestions.has(word)) {
+        suggestions.set(word, suggestions.size < SPELL_SUGGEST_LIMIT ? spell.speller.suggest(word).slice(0, 3) : []);
+      }
+      return suggestions.get(word);
+    };
+    const findings = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
+      const page = await pdf.getPage(p);
+      let content;
+      try { content = await page.getTextContent(); } catch { continue; }
+      for (const para of buildParagraphs(content.items, page.view[3])) {
+        // A hyphen that is the last character of one line, followed by the next line.
+        const lineBreakHyphen = (i) => {
+          const a = para.map[i], b = para.map[i + 1];
+          return !!(a && b && a.item !== b.item && a.i === a.item.str.length - 1
+            && Math.abs(a.item.transform[5] - b.item.transform[5]) > 1);
+        };
+        for (const hit of spellCheckText(para.text, spell, cache, lineBreakHyphen)) {
+          if (rule.skipOnItalic && para.map[hit.start] && isItalicItem(para.map[hit.start].item)) continue;
+          const boxes = boxesForRange(para, hit.start, hit.end);
+          if (!boxes.length) continue;
+          const options = hit.team ? [] : suggest(hit.word);
+          findings.push({
+            id: newId(), page: p, ruleId: rule.id, ruleName: rule.name,
+            category: rule.category, severity: rule.severity,
+            text: para.text.slice(hit.start, hit.end), context: para.text,
+            suggestion: hit.team || (options.length ? `(check spelling: ${options.join(", ")})` : "(check spelling, or add the word to the team word list)"),
+            bbox: boxes[0], bboxes: boxes, status: "pending",
+            explanation: hit.team ? `The team word list spells this "${hit.team}".` : "This word is not in the US English dictionary or the team word list.",
+          });
+        }
+      }
+    }
+    console.info(`[demo][spell] done — ${findings.length} findings, ${suggestions.size} words with suggestions`);
+    return findings;
+  }
+  // A spelling finding is dropped when a rule already flags the same word (typo-recieve,
+  // style-us-spelling-our, ...). Only short matches count, so a whole-heading finding
+  // (team-title-case) does not hide a misspelling inside the heading.
+  function dropDuplicateSpelling(spellFindings, others) {
+    return spellFindings.filter((s) => !others.some((f) => f.page === s.page && Array.isArray(f.bbox)
+      && normText(f.text).split(" ").length <= 2
+      && normText(f.text).toLowerCase().includes(normText(s.text).toLowerCase().split("-")[0])
+      && (f.bboxes || [f.bbox]).some((fb) => (s.bboxes || [s.bbox]).some((sb) => bboxOverlap(fb, sb) > 0.5))));
+  }
+
+  //
   // ─── Vale (server-side, POS/grammar-aware) ─────────────────────────────
   //
   // The server extracts text from the PDF itself (text layer, or OCR for
@@ -2041,7 +2245,7 @@
     if (!rules.length) return [];
     const titleRule = rules.find((r) => r.id === "team-title-case");
     const tableHeaderRule = rules.find((r) => r.id === "team-table-header-case");
-    const compiled = rules.filter((r) => !["team-title-case", "team-table-header-case"].includes(r.id) && !r.pos).map((r) => {
+    const compiled = rules.filter((r) => !["team-title-case", "team-table-header-case", "team-spelling"].includes(r.id) && !r.pos).map((r) => {
       try { return { rule: r, re: new RegExp(r.pattern, r.flags || "g") }; }
       catch { return null; }
     }).filter(Boolean);
@@ -2595,6 +2799,16 @@
       const action = btn.dataset.demoAction;
       const f = viewerState.findings.find((x) => x.id === id);
       if (!f) return;
+      if (action === "add-word") {
+        // Add the word to the team word list; drop every finding for the same word.
+        saveSpellUserWords([...spellUserWords(), f.text]);
+        viewerState.findings = viewerState.findings.filter((x) => !(x.ruleId === "team-spelling" && x.text === f.text));
+        if (viewerState.activeFindingId === f.id) viewerState.activeFindingId = null;
+        saveReviewDecisions();
+        renderIssuesPanel();
+        renderCurrentPages();
+        return;
+      }
       if (action === "accept") f.status = f.status === "accepted" ? "pending" : "accepted";
       if (action === "reject") f.status = f.status === "rejected" ? "pending" : "rejected";
       saveReviewDecisions();
@@ -2667,6 +2881,10 @@
               ${f.status === "rejected" ? "✕ Ignored" : "Ignore"}
             </button>
           </div>
+          ${f.ruleId === "team-spelling" && !String(f.suggestion || "").startsWith("(") ? "" : f.ruleId === "team-spelling" ? `<button data-demo-action="add-word" data-demo-finding-id="${f.id}" title="The word passes from the next review on (Rules → team-spelling → Edit to remove it)"
+              style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid #6b7280;background:#fff;color:#374151;border-radius:6px;cursor:pointer;font-size:12px;">
+              Add "${escapeHtml(f.text)}" to the team word list
+            </button>` : ""}
         </article>`;
     }).join("");
   }
@@ -2902,7 +3120,7 @@
   function openRuleModal(existing) {
     const modal = document.getElementById("rule-modal");
     const r = existing || { id: "custom-" + Date.now(), category: "custom", name: "", pattern: "", flags: "g", replacement: "", severity: "minor", enabled: true };
-    const layoutRule = r.id === "team-title-case" || r.id === "team-table-header-case";
+    const layoutRule = r.id === "team-title-case" || r.id === "team-table-header-case" || r.id === "team-spelling";
     modal.style.display = "flex";
     modal.innerHTML = `
       <div style="background:#fff;border-radius:10px;padding:24px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
@@ -2934,6 +3152,11 @@
           </label>
           ${r.id === "team-title-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Heading: Bold/Semibold/Heavy, spaced from nearby lines, and no period. Body: 10 or 10.5 pt (±0.15 pt) ending in a period. Figure/Table labels: recognized outside those font sizes. Callouts follow the heading criteria. This rule uses PDF layout; the pattern is shown for reference.</p>' : ''}
           ${r.id === "team-table-header-case" ? '<p style="margin:0;color:#6b7280;font-size:12px;">Table headers are identified from PDF layout and checked separately. The pattern is shown for reference.</p>' : ''}
+          ${r.id === "team-spelling" ? `<p style="margin:0;color:#6b7280;font-size:12px;">Every word is checked against the US English dictionary and the team word list (${SPELL_TEAM_WORDS.length} built-in words). The pattern and replacement are shown for reference.</p>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Added team words (one per line)
+            <textarea name="spellWords" rows="6" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;font-size:12px;">${escapeHtml(spellUserWords().join("\n"))}</textarea>
+            <span style="color:#6b7280;font-size:11px;">Lowercase word: any capitalization and the plural pass. Word with capitals or accents (SmartScan): only that exact form passes.</span>
+          </label>` : ''}
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">POS condition (optional) — one part of speech per matched word
             <input name="pos" value="${escapeHtml(r.pos || "")}" ${layoutRule ? "readonly" : ""} placeholder="e.g. ADJ|NOUN NOUN NOUN|PROPN — leave empty for a text-only rule" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;" />
             <span style="color:#6b7280;font-size:11px;">${POS_TAGS.join(" ")} · "|" = either · "*" = any one word · "..." = any number of words</span>
@@ -2995,6 +3218,7 @@
       try { new RegExp(rule.pattern, rule.flags); } catch (err) { alert("Invalid regex: " + err.message); return; }
       const posErr = posConditionError(rule.pos);
       if (posErr) { alert(posErr); return; }
+      if (r.id === "team-spelling") saveSpellUserWords(String(fd.get("spellWords") || "").split(/\r?\n/));
       upsertRule(rule);
       modal.style.display = "none";
       renderRuleEditor();
