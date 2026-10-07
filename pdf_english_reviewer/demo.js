@@ -221,6 +221,7 @@
   const RULES_EDIT_20261007T014023_KEY = "tw-demo-rules-edit-20261007t014023Z";
   const RULES_EDIT_20261007T113215_KEY = "tw-demo-rules-edit-20261007t113215";
   const RULES_EDIT_20261007T140724_KEY = "tw-demo-rules-edit-20261007t140724";
+  const RULES_EDIT_20261007T180000_KEY = "tw-demo-rules-edit-20261007t180000";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -233,14 +234,14 @@
   let DEFAULT_RULES; // filled after CHICAGO_RULES declaration
   const _BASE_RULES = [
     // Common English typos.
-    { id: "typo-teh",     category: "typo", name: "teh → the",           pattern: "\\bteh\\b",        flags: "gi", replacement: "the",     severity: "minor", enabled: true },
-    { id: "typo-adress",  category: "typo", name: "adress → address",    pattern: "\\badress\\b",     flags: "gi", replacement: "address", severity: "minor", enabled: true },
-    { id: "typo-recieve", category: "typo", name: "recieve → receive",   pattern: "\\brecieve\\b",    flags: "gi", replacement: "receive", severity: "minor", enabled: true },
-    { id: "typo-seperate",category: "typo", name: "seperate → separate", pattern: "\\bseperate\\b",   flags: "gi", replacement: "separate",severity: "minor", enabled: true },
-    { id: "typo-occured", category: "typo", name: "occured → occurred",  pattern: "\\boccured\\b",    flags: "gi", replacement: "occurred",severity: "minor", enabled: true },
-    { id: "typo-untill",  category: "typo", name: "untill → until",      pattern: "\\buntill\\b",     flags: "gi", replacement: "until",   severity: "minor", enabled: true },
-    { id: "typo-alot",    category: "typo", name: "alot → a lot",        pattern: "\\balot\\b",       flags: "gi", replacement: "a lot",   severity: "minor", enabled: true },
-    { id: "typo-thier",   category: "typo", name: "thier → their",       pattern: "\\bthier\\b",      flags: "gi", replacement: "their",   severity: "minor", enabled: true },
+    { id: "typo-teh",     category: "spelling", name: "teh → the",           pattern: "\\bteh\\b",        flags: "gi", replacement: "the",     severity: "minor", enabled: true },
+    { id: "typo-adress",  category: "spelling", name: "adress → address",    pattern: "\\badress\\b",     flags: "gi", replacement: "address", severity: "minor", enabled: true },
+    { id: "typo-recieve", category: "spelling", name: "recieve → receive",   pattern: "\\brecieve\\b",    flags: "gi", replacement: "receive", severity: "minor", enabled: true },
+    { id: "typo-seperate",category: "spelling", name: "seperate → separate", pattern: "\\bseperate\\b",   flags: "gi", replacement: "separate",severity: "minor", enabled: true },
+    { id: "typo-occured", category: "spelling", name: "occured → occurred",  pattern: "\\boccured\\b",    flags: "gi", replacement: "occurred",severity: "minor", enabled: true },
+    { id: "typo-untill",  category: "spelling", name: "untill → until",      pattern: "\\buntill\\b",     flags: "gi", replacement: "until",   severity: "minor", enabled: true },
+    { id: "typo-alot",    category: "spelling", name: "alot → a lot",        pattern: "\\balot\\b",       flags: "gi", replacement: "a lot",   severity: "minor", enabled: true },
+    { id: "typo-thier",   category: "spelling", name: "thier → their",       pattern: "\\bthier\\b",      flags: "gi", replacement: "their",   severity: "minor", enabled: true },
     // Spacing.
     { id: "space-double", category: "spacing", name: "Double space",        pattern: "  +",             flags: "g", replacement: " ", severity: "minor", enabled: true },
   ];
@@ -251,12 +252,12 @@
     minor:    { fill: "rgba(234, 179, 8, 0.35)",  border: "#eab308", label: "Minor" },
   };
   const CATEGORY_LABELS = {
-    typo: "Typo", spacing: "Spacing", punctuation: "Punctuation", grammar: "Grammar",
+    spelling: "Spelling", spacing: "Spacing", punctuation: "Punctuation", grammar: "Grammar",
     capitalization: "Capitalization", numbers_abbreviations: "Numbers & abbreviations",
     hyphenation_terminology: "Hyphenation & terminology", custom: "Custom",
   };
   const CATEGORY_COLORS = {
-    typo: "#f59e0b", spacing: "#3b82f6", custom: "#8b5cf6",
+    spelling: "#f59e0b", spacing: "#3b82f6", custom: "#8b5cf6",
     punctuation: "#0ea5e9", grammar: "#a855f7", capitalization: "#14b8a6",
     numbers_abbreviations: "#f43f5e", hyphenation_terminology: "#eab308",
     style: "#64748b", analysis: "#10b981",
@@ -570,13 +571,13 @@
       pattern: "\\bmankind\\b", flags: "g", replacement: "humanity", severity: "major", enabled: true },
     // Spelling.yml — https://developers.google.com/style/spelling
     // Split into three rules so each one can suggest the exact American spelling.
-    { id: "style-us-spelling-ize", category: "typo", name: "Google Developer Docs Style — Use American spelling (-ize, not -ise)",
+    { id: "style-us-spelling-ize", category: "spelling", name: "Google Developer Docs Style — Use American spelling (-ize, not -ise)",
       pattern: "\\b(\\w+n)is(e|ed|es|ing)\\b", flags: "g", replacement: "$1iz$2", severity: "minor", enabled: true },
     // Spelling.yml (colour, labour)
-    { id: "style-us-spelling-our", category: "typo", name: "Google Developer Docs Style — Use American spelling (color, labor)",
+    { id: "style-us-spelling-our", category: "spelling", name: "Google Developer Docs Style — Use American spelling (color, labor)",
       pattern: "\\b([Cc]olo|[Ll]abo)ur(s|ed|ing)?\\b", flags: "g", replacement: "$1r$2", severity: "minor", enabled: true },
     // Spelling.yml (centre)
-    { id: "style-us-spelling-center", category: "typo", name: "Google Developer Docs Style — Use American spelling (center)",
+    { id: "style-us-spelling-center", category: "spelling", name: "Google Developer Docs Style — Use American spelling (center)",
       pattern: "\\b([Cc]ent)re(s)?\\b", flags: "g", replacement: "$1er$2", severity: "minor", enabled: true },
     // DateFormat.yml — https://developers.google.com/style/dates-times
     // Day-month-year with a full month name: rewritten exactly.
@@ -691,7 +692,7 @@
     // dictionary suggestions as a note.
     // Console (F12): twSpell("some words") shows how each word is judged;
     // twSpell.selfTest() checks that the dictionary files load and work.
-    { id: "team-spelling", category: "typo", name: "Team Manual Standard — Spelling (US English dictionary + team word list)",
+    { id: "team-spelling", category: "spelling", name: "Team Manual Standard — Spelling (US English dictionary + team word list)",
       pattern: "(checked against the spelling dictionary)", flags: "g", replacement: "(spelling suggestions)", severity: "minor", enabled: true },
     // Team terminology (Park_pronouns_reviewed_2.xlsx, 확인필요 #6 and #7).
     //   STM Tool Kit -> STM Toolkit;  a tool kit -> a toolkit
@@ -1088,6 +1089,12 @@
         rules.push(...TEAM_RULES.filter((rule) => ["team-spelling", "team-toolkit", "team-liquid-probehand"].includes(rule.id) && !ids.has(rule.id)).map((rule) => ({ ...rule })));
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261007T140724_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EDIT_20261007T180000_KEY) !== "done") {
+        // Rename category "typo" → "spelling" for all saved rules.
+        rules.forEach((rule) => { if (rule.category === "typo") rule.category = "spelling"; });
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261007T180000_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1601,23 +1608,23 @@
   // "table10"), noFixCheck (the suggestion is a note, not a replacement), limit (why
   // the rule cannot work in the PDF pipeline; reported as KNOWN LIMITATION).
   const SELF_CHECK_CASES = [
-    // ── Typo ──
-    { category: "typo", ruleId: "typo-teh", flag: "teh", wrong: "Check teh cable before each scan.", right: "Check the cable before each scan." },
-    { category: "typo", ruleId: "typo-adress", flag: "adress", wrong: "Enter the IP adress of the controller.", right: "Enter the IP address of the controller." },
-    { category: "typo", ruleId: "typo-recieve", flag: "recieve", wrong: "The controller does not recieve a signal.", right: "The controller does not receive a signal." },
-    { category: "typo", ruleId: "typo-seperate", flag: "seperate", wrong: "Keep each sample in a seperate holder.", right: "Keep each sample in a separate holder." },
-    { category: "typo", ruleId: "typo-occured", flag: "occured", wrong: "An error occured during the approach.", right: "An error occurred during the approach." },
-    { category: "typo", ruleId: "typo-untill", flag: "untill", wrong: "Wait untill the stage stops moving.", right: "Wait until the stage stops moving." },
-    { category: "typo", ruleId: "typo-alot", flag: "alot", wrong: "A large scan takes alot of time.", right: "A large scan takes a lot of time." },
-    { category: "typo", ruleId: "typo-thier", flag: "thier", wrong: "Users save thier settings in a project.", right: "Users save their settings in a project." },
+    // ── Spelling ──
+    { category: "spelling", ruleId: "typo-teh", flag: "teh", wrong: "Check teh cable before each scan.", right: "Check the cable before each scan." },
+    { category: "spelling", ruleId: "typo-adress", flag: "adress", wrong: "Enter the IP adress of the controller.", right: "Enter the IP address of the controller." },
+    { category: "spelling", ruleId: "typo-recieve", flag: "recieve", wrong: "The controller does not recieve a signal.", right: "The controller does not receive a signal." },
+    { category: "spelling", ruleId: "typo-seperate", flag: "seperate", wrong: "Keep each sample in a seperate holder.", right: "Keep each sample in a separate holder." },
+    { category: "spelling", ruleId: "typo-occured", flag: "occured", wrong: "An error occured during the approach.", right: "An error occurred during the approach." },
+    { category: "spelling", ruleId: "typo-untill", flag: "untill", wrong: "Wait untill the stage stops moving.", right: "Wait until the stage stops moving." },
+    { category: "spelling", ruleId: "typo-alot", flag: "alot", wrong: "A large scan takes alot of time.", right: "A large scan takes a lot of time." },
+    { category: "spelling", ruleId: "typo-thier", flag: "thier", wrong: "Users save thier settings in a project.", right: "Users save their settings in a project." },
     // Google Developer Docs Style (errata-ai/Google port)
-    { category: "typo", ruleId: "style-us-spelling-ize", flag: "organises", wrong: "The tool organises the scan files.", right: "The tool organizes the scan files." },
-    { category: "typo", ruleId: "style-us-spelling-our", flag: "colour", wrong: "Check the colour of the LED.", right: "Check the color of the LED." },
-    { category: "typo", ruleId: "style-us-spelling-center", flag: "centre", wrong: "Place the sample in the centre of the stage.", right: "Place the sample in the center of the stage." },
+    { category: "spelling", ruleId: "style-us-spelling-ize", flag: "organises", wrong: "The tool organises the scan files.", right: "The tool organizes the scan files." },
+    { category: "spelling", ruleId: "style-us-spelling-our", flag: "colour", wrong: "Check the colour of the LED.", right: "Check the color of the LED." },
+    { category: "spelling", ruleId: "style-us-spelling-center", flag: "centre", wrong: "Place the sample in the centre of the stage.", right: "Place the sample in the center of the stage." },
     // team-spelling: dictionary + team word list (setpoint, SmartScan); a proper noun
     // that is in neither list (Keysight, PROPN) is not reported
-    { category: "typo", ruleId: "team-spelling", flag: "calibraton", wrong: "Run the calibraton with the Keysight analyzer.", right: "Run the calibration with the Keysight analyzer.", noFixCheck: true },
-    { category: "typo", ruleId: "team-spelling", flag: "Smartscan", wrong: "Open Smartscan and adjust the setpoint.", right: "Open SmartScan and adjust the setpoint." },
+    { category: "spelling", ruleId: "team-spelling", flag: "calibraton", wrong: "Run the calibraton with the Keysight analyzer.", right: "Run the calibration with the Keysight analyzer.", noFixCheck: true },
+    { category: "spelling", ruleId: "team-spelling", flag: "Smartscan", wrong: "Open Smartscan and adjust the setpoint.", right: "Open SmartScan and adjust the setpoint." },
     // ── Spacing ──
     { category: "spacing", ruleId: "space-double", flag: "  ", wrong: "Connect the  probe holder to the stage.", right: "Connect the probe holder to the stage.",
       limit: "PDF.js merges consecutive spaces when it extracts text, so a double space never reaches the rules." },
@@ -2840,7 +2847,7 @@
     if (catSel) {
       catSel.innerHTML = `
         <option value="all">All categories</option>
-        <option value="typo">Typo</option>
+        <option value="spelling">Spelling</option>
         <option value="spacing">Spacing</option>
         <option value="punctuation">Punctuation</option>
         <option value="grammar">Grammar</option>
@@ -3203,7 +3210,7 @@
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Category
             <select name="category" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
-              <option value="typo" ${r.category === "typo" ? "selected" : ""}>Typo</option>
+              <option value="spelling" ${r.category === "spelling" ? "selected" : ""}>Spelling</option>
               <option value="spacing" ${r.category === "spacing" ? "selected" : ""}>Spacing</option>
               <option value="punctuation" ${r.category === "punctuation" ? "selected" : ""}>Punctuation</option>
               <option value="grammar" ${r.category === "grammar" ? "selected" : ""}>Grammar</option>
