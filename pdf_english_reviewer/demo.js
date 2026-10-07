@@ -207,6 +207,7 @@
   const RULES_CH87_STR_KEY  = "tw-demo-rules-ch87-str-v18";
   const RULES_CH87_SKIP_KEY = "tw-demo-rules-ch87-skip-v19";
   const RULES_EDIT_20261006T081608_KEY = "tw-demo-rules-edit-20261006t081608Z";
+  const RULES_EDIT_20261007T014023_KEY = "tw-demo-rules-edit-20261007t014023Z";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
 
@@ -471,6 +472,169 @@
     { id: "style-condition-first-to", category: "grammar", name: "Google Developer Docs Style — Put the goal before the instruction",
       pattern: "(?<=^|[.!?]\\s)[A-Z][^.!?]*?(?<!\\b(?:want|wants|need|needs|have|has|try|going|able|how)\\s)\\bto\\s+(?!(?:low|high|zero|maximum|minimum|full|default)\\b)\\w+[^.!?]*", flags: "g",
       replacement: "(start with the goal: \"To …, …\")", severity: "minor", enabled: false, pos: "VERB ... PART VERB ..." },
+    //
+    // ── Google Developer Docs Style: ported from the errata-ai/Google Vale package ──
+    // Source: https://github.com/errata-ai/Google (Google/*.yml, latest commit 2026-09-28).
+    // Converted to regex rules for this engine (no Vale server). Each rule names the
+    // .yml it comes from and the style-guide page it checks. Vale levels map to
+    // severity: error -> major, warning/suggestion -> minor. Messages from the .yml
+    // are in the rule name; advisory rules give the fix as a "(note)".
+    // Not ported: Acronyms.yml (needs a whole-document check) and
+    // HeadingPunctuation.yml (needs heading-only matching).
+    // WordList: only general terms; Google product names and terms that fit
+    // hardware manuals poorly ("touch" -> "tap", "above" -> "preceding") are left out.
+    //
+    // errata-ai/Google license:
+    //   MIT License
+    //
+    //   Copyright (c) 2018 - 2019 Joseph Kato
+    //
+    //   Permission is hereby granted, free of charge, to any person obtaining a copy
+    //   of this software and associated documentation files (the "Software"), to deal
+    //   in the Software without restriction, including without limitation the rights
+    //   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    //   copies of the Software, and to permit persons to whom the Software is
+    //   furnished to do so, subject to the following conditions:
+    //
+    //   The above copyright notice and this permission notice shall be included in all
+    //   copies or substantial portions of the Software.
+    //
+    //   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    //   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    //   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    //   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    //   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    //   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    //   SOFTWARE.
+    //
+    // Timeless.yml — https://developers.google.com/style/timeless-documentation
+    // "now", "new" and "recently" are left out, as in the package (too many false positives).
+    { id: "style-timeless", category: "custom", name: "Google Developer Docs Style — Avoid time-based words (timeless documentation)",
+      pattern: "\\b(?:currently|latest|soon)\\b", flags: "gi", replacement: "(remove the time-based word, or name the version or date)", severity: "minor", enabled: true },
+    // FirstPerson.yml — https://developers.google.com/style/pronouns#personal-pronouns
+    // Case-sensitive "I", skipping roman numerals such as "Class I" and "Type I".
+    { id: "style-first-person", category: "grammar", name: "Google Developer Docs Style — Avoid first-person singular (I, me, my)",
+      pattern: "(?<=^|\\s)(?<!\\b(?:Class|Type|Phase|Part|Grade|Level|Category|Division|Zone|Group|Stage|Volume|Appendix|Chapter|Figure|Table) )I(?=[\\s,])|\\bI['’]m\\b|\\b(?:[Mm]e|[Mm]y|[Mm]ine)\\b", flags: "g", replacement: "(rewrite without first person: address the reader as \"you\" or use the imperative)", severity: "minor", enabled: true },
+    // We.yml — https://developers.google.com/style/pronouns#personal-pronouns
+    // "us" is lowercase only, so the abbreviation "US" is not flagged.
+    { id: "style-we", category: "grammar", name: "Google Developer Docs Style — Avoid first-person plural (we, us, our)",
+      pattern: "\\b(?:[Ww]e(?:['’](?:ve|re))?|[Oo]urs?|us|[Ll]et['’]s)\\b", flags: "g", replacement: "(rewrite without \"we\": address the reader as \"you\" or name the product)", severity: "minor", enabled: true },
+    // Exclamation.yml — https://developers.google.com/style/exclamation-points
+    // Off by default: conflicts with Chicago 6.129 (chicago-71 keeps "!" in safety notes).
+    { id: "style-exclamation", category: "punctuation", name: "Google Developer Docs Style — Don't use exclamation points in text",
+      pattern: "\\b(\\w+)!(?=\\s|$)", flags: "g", replacement: "$1.", severity: "major", enabled: false },
+    // ExcessiveClaims.yml — https://developers.google.com/style/excessive-claims
+    // "never", "always" and "ensure" are left out, as in the package; "best practices" is allowed.
+    { id: "style-excessive-claims", category: "custom", name: "Google Developer Docs Style — Avoid unverifiable claims (best, simplest, fastest, guarantee)",
+      pattern: "\\b(?:best(?! practices?\\b)|simplest|fastest|guarantees?)\\b", flags: "gi", replacement: "(remove the claim or support it with data)", severity: "minor", enabled: true },
+    // Anthropomorphism.yml — https://developers.google.com/style/anthropomorphism
+    { id: "style-anthropomorphism", category: "custom", name: "Google Developer Docs Style — Don't attribute human qualities to software or hardware",
+      pattern: "\\b(?:sees|tells)\\b", flags: "gi", replacement: "(describe what the product does, such as \"shows\" or \"detects\")", severity: "minor", enabled: true },
+    // OptionalPlurals.yml — https://developers.google.com/style/plurals-parentheses
+    // Suggestion drops "(s)", as the package does; use the plural instead where it reads better.
+    { id: "style-optional-plurals", category: "grammar", name: "Google Developer Docs Style — Don't put optional plurals in parentheses",
+      pattern: "\\b(\\w+)\\(s\\)", flags: "g", replacement: "$1", severity: "major", enabled: true },
+    // Slang.yml — https://developers.google.com/style/abbreviations
+    // "imo" is matched in lowercase only, so "IMO" (International Maritime Organization) is not flagged.
+    { id: "style-slang", category: "numbers_abbreviations", name: "Google Developer Docs Style — Don't use internet slang abbreviations",
+      pattern: "\\b(?:[Tt][Ll];[Dd][Rr]|[Yy][Mm][Mm][Vv]|[Rr][Tt][Ff][Mm]|[Ff][Ww][Ii][Ww]|[Ii]mo)\\b", flags: "g", replacement: "(spell out or remove)", severity: "major", enabled: true },
+    // Gender.yml — https://developers.google.com/style/pronouns#gender-neutral-pronouns
+    // Also catches "him/her" and "his/her" (not in the package).
+    { id: "style-gender-pronoun", category: "grammar", name: "Google Developer Docs Style — Don't use he/she or (s)he as a gender-neutral pronoun",
+      pattern: "\\b(?:he/she|she/he|s/he|him/her|his/her)\\b|\\(s\\)he\\b", flags: "gi", replacement: "(use \"they\" or rewrite the sentence)", severity: "major", enabled: true },
+    // GenderBias.yml — https://developers.google.com/style/inclusive-documentation
+    // The job-title entries of the package. Entries unlikely in manuals (poetess, ladylike, ...) are left out.
+    { id: "style-gender-job-title", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use gender-neutral job titles",
+      pattern: "\\b(?:repair|work|sales|fire|police|camera|draft|middle|news|mail|garbage|anchor|air|door|fisher|fresh|service|tribes)(?:wo)?m[ae]n\\b", flags: "gi", replacement: "(use a gender-neutral title, such as technician, worker, or salesperson)", severity: "major", enabled: true },
+    // GenderBias.yml (manpower)
+    { id: "style-gender-manpower", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"personnel\" instead of \"manpower\"",
+      pattern: "\\bmanpower\\b", flags: "g", replacement: "personnel", severity: "major", enabled: true },
+    // GenderBias.yml (manmade); also catches "man-made".
+    { id: "style-gender-manmade", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"manufactured\" instead of \"manmade\"",
+      pattern: "\\b([Mm])an-?made\\b", flags: "g", replacement: "$1anufactured", severity: "major", enabled: true },
+    // GenderBias.yml (mankind)
+    { id: "style-gender-mankind", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"humanity\" instead of \"mankind\"",
+      pattern: "\\bmankind\\b", flags: "g", replacement: "humanity", severity: "major", enabled: true },
+    // Spelling.yml — https://developers.google.com/style/spelling
+    // Split into three rules so each one can suggest the exact American spelling.
+    { id: "style-us-spelling-ize", category: "typo", name: "Google Developer Docs Style — Use American spelling (-ize, not -ise)",
+      pattern: "\\b(\\w+n)is(e|ed|es|ing)\\b", flags: "g", replacement: "$1iz$2", severity: "minor", enabled: true },
+    // Spelling.yml (colour, labour)
+    { id: "style-us-spelling-our", category: "typo", name: "Google Developer Docs Style — Use American spelling (color, labor)",
+      pattern: "\\b([Cc]olo|[Ll]abo)ur(s|ed|ing)?\\b", flags: "g", replacement: "$1r$2", severity: "minor", enabled: true },
+    // Spelling.yml (centre)
+    { id: "style-us-spelling-center", category: "typo", name: "Google Developer Docs Style — Use American spelling (center)",
+      pattern: "\\b([Cc]ent)re(s)?\\b", flags: "g", replacement: "$1er$2", severity: "minor", enabled: true },
+    // DateFormat.yml — https://developers.google.com/style/dates-times
+    // Day-month-year with a full month name: rewritten exactly.
+    { id: "style-date-day-month", category: "numbers_abbreviations", name: "Google Developer Docs Style — Use the date format July 31, 2016 (not 31 July 2016)",
+      pattern: "\\b(\\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December) (\\d{4})\\b", flags: "g", replacement: "$2 $1, $3", severity: "major", enabled: true },
+    // DateFormat.yml (numeric dates). "07/10/2026" can mean July or October, so this is advisory.
+    // Year-first dates such as 2026.10.07 are not matched.
+    { id: "style-date-numeric", category: "numbers_abbreviations", name: "Google Developer Docs Style — Use the date format July 31, 2016 (not numeric dates)",
+      pattern: "\\b\\d{1,2}[./]\\d{1,2}[./]\\d{4}\\b", flags: "g", replacement: "(write the date as Month D, YYYY, such as July 31, 2016)", severity: "major", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-in-order-to", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"to\" instead of \"in order to\"",
+      pattern: "\\bIn order (to)\\b|\\bin order (to)\\b", flags: "g", replacement: "$U1$2", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-click-on", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"click\" instead of \"click on\"",
+      pattern: "\\b([Cc]lick) on\\b", flags: "g", replacement: "$1", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-checkbox", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"checkbox\" instead of \"check box\"",
+      pattern: "\\b([Cc])heck box(es)?\\b", flags: "g", replacement: "$1heckbox$2", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-filename", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"filename\" instead of \"file name\"",
+      pattern: "\\b([Ff])ile name(s)?\\b", flags: "g", replacement: "$1ilename$2", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    // Also catches "grayed out" and "greyed out".
+    { id: "style-word-unavailable", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"unavailable\" instead of \"grayed out\"",
+      pattern: "\\bgr[ae]yed[- ]out\\b", flags: "g", replacement: "unavailable", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-clear", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"clear\" instead of \"uncheck\" or \"unselect\"",
+      pattern: "\\b[Uu]n(?:check|select)(?:s|ed|ing)?\\b", flags: "g", replacement: "(use \"clear\", such as \"Clear the checkbox.\")", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-approximately", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"approximately\" instead of \"approx.\"",
+      pattern: "\\b([Aa])pprox\\.", flags: "g", replacement: "$1pproximately", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-administrator", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"administrator\" instead of \"admin\"",
+      pattern: "\\b([Aa])dmin(s)?\\b", flags: "g", replacement: "$1dministrator$2", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-automatically-update", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"automatically update\" instead of \"autoupdate\"",
+      pattern: "\\b([Aa])utoupdate\\b", flags: "g", replacement: "$1utomatically update", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-data-is", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"data is\" instead of \"data are\"",
+      pattern: "\\b([Dd])ata are\\b", flags: "g", replacement: "$1ata is", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-feature", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"capability\" or \"feature\" instead of \"functionality\"",
+      pattern: "\\b[Ff]unctionality\\b", flags: "g", replacement: "(use \"capability\" or \"feature\")", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-wi-fi", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"Wi-Fi\"",
+      pattern: "\\b(?:WiFi|Wifi|wifi|WIFI)\\b", flags: "g", replacement: "Wi-Fi", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-ok", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"OK\" instead of \"ok\"",
+      pattern: "\\b(?:ok|Ok)\\b", flags: "g", replacement: "OK", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    // Also catches "2-D".
+    { id: "style-word-3d", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"3D\" instead of \"3-D\"",
+      pattern: "\\b([23])-D\\b", flags: "g", replacement: "$1D", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-regular-expression", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"regular expression\" instead of \"regex\"",
+      pattern: "\\b([Rr])egex(?:e(s))?\\b", flags: "g", replacement: "$1egular expression$2", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-sign-in-to", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"sign in to\" instead of \"sign into\"",
+      pattern: "\\b([Ss])ign into\\b", flags: "g", replacement: "$1ign in to", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-sync", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"sync\" instead of \"synch\"",
+      pattern: "\\b([Ss])ynch(ed|ing|s)?\\b", flags: "g", replacement: "$1ync$2", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-also-known-as", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"also known as\" instead of \"aka\"",
+      pattern: "\\b(?:a\\.k\\.a\\.?|aka)(?=[\\s,;:)]|$)", flags: "g", replacement: "also known as", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-url", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"URL\" instead of \"url\"",
+      pattern: "\\burl(s)?\\b", flags: "g", replacement: "URL$1", severity: "minor", enabled: true },
+    // WordList.yml / WordListCase.yml — https://developers.google.com/style/word-list
+    { id: "style-word-https", category: "hyphenation_terminology", name: "Google Developer Docs Style — Use \"HTTPS\" instead of \"HTTPs\"",
+      pattern: "\\bHTTPs\\b", flags: "g", replacement: "HTTPS", severity: "minor", enabled: true },
   ];
   const TEAM_RULES = [
     { id: "space-unit", category: "spacing", name: "Team Manual Standard — Space between numbers and units",
@@ -479,11 +643,38 @@
       pattern: "^(?:Figure|Fig\\.|Table)\\s+\\d+[.:]\\s+.+$", flags: "g", replacement: "(capitalize title words)", severity: "minor", enabled: true },
     { id: "team-table-header-case", category: "capitalization", name: "Team Manual Standard — Title Case for table headers only",
       pattern: "(table header identified by PDF layout)", flags: "g", replacement: "(capitalize table header words)", severity: "minor", enabled: true },
-    // "You should press Start." -> "Press Start."; "If it breaks, you should replace it." -> "If it breaks, replace it."
-    // Not flagged: "should not" (rewrite as "Do not …" by hand) and results such as "You should see a green light."
-    // $U1 = group 1 with its first letter capitalized (see applyReplacement).
+    // ── team-imperative (v3) ─────────────────────────────────────────────
+    // Guideline: Start instructions with an imperative verb.
+    //            동작 설명은 명령형 동사로 시작합니다.
+    // Why:       The reader sees the action first, and the sentence is shorter.
+    // Source:    Team standard, based on Google "Procedures"
+    //            (https://developers.google.com/style/procedures).
+    // Scope:     All body text (the engine has no "numbered steps only" scope).
+    // Triggers:  You should / need to / have to …
+    //            ("You must" is left alone: safety notes use it on purpose.)
+    // Fix:       Automatic. $U1 = group 1 with its first letter capitalized.
+    //   You should use the imperative form.        -> Use the imperative form.
+    //   If the tip breaks, you should replace it.  -> If the tip breaks, replace it.
+    // Do not flag (result or ability, not an action):
+    //   You should see a green light.  /  You should be able to scan the sample.
+    // "should not" is handled by team-imperative-negative(-mid), "Please" by team-please.
     { id: "team-imperative", category: "custom", name: "Team Manual Standard — Use the imperative form for instructions (not \"You should …\")",
-      pattern: "\\bYou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
+      pattern: "\\bYou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou (?:should|need to|have to) (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
+    // Negative instructions -> "Do not …". The engine cannot capitalize a word that is
+    // not in the text, so sentence-initial ("You …") and mid-sentence ("…, you …")
+    // forms are two rules with fixed "Do not" / "do not".
+    //   You should not touch the tip.               -> Do not touch the tip.
+    //   If the tip is hot, you should not touch it. -> If the tip is hot, do not touch it.
+    { id: "team-imperative-negative", category: "custom", name: "Team Manual Standard — Use \"Do not …\" for negative instructions (not \"You should not …\")",
+      pattern: "\\bYou should not (\\w+)", flags: "g", replacement: "Do not $1", severity: "major", enabled: true },
+    { id: "team-imperative-negative-mid", category: "custom", name: "Team Manual Standard — Use \"do not …\" for negative instructions mid-sentence (not \"you should not …\")",
+      pattern: "\\byou should not (\\w+)", flags: "g", replacement: "do not $1", severity: "major", enabled: true },
+    // Instructions start with the verb, without "please" (team standard; separate rule so
+    // it can be turned off on its own).
+    //   Please close the lid.            -> Close the lid.
+    //   To continue, please click OK.    -> To continue, click OK.
+    { id: "team-please", category: "custom", name: "Team Manual Standard — Omit \"please\" in instructions",
+      pattern: "\\bPlease (\\w+)|\\bplease (\\w+)", flags: "g", replacement: "$U1$2", severity: "major", enabled: true },
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
   // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
@@ -809,6 +1000,19 @@
         else if (r.pattern === "\\byou should\\b") Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261006T081608_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_EDIT_20261007T014023_KEY) !== "done") {
+        // team-imperative v3: add "need to / have to" triggers (unless the user edited the
+        // v2 rule), and add the negative-instruction and "please" rules.
+        const V2_PATTERN = "\\bYou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)";
+        const def = TEAM_RULES.find((rule) => rule.id === "team-imperative");
+        const r = rules.find((rule) => rule.id === "team-imperative");
+        if (!r) rules.push({ ...def });
+        else if (r.pattern === V2_PATTERN) Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
+        const ids = new Set(rules.map((rule) => rule.id));
+        rules.push(...TEAM_RULES.filter((rule) => ["team-imperative-negative", "team-imperative-negative-mid", "team-please"].includes(rule.id) && !ids.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_EDIT_20261007T014023_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1328,6 +1532,10 @@
     { category: "typo", ruleId: "typo-untill", flag: "untill", wrong: "Wait untill the stage stops moving.", right: "Wait until the stage stops moving." },
     { category: "typo", ruleId: "typo-alot", flag: "alot", wrong: "A large scan takes alot of time.", right: "A large scan takes a lot of time." },
     { category: "typo", ruleId: "typo-thier", flag: "thier", wrong: "Users save thier settings in a project.", right: "Users save their settings in a project." },
+    // Google Developer Docs Style (errata-ai/Google port)
+    { category: "typo", ruleId: "style-us-spelling-ize", flag: "organises", wrong: "The tool organises the scan files.", right: "The tool organizes the scan files." },
+    { category: "typo", ruleId: "style-us-spelling-our", flag: "colour", wrong: "Check the colour of the LED.", right: "Check the color of the LED." },
+    { category: "typo", ruleId: "style-us-spelling-center", flag: "centre", wrong: "Place the sample in the centre of the stage.", right: "Place the sample in the center of the stage." },
     // ── Spacing ──
     { category: "spacing", ruleId: "space-double", flag: "  ", wrong: "Connect the  probe holder to the stage.", right: "Connect the probe holder to the stage.",
       limit: "PDF.js merges consecutive spaces when it extracts text, so a double space never reaches the rules." },
@@ -1362,6 +1570,8 @@
     { category: "punctuation", ruleId: "chicago-71-exclamation-space", flag: "p !", wrong: "Do not touch the tip !", right: "Do not touch the tip!" },
     { category: "punctuation", ruleId: "chicago-85-comma-before-etc", flag: "s etc.", wrong: "Check the cables and probes etc. before use.", right: "Check the cables and probes, etc. before use." },
     { category: "punctuation", ruleId: "chicago-88-sic-brackets", flag: "sic", wrong: "The old label reads lenght sic on the box.", right: "The old label reads lenght [sic] on the box." },
+    // Google Developer Docs Style (errata-ai/Google port)
+    { category: "punctuation", ruleId: "style-exclamation", flag: "now!", wrong: "The scan starts now!", right: "The scan starts now." },
     // ── Grammar ──
     { category: "grammar", ruleId: "chicago-04-comma-splice", flag: "is ready, it is", wrong: "The stage is ready, it is safe to start.", right: "The stage is ready. It is safe to start.", noFixCheck: true },
     { category: "grammar", ruleId: "chicago-16-subject-verb", flag: "These is", wrong: "These is the default settings.", right: "These are the default settings." },
@@ -1378,6 +1588,11 @@
     { category: "grammar", ruleId: "style-condition-first-if", flag: "Click Delete if you", wrong: "Click Delete if you want to remove the scan data from the current project folder.", right: "If you want to remove the scan data from the current project folder, click Delete." },
     { category: "grammar", ruleId: "style-condition-first-see", flag: "See the maintenance chapter for more information", wrong: "See the maintenance chapter for more information.", right: "For more information, see the maintenance chapter." },
     { category: "grammar", ruleId: "style-condition-first-to", flag: "Press Start to begin the scan", wrong: "Press Start to begin the scan.", right: "To begin the scan, press Start." },
+    // Google Developer Docs Style (errata-ai/Google port)
+    { category: "grammar", ruleId: "style-first-person", flag: "I", wrong: "In this guide, I describe the probe setup.", right: "This guide describes the probe setup.", noFixCheck: true },
+    { category: "grammar", ruleId: "style-we", flag: "We", wrong: "We recommend a clean probe for each scan.", right: "Use a clean probe for each scan.", noFixCheck: true },
+    { category: "grammar", ruleId: "style-optional-plurals", flag: "cable(s)", wrong: "Remove the cable(s) from the port.", right: "Remove the cable from the port." },
+    { category: "grammar", ruleId: "style-gender-pronoun", flag: "he/she", wrong: "The operator must log in before he/she starts a scan.", right: "The operator must log in before they start a scan.", noFixCheck: true },
     // ── Capitalization ──
     { category: "capitalization", ruleId: "chicago-05-cap-after-colon", flag: ": c", wrong: "Note: connect the ground cable first.", right: "Note: Connect the ground cable first.", noFixCheck: true },
     { category: "capitalization", ruleId: "chicago-73-internet", flag: "Internet", wrong: "Download the driver from the Internet.", right: "Download the driver from the internet." },
@@ -1395,6 +1610,31 @@
     { category: "hyphenation_terminology", ruleId: "chicago-32-website", flag: "web site", wrong: "Visit the web site for updates.", right: "Visit the website for updates." },
     { category: "hyphenation_terminology", ruleId: "chicago-58-email", flag: "e-mail", wrong: "Send the log file by e-mail to the service team.", right: "Send the log file by email to the service team." },
     { category: "hyphenation_terminology", ruleId: "chicago-59-esports", flag: "e-sports", wrong: "The e-sports club uses the same monitor.", right: "The esports club uses the same monitor." },
+    // Google Developer Docs Style (errata-ai/Google port)
+    { category: "hyphenation_terminology", ruleId: "style-gender-job-title", flag: "repairman", wrong: "A repairman must replace the stage.", right: "A technician must replace the stage.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "style-gender-manpower", flag: "manpower", wrong: "Plan the manpower for each shift.", right: "Plan the personnel for each shift." },
+    { category: "hyphenation_terminology", ruleId: "style-gender-manmade", flag: "manmade", wrong: "The filter uses manmade fibers.", right: "The filter uses manufactured fibers." },
+    { category: "hyphenation_terminology", ruleId: "style-gender-mankind", flag: "mankind", wrong: "The project serves mankind.", right: "The project serves humanity." },
+    { category: "hyphenation_terminology", ruleId: "style-word-in-order-to", flag: "In order to", wrong: "In order to apply the change, restart the tool.", right: "To apply the change, restart the tool." },
+    { category: "hyphenation_terminology", ruleId: "style-word-click-on", flag: "Click on", wrong: "Click on the Save button.", right: "Click the Save button." },
+    { category: "hyphenation_terminology", ruleId: "style-word-checkbox", flag: "check box", wrong: "Select the Auto check box.", right: "Select the Auto checkbox." },
+    { category: "hyphenation_terminology", ruleId: "style-word-filename", flag: "file name", wrong: "Enter a file name for the scan.", right: "Enter a filename for the scan." },
+    { category: "hyphenation_terminology", ruleId: "style-word-unavailable", flag: "grayed out", wrong: "The Start button is grayed out.", right: "The Start button is unavailable." },
+    { category: "hyphenation_terminology", ruleId: "style-word-clear", flag: "Uncheck", wrong: "Uncheck the Auto option.", right: "Clear the Auto option.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "style-word-approximately", flag: "approx.", wrong: "The scan takes approx. 5 minutes.", right: "The scan takes approximately 5 minutes." },
+    { category: "hyphenation_terminology", ruleId: "style-word-administrator", flag: "admin", wrong: "Ask your admin for a license key.", right: "Ask your administrator for a license key." },
+    { category: "hyphenation_terminology", ruleId: "style-word-automatically-update", flag: "autoupdate", wrong: "The firmware can autoupdate at night.", right: "The firmware can automatically update at night." },
+    { category: "hyphenation_terminology", ruleId: "style-word-data-is", flag: "data are", wrong: "The data are ready for export.", right: "The data is ready for export." },
+    { category: "hyphenation_terminology", ruleId: "style-word-feature", flag: "functionality", wrong: "This functionality needs a license.", right: "This feature needs a license.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "style-word-wi-fi", flag: "WiFi", wrong: "Connect the tool to WiFi.", right: "Connect the tool to Wi-Fi." },
+    { category: "hyphenation_terminology", ruleId: "style-word-ok", flag: "ok", wrong: "Select ok.", right: "Select OK." },
+    { category: "hyphenation_terminology", ruleId: "style-word-3d", flag: "3-D", wrong: "The 3-D view shows the surface.", right: "The 3D view shows the surface." },
+    { category: "hyphenation_terminology", ruleId: "style-word-regular-expression", flag: "regex", wrong: "Enter a regex in the Filter box.", right: "Enter a regular expression in the Filter box." },
+    { category: "hyphenation_terminology", ruleId: "style-word-sign-in-to", flag: "Sign into", wrong: "Sign into the portal with your ID.", right: "Sign in to the portal with your ID." },
+    { category: "hyphenation_terminology", ruleId: "style-word-sync", flag: "synchs", wrong: "The tool synchs data every hour.", right: "The tool syncs data every hour." },
+    { category: "hyphenation_terminology", ruleId: "style-word-also-known-as", flag: "aka", wrong: "Use the Z stage, aka the focus stage.", right: "Use the Z stage, also known as the focus stage." },
+    { category: "hyphenation_terminology", ruleId: "style-word-url", flag: "url", wrong: "Copy the url into the browser.", right: "Copy the URL into the browser." },
+    { category: "hyphenation_terminology", ruleId: "style-word-https", flag: "HTTPs", wrong: "The portal uses HTTPs only.", right: "The portal uses HTTPS only." },
     // ── Numbers & abbreviations ──
     { category: "numbers_abbreviations", ruleId: "chicago-23-decimal-zero", flag: ".5", wrong: "Set the gain to .5 before the scan.", right: "Set the gain to 0.5 before the scan." },
     { category: "numbers_abbreviations", ruleId: "chicago-24-number-range", flag: "pages 10-12", wrong: "See pages 10-12 in the user guide.", right: "See pages 10–12 in the user guide." },
@@ -1438,11 +1678,26 @@
     { category: "numbers_abbreviations", ruleId: "chicago-91-et-al-period", flag: "et al", wrong: "Kim et al reported the same drift.", right: "Kim et al. reported the same drift." },
     { category: "numbers_abbreviations", ruleId: "chicago-94-vs-period", flag: "vs", wrong: "Plot the height vs time for each line.", right: "Plot the height vs. time for each line." },
     { category: "numbers_abbreviations", ruleId: "chicago-95-author-date-comma", flag: "(Kim, 2020)", wrong: "The method follows (Kim, 2020) closely.", right: "The method follows (Kim 2020) closely." },
+    // Google Developer Docs Style (errata-ai/Google port)
+    { category: "numbers_abbreviations", ruleId: "style-slang", flag: "ymmv", wrong: "In short, ymmv on older units.", right: "In short, results can vary on older units.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "style-date-day-month", flag: "31 July 2016", wrong: "Firmware 2.1 shipped on 31 July 2016.", right: "Firmware 2.1 shipped on July 31, 2016." },
+    { category: "numbers_abbreviations", ruleId: "style-date-numeric", flag: "07/10/2026", wrong: "The calibration expires on 07/10/2026.", right: "The calibration expires on October 7, 2026.", noFixCheck: true },
     // ── Custom ──
     { category: "custom", ruleId: "team-imperative", flag: "You should use", wrong: "You should use the imperative form as the default in manuals.", right: "Use the imperative form as the default in manuals." },
     { category: "custom", ruleId: "team-imperative", flag: "you should replace", wrong: "If the tip breaks, you should replace it.", right: "If the tip breaks, replace it." },
     // The corrected text keeps a result sentence, which the rule must not flag.
     { category: "custom", ruleId: "team-imperative", flag: "You should press", wrong: "You should press Start. You should see a green light.", right: "Press Start. You should see a green light." },
+    // team-imperative v3: examples from the rule request (Not recommended -> Recommended, Do not flag)
+    { category: "custom", ruleId: "team-imperative", flag: "You need to", wrong: "You need to press Start. You should be able to scan the sample.", right: "Press Start. You should be able to scan the sample." },
+    { category: "custom", ruleId: "team-imperative", flag: "You have to", wrong: "You have to calibrate the stage. You must wear gloves.", right: "Calibrate the stage. You must wear gloves." },
+    { category: "custom", ruleId: "team-imperative", flag: "you need to restart", wrong: "If the LED blinks, you need to restart the tool.", right: "If the LED blinks, restart the tool." },
+    { category: "custom", ruleId: "team-please", flag: "Please close", wrong: "Please close the lid before the scan.", right: "Close the lid before the scan." },
+    { category: "custom", ruleId: "team-imperative-negative", flag: "You should not touch", wrong: "You should not touch the tip.", right: "Do not touch the tip." },
+    { category: "custom", ruleId: "team-imperative-negative-mid", flag: "you should not touch", wrong: "If the tip is hot, you should not touch it.", right: "If the tip is hot, do not touch it." },
+    // Google Developer Docs Style (errata-ai/Google port)
+    { category: "custom", ruleId: "style-timeless", flag: "currently", wrong: "The tool currently supports two scan modes.", right: "The tool supports two scan modes.", noFixCheck: true },
+    { category: "custom", ruleId: "style-excessive-claims", flag: "fastest", wrong: "The fastest method needs one step.", right: "This method needs one step.", noFixCheck: true },
+    { category: "custom", ruleId: "style-anthropomorphism", flag: "tells", wrong: "The status LED tells you the scan state.", right: "The status LED shows the scan state.", noFixCheck: true },
   ];
   // Text in the header/footer bands (top/bottom MARGIN_CM) must never be flagged.
   const SELF_CHECK_MARGIN_TEXT = {
