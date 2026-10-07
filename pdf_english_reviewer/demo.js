@@ -2117,11 +2117,12 @@
   const spellNormalize = (w) => w.replace(/’/g, "'").replace(/\u00AD/g, "").replace(/[\uFB00-\uFB06]/g, (ch) => ch.normalize("NFKC"));
   // Never checked: URLs, e-mail addresses, "et al", and a word marked "[sic]".
   const SPELL_SKIP_SPAN_RE = /\b(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\bet al\b|\S+\s*\[sic\]/g;
-  // Not checked: one letter, digits (XE7, v2.1), all caps (AFM), and a capital after the
-  // first letter (SmartScan, MPa, PDFs).
+  // Not checked: one letter, digits (XE7, v2.1), all caps (AFM), a capital after the
+  // first letter (SmartScan, MPa, PDFs), or SI/metric unit abbreviations.
+  const SPELL_UNIT_RE = /^(?:nm|mm|cm|dm|km|μm|um|pm|fm|ms|μs|us|ns|ps|fs|kg|mg|μg|ng|pg|ppm|ppb|rpm|mol|eV)$/;
   function spellSkipWord(w) {
     const letters = w.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g, "");
-    return letters.length < 2 || /\d/.test(w) || /.[A-Z]/.test(w) || letters === letters.toUpperCase();
+    return letters.length < 2 || /\d/.test(w) || /.[A-Z]/.test(w) || letters === letters.toUpperCase() || SPELL_UNIT_RE.test(w);
   }
   function spellPlural(w) {
     if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + "ies";
@@ -2875,16 +2876,6 @@
       const action = btn.dataset.demoAction;
       const f = viewerState.findings.find((x) => x.id === id);
       if (!f) return;
-      if (action === "add-word") {
-        // Add the word to the team word list; drop every finding for the same word.
-        saveSpellUserWords([...spellUserWords(), f.text]);
-        viewerState.findings = viewerState.findings.filter((x) => !(x.ruleId === "team-spelling" && x.text === f.text));
-        if (viewerState.activeFindingId === f.id) viewerState.activeFindingId = null;
-        saveReviewDecisions();
-        renderIssuesPanel();
-        renderCurrentPages();
-        return;
-      }
       if (action === "accept") f.status = f.status === "accepted" ? "pending" : "accepted";
       if (action === "reject") f.status = f.status === "rejected" ? "pending" : "rejected";
       saveReviewDecisions();
@@ -2957,10 +2948,6 @@
               ${f.status === "rejected" ? "✕ Ignored" : "Ignore"}
             </button>
           </div>
-          ${f.ruleId === "team-spelling" && !String(f.suggestion || "").startsWith("(") ? "" : f.ruleId === "team-spelling" ? `<button data-demo-action="add-word" data-demo-finding-id="${f.id}" title="The word passes from the next review on (Rules → team-spelling → Edit to remove it)"
-              style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid #6b7280;background:#fff;color:#374151;border-radius:6px;cursor:pointer;font-size:12px;">
-              Add "${escapeHtml(f.text)}" to the team word list
-            </button>` : ""}
         </article>`;
     }).join("");
   }
