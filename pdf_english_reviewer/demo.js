@@ -1,4 +1,5 @@
 // demo_v4.js — PDF English Reviewer (client-side preview shim), v4
+// Edited with demo_editor (20261008T165334): 1 word(s) added to team list.
 // Edited with demo_editor (20261007T164042): 1 deleted, 6 self-check test change(s).
 // Edited with demo_editor (20261007T113215): 3 edited, 3 deleted, 6 self-check test change(s).
 // Edited with demo_editor (20261002T171837): 1 deleted, 1 self-check test change(s).
@@ -695,21 +696,16 @@
   // - word with capitals or accents: only that exact form passes; a different case or a
   //   missing accent ("Smartscan", "Lyncee") gets the exact form as the suggestion.
   const SPELL_TEAM_WORDS = [
-    // Technical terms not in the dictionary ("toolkit" is, but its plural is not)
-    "electrochemical", "electrochemistry", "ellipsometer", "ellipsometry", "heterodyne",
-    "interferometry", "metrology", "nano", "nanoelectronics", "nanoindentation",
-    "nanolithography", "nanomanipulation", "nanomechanical", "nanometrology", "photodetector",
-    "photomask", "piezoresponse", "probehand", "profilometry", "setpoint", "sideband",
-    "toolkit",
-    // Product and proper names
-    "Lyncée", "MBraun", "NANOscientific", "Hivac", "Interferom",
-    // Product and mode names with inner capitals: skipped by the check, listed so a case
-    // slip ("Smartscan", "Pinpoint scan") gets the exact form as the suggestion
-    "GloveBox", "KnowItAll", "NanoStandard", "PinPoint", "SmartAnalysis", "SmartLitho",
-    "SmartScan", "SmartSimulator", "qPlus", "NX-WaferBasic", "NX-WaferPlus", "NX-HybridWLI",
-    "NX-eAFM", "SThM", "sMIM",
-    // Required by other rules: chicago-59-esports and style-word-wi-fi suggest these
+    "electrochemical", "electrochemistry", "ellipsometer", "ellipsometry", "heterodyne", "interferometry",
+    "metrology", "nano", "nanoelectronics", "nanoindentation", "nanolithography", "nanomanipulation",
+    "nanomechanical", "nanometrology", "photodetector", "photomask", "piezoresponse", "probehand",
+    "profilometry", "setpoint", "sideband", "toolkit", "Lyncée", "MBraun",
+    "NANOscientific", "Hivac", "Interferom", "GloveBox", "KnowItAll", "NanoStandard",
+    "PinPoint", "SmartAnalysis", "SmartLitho", "SmartScan", "SmartSimulator", "qPlus",
+    "NX-WaferBasic", "NX-WaferPlus", "NX-HybridWLI", "NX-eAFM", "SThM", "sMIM",
     "esports", "Wi-Fi",
+    // Added via demo_editor
+    "NX-Hivac",
   ];
   DEFAULT_RULES = [..._BASE_RULES, ...CHICAGO_RULES, ...STYLE_RULES, ...TEAM_RULES];
   // Stored copies of rules before v11/v12/v13, used to upgrade only if not edited by user.
