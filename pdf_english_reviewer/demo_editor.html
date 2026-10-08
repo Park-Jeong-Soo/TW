@@ -593,8 +593,12 @@ dialog textarea { width: 100%; min-height: 180px; font-family: var(--mono); font
   // ── GitHub API & PAT ──
   const GITHUB_API_URL = "https://api.github.com/repos/Park-Jeong-Soo/TW/contents/pdf_english_reviewer/demo.js";
   const PAT_KEY = "tw-editor-github-pat";
-  const getToken = () => localStorage.getItem(PAT_KEY) || "";
-  const setToken = (t) => t ? localStorage.setItem(PAT_KEY, t) : localStorage.removeItem(PAT_KEY);
+  const getToken = () => sessionStorage.getItem(PAT_KEY) || localStorage.getItem(PAT_KEY) || "";
+  const isSessionToken = () => !!sessionStorage.getItem(PAT_KEY);
+  const setToken = (t, sessionOnly) => {
+    localStorage.removeItem(PAT_KEY); sessionStorage.removeItem(PAT_KEY);
+    if (t) (sessionOnly ? sessionStorage : localStorage).setItem(PAT_KEY, t);
+  };
 
   async function backupFromGitHub() {
     const d = new Date(), p = (x) => String(x).padStart(2, "0");
@@ -1491,18 +1495,21 @@ Rule with skipOnItalic:
     const d = new Date(), p = (x) => String(x).padStart(2, "0");
     const ds = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
     const hasPat = !!getToken();
+    const sessionStored = isSessionToken();
     const listHtml = list.length
       ? `<div class="msgs"><ul>${list.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>`
       : `<p style="color:var(--muted);font-size:13.5px;margin:0 0 8px;">에디터 변경 없음 — 현재 로드된 파일을 그대로 업로드합니다.</p>`;
+    const patHint = `<p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Fine-grained token 권장 — Contents: Read&amp;write, 이 repo만. 공용 PC라면 아래 체크.</p>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;cursor:pointer;"><input type="checkbox" id="session-only"> 세션에서만 사용 (탭 닫으면 자동 삭제)</label>`;
     body.innerHTML = `<h3>GitHub 업로드</h3>
       ${listHtml}
       <label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">커밋 메시지</label>
       <input id="upload-msg" value="Update demo.js via demo_editor (${ds})" style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);">
       ${hasPat
-        ? `<p id="pat-status" style="font-size:12px;color:var(--muted);margin:8px 0 0;">GitHub 토큰 저장됨. <a href="#" id="change-pat">변경</a></p>`
+        ? `<p id="pat-status" style="font-size:12px;color:var(--muted);margin:8px 0 0;">GitHub 토큰 저장됨${sessionStored ? " (세션 전용)" : ""}. <a href="#" id="change-pat">변경</a></p>`
         : `<label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">GitHub Personal Access Token</label>
            <input id="upload-pat" type="password" placeholder="ghp_..." style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);">
-           <p style="font-size:12px;color:var(--muted);margin:4px 0 0;">이 브라우저 로컬스토리지에 저장됩니다. repo contents 쓰기 권한 필요.</p>`}`;
+           ${patHint}`}`;
     foot.innerHTML = `<button class="btn" type="button" data-close>닫기</button>
       <button class="btn primary" type="button" id="do-upload">업로드</button>`;
     dlg.showModal();
@@ -1512,33 +1519,52 @@ Rule with skipOnItalic:
         $("pat-status").outerHTML = `
           <label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">GitHub Personal Access Token</label>
           <input id="upload-pat" type="password" placeholder="ghp_..." style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);" value="${esc(getToken())}">
+          ${patHint}
           <p style="font-size:12px;color:var(--muted);margin:4px 0 0;"><a href="#" id="clear-pat">토큰 삭제</a></p>`;
         if ($("clear-pat")) $("clear-pat").onclick = (ev) => { ev.preventDefault(); setToken(""); $("upload-pat").value = ""; };
       };
     }
     $("do-upload").onclick = async () => {
       const patInput = document.getElementById("upload-pat");
-      if (patInput && patInput.value.trim()) setToken(patInput.value.trim());
+      const sessionOnly = document.getElementById("session-only")?.checked || false;
+      if (patInput && patInput.value.trim()) setToken(patInput.value.trim(), sessionOnly);
       const tok = getToken();
       if (!tok) { if (patInput) patInput.focus(); return; }
       const msg = ($("upload-msg")?.value.trim()) || `Update demo.js via demo_editor (${ds})`;
       $("do-upload").disabled = true; $("do-upload").textContent = "업로드 중…";
       document.querySelectorAll("#dlg-body .err").forEach((el) => el.remove());
       try {
+        const now = new Date(), pp = (x) => String(x).padStart(2, "0");
+        const ts = `${now.getFullYear()}${pp(now.getMonth()+1)}${pp(now.getDate())}T${pp(now.getHours())}${pp(now.getMinutes())}${pp(now.getSeconds())}`;
+        const branchName = `rule-edit/${ts}`;
         const headers = { "Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+        // Get demo.js file SHA from main
         const meta = await fetch(GITHUB_API_URL, { headers }).then((r) => r.json());
         if (!meta.sha) throw new Error("현재 파일 SHA를 읽을 수 없습니다. 토큰 권한(contents: write)을 확인하세요.");
+        // Create feature branch from main HEAD
+        const mainRef = await fetch("https://api.github.com/repos/Park-Jeong-Soo/TW/git/ref/heads/main", { headers }).then((r) => r.json());
+        if (!mainRef.object?.sha) throw new Error("main 브랜치 SHA를 읽을 수 없습니다.");
+        const branchRes = await fetch("https://api.github.com/repos/Park-Jeong-Soo/TW/git/refs", {
+          method: "POST", headers,
+          body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: mainRef.object.sha })
+        });
+        if (!branchRes.ok) { const e = await branchRes.json().catch(()=>({})); throw new Error(`브랜치 생성 실패 (${branchRes.status})${e.message ? ": " + e.message : ""}`); }
+        // Push demo.js to feature branch
         const encoded = btoa(unescape(encodeURIComponent(uploadText)));
         const up = await fetch(GITHUB_API_URL, {
           method: "PUT", headers,
-          body: JSON.stringify({ message: msg, content: encoded, sha: meta.sha, branch: "main" })
+          body: JSON.stringify({ message: msg, content: encoded, sha: meta.sha, branch: branchName })
         });
         if (!up.ok) { const err = await up.json().catch(() => ({})); throw new Error(`HTTP ${up.status}${err.message ? ": " + err.message : ""}`); }
         const keep = D && ruleByKey(D.key) && !ruleByKey(D.key).deleted ? ruleByKey(D.key).rule.id : null;
         start(S.name, uploadText); exportedOnce = true;
         const again = keep && S.rules.find((r) => r.rule.id === keep);
         if (again) { openRule(again.key); renderList(); }
-        body.innerHTML = `<h3>업로드 완료</h3><p>demo.js가 GitHub에 업로드되었습니다.<br>GitHub Pages 반영까지 1~2분 소요됩니다.<br>로컬 파일에 반영하려면 <code>git pull</code>을 실행하세요.</p>`;
+        const prUrl = `https://github.com/Park-Jeong-Soo/TW/compare/main...${encodeURIComponent(branchName)}?quick_pull=1`;
+        body.innerHTML = `<h3>업로드 완료</h3>
+          <p><code>${esc(branchName)}</code> 브랜치에 업로드되었습니다.</p>
+          <p><a href="${esc(prUrl)}" target="_blank" rel="noopener noreferrer" style="font-weight:600;">→ Pull Request 열기</a></p>
+          <p style="font-size:12px;color:var(--muted);">PR 머지 후 GitHub Pages에 반영됩니다 (1~2분 소요).<br>로컬 반영: PR 머지 후 <code>git pull</code>.</p>`;
         foot.innerHTML = `<button class="btn primary" type="button" data-close>확인</button>`;
       } catch (err) {
         $("do-upload").disabled = false; $("do-upload").textContent = "업로드";
