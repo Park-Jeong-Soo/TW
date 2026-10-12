@@ -1499,8 +1499,8 @@ Rule with skipOnItalic:
     const listHtml = list.length
       ? `<div class="msgs"><ul>${list.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>`
       : `<p style="color:var(--muted);font-size:13.5px;margin:0 0 8px;">에디터 변경 없음 — 현재 로드된 파일을 그대로 업로드합니다.</p>`;
-    const patHint = `<p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Fine-grained token 권장 — Contents: Read&amp;write, 이 repo만. 공용 PC라면 아래 체크.</p>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;cursor:pointer;"><input type="checkbox" id="session-only"> 세션에서만 사용 (탭 닫으면 자동 삭제)</label>`;
+    const patHint = `<p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Fine-grained token 권장 — Contents: Read&amp;write, 이 repo만. 영구 저장하려면 아래 체크 해제 (개인 PC 전용).</p>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;cursor:pointer;"><input type="checkbox" id="session-only" checked> 세션에서만 사용 (탭 닫으면 자동 삭제, 기본값)</label>`;
     body.innerHTML = `<h3>GitHub 업로드</h3>
       ${listHtml}
       <label style="display:block;margin:12px 0 4px;font-size:13px;font-weight:500;">커밋 메시지</label>
