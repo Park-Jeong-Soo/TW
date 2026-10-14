@@ -1049,8 +1049,8 @@
         // upgrade the first version ("\\byou should\\b", advisory note) unless the user edited it.
         const def = TEAM_RULES.find((rule) => rule.id === "team-imperative");
         const r = rules.find((rule) => rule.id === "team-imperative");
-        if (!r) rules.push({ ...def });
-        else if (r.pattern === "\\byou should\\b") Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
+        if (!r && def) rules.push({ ...def });
+        else if (r && def && r.pattern === "\\byou should\\b") Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261006T081608_KEY, "done");
       }
@@ -1060,8 +1060,8 @@
         const V2_PATTERN = "\\bYou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)|\\byou should (?!(?:now |then |also )?(?:not|see|hear|notice|observe|find|get|receive|be|have)\\b)(\\w+)";
         const def = TEAM_RULES.find((rule) => rule.id === "team-imperative");
         const r = rules.find((rule) => rule.id === "team-imperative");
-        if (!r) rules.push({ ...def });
-        else if (r.pattern === V2_PATTERN) Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
+        if (!r && def) rules.push({ ...def });
+        else if (r && def && r.pattern === V2_PATTERN) Object.assign(r, { name: def.name, pattern: def.pattern, flags: def.flags, replacement: def.replacement });
         const ids = new Set(rules.map((rule) => rule.id));
         rules.push(...TEAM_RULES.filter((rule) => ["team-imperative-negative", "team-imperative-negative-mid", "team-please"].includes(rule.id) && !ids.has(rule.id)));
         saveRules(rules);
@@ -2061,7 +2061,6 @@
     const findings = [];
     let paraCount = 0;
     for (let p = 1; p <= pdf.numPages; p++) {
-      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       const page = await pdf.getPage(p);
       let content;
       const _cachedPos = viewerState.textPages.get(p);
@@ -2202,7 +2201,6 @@
     };
     const findings = [];
     for (let p = 1; p <= pdf.numPages; p++) {
-      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       const page = await pdf.getPage(p);
       let content;
       const _cachedSpell = viewerState.textPages.get(p);
@@ -2359,7 +2357,6 @@
 
     const findings = [];
     for (let p = 1; p <= pdf.numPages; p++) {
-      if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       if (p === 1 || p % 10 === 0 || p === pdf.numPages) {
         setText("review-status", `Reviewing page ${p} / ${pdf.numPages}…`);
       }
