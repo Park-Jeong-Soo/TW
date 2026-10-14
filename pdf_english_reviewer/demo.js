@@ -839,14 +839,32 @@
   function removeWorkspaceMeta(id) { writeWorkspaces(readWorkspaces().filter((w) => w.id !== id)); }
   function reviewStorageKey(id) { return REVIEW_STORAGE_PREFIX + id; }
   function findingKey(finding) {
-    return JSON.stringify([finding.page, finding.ruleId, finding.text, finding.bboxes || finding.bbox]);
+    return JSON.stringify([finding.page, finding.ruleId, finding.text, finding._ordinal || 0]);
+  }
+  function assignOrdinals(findings) {
+    const counts = new Map();
+    for (const f of findings) {
+      const k = `${f.page}\x00${f.ruleId}\x00${f.text}`;
+      f._ordinal = counts.get(k) || 0;
+      counts.set(k, f._ordinal + 1);
+    }
+    return findings;
   }
   function restoreReviewDecisions(findings, workspaceId) {
     if (!workspaceId) return findings;
     try {
       const saved = JSON.parse(localStorage.getItem(reviewStorageKey(workspaceId)) || "{}");
       for (const finding of findings) {
-        const decision = saved[findingKey(finding)];
+        let decision = saved[findingKey(finding)];
+        if (!decision) {
+          // Migrate from old key format that included bbox array as 4th element
+          const prefix = JSON.stringify([finding.page, finding.ruleId, finding.text]).slice(0, -1) + ",";
+          const oldKey = Object.keys(saved).find((k) => {
+            if (!k.startsWith(prefix)) return false;
+            try { return Array.isArray(JSON.parse(k)[3]); } catch { return false; }
+          });
+          if (oldKey) decision = saved[oldKey];
+        }
         if (!decision) continue;
         if (["accepted", "rejected"].includes(decision.status)) finding.status = decision.status;
         finding.reviewerComment = String(decision.reviewerComment || "");
@@ -1301,6 +1319,7 @@
     setupExportButton();
     await renderCurrentPages();
     enableRunReviewButtons(true);
+    ensureTagger().catch(() => {});
 
     runReviewFlow(pdf, name);
   }
@@ -1320,6 +1339,7 @@
       const spellFindings = spellRes.status === "fulfilled" ? dropDuplicateSpelling(spellRes.value, [...regexFindings, ...posFindings]) : [];
       const allFindings = sortFindings([...regexFindings, ...posFindings, ...spellFindings]);
       const findings = mergeFindings(allFindings, valeFindings);
+      assignOrdinals(findings);
       viewerState.findings = restoreReviewDecisions(findings, viewerState.workspaceId);
       setText("issue-total", String(findings.length));
       const cnt = findings.length;
@@ -2044,8 +2064,13 @@
       if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       const page = await pdf.getPage(p);
       let content;
-      try { content = await page.getTextContent(); } catch { continue; }
-      rememberStyles(content);
+      const _cachedPos = viewerState.textPages.get(p);
+      if (_cachedPos) { content = { items: _cachedPos }; }
+      else {
+        try { content = await page.getTextContent(); } catch { continue; }
+        viewerState.textPages.set(p, content.items);
+        rememberStyles(content);
+      }
       for (const para of buildParagraphs(content.items, page.view[3])) {
         paraCount++;
         let tokens = null; // tag only paragraphs where some pattern matches
@@ -2180,9 +2205,14 @@
       if (!selfCheck.running && (p === 1 || p === pdf.numPages)) continue;
       const page = await pdf.getPage(p);
       let content;
-      try { content = await page.getTextContent(); } catch { continue; }
-      rememberStyles(content);
-      await resolveFontNames(page, content.items);
+      const _cachedSpell = viewerState.textPages.get(p);
+      if (_cachedSpell) { content = { items: _cachedSpell }; }
+      else {
+        try { content = await page.getTextContent(); } catch { continue; }
+        viewerState.textPages.set(p, content.items);
+        rememberStyles(content);
+        await resolveFontNames(page, content.items);
+      }
       for (const para of buildParagraphs(content.items, page.view[3])) {
         if (!isSpellBodyParagraph(para)) continue;
         // A hyphen that is the last character of one line, followed by the next line.
@@ -3306,4 +3336,15 @@
   }
 
   on("self-check-btn", "click", () => runSelfCheck(false));
+
+  if (typeof location !== "undefined" && location.protocol === "file:") {
+    const _showFileBanner = () => {
+      const b = document.createElement("div");
+      b.style.cssText = "position:fixed;inset:0 0 auto;background:#b91c1c;color:#fff;padding:10px 16px;z-index:9999;font-size:13px;text-align:center;";
+      b.innerHTML = "&#9888; Opened as a local file — workspaces and review decisions will not persist. Use a local server: <code style=\"background:rgba(0,0,0,.2);padding:1px 4px;border-radius:3px;\">python -m http.server</code>";
+      document.body.appendChild(b);
+    };
+    if (document.body) _showFileBanner();
+    else document.addEventListener("DOMContentLoaded", _showFileBanner);
+  }
 })();
