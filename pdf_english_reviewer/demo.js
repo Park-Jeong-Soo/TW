@@ -738,6 +738,7 @@
     return new Promise((resolve, reject) => {
       const s = document.createElement("script");
       s.src = src;
+      s.crossOrigin = "anonymous";
       s.onload = () => resolve();
       s.onerror = () => reject(new Error("Failed to load " + src));
       document.head.appendChild(s);
@@ -1202,9 +1203,28 @@
   // ─── Workspaces list ───────────────────────────────────────────────────
   //
   window.loadWorkspaces = renderSavedWorkspaces;
+  async function renderStorageBar() {
+    const bar = document.getElementById("workspace-storage-bar");
+    if (!bar) return;
+    let lsBytes = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        lsBytes += (k.length + (localStorage.getItem(k) || "").length) * 2;
+      }
+    } catch {}
+    let idbBytes = 0;
+    try {
+      const est = await navigator.storage.estimate();
+      idbBytes = est.usage || 0;
+    } catch {}
+    const total = lsBytes + idbBytes;
+    bar.textContent = total > 0 ? `Storage: ${formatBytes(lsBytes)} localStorage + ${formatBytes(idbBytes)} IDB` : "";
+  }
   function renderSavedWorkspaces() {
     const container = document.getElementById("workspace-list");
     if (!container) return;
+    renderStorageBar();
     const searchInput = document.getElementById("workspace-search");
     const query = (searchInput && searchInput.value.trim().toLowerCase()) || "";
     const list = readWorkspaces().filter((item) =>
@@ -1261,6 +1281,60 @@
     localStorage.removeItem(reviewStorageKey(id));
     renderSavedWorkspaces();
   }
+  function exportWorkspacesBackup() {
+    const workspaces = readWorkspaces();
+    const reviews = {};
+    for (const ws of workspaces) {
+      const key = reviewStorageKey(ws.id);
+      const raw = localStorage.getItem(key);
+      if (raw) { try { reviews[ws.id] = JSON.parse(raw); } catch {} }
+    }
+    let rulesRaw = null;
+    try { rulesRaw = localStorage.getItem(RULES_STORAGE_KEY); } catch {}
+    const backup = {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      workspaces,
+      reviews,
+      rules: rulesRaw ? JSON.parse(rulesRaw) : null,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pdf-reviewer-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  async function importWorkspacesBackup(file) {
+    let backup;
+    try { backup = JSON.parse(await file.text()); } catch { alert("Invalid backup file."); return; }
+    if (!backup || backup.version !== 1 || !Array.isArray(backup.workspaces)) {
+      alert("Unrecognised backup format."); return;
+    }
+    if (!confirm(`Import ${backup.workspaces.length} workspace(s) from backup?\nExisting workspaces with the same ID will be skipped.`)) return;
+    const existing = readWorkspaces();
+    const existingIds = new Set(existing.map((w) => w.id));
+    let added = 0;
+    for (const ws of backup.workspaces) {
+      if (!existingIds.has(ws.id)) { existing.push(ws); added++; }
+    }
+    writeWorkspaces(existing);
+    for (const [id, review] of Object.entries(backup.reviews || {})) {
+      try { localStorage.setItem(reviewStorageKey(id), JSON.stringify(review)); } catch {}
+    }
+    if (backup.rules) {
+      const hasRules = localStorage.getItem(RULES_STORAGE_KEY);
+      if (!hasRules || confirm("Overwrite current rules with backup rules?")) {
+        try { localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(backup.rules)); } catch {}
+      }
+    }
+    alert(`Imported ${added} workspace(s).`);
+    renderSavedWorkspaces();
+  }
+
   document.addEventListener("input", (event) => {
     if (event.target && event.target.id === "workspace-search") renderSavedWorkspaces();
   }, true);
@@ -3041,8 +3115,21 @@
     if (!Number.isInteger(finding.page) || finding.page < 1 || finding.page > doc.getPageCount()) return false;
     const page = doc.getPage(finding.page - 1);
     const crop = page.getCropBox();
+    const rotate = (typeof page.getRotation === "function")
+      ? (((page.getRotation().angle % 360) + 360) % 360) : 0;
+    function toNative(x, y, w, h) {
+      if (rotate === 0) return [x, y, w, h];
+      const mb = (typeof page.getMediaBox === "function")
+        ? page.getMediaBox() : { width: crop.x + crop.width, height: crop.y + crop.height };
+      const mw = mb.width, mh = mb.height;
+      if (rotate === 90)  return [y, mw - x - w, h, w];
+      if (rotate === 180) return [mw - x - w, mh - y - h, w, h];
+      if (rotate === 270) return [mh - y - h, x, h, w];
+      return [x, y, w, h];
+    }
     const boxes = (Array.isArray(finding.bboxes) && finding.bboxes.length ? finding.bboxes : [finding.bbox || []])
       .filter((b) => b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0)
+      .map(([x, y, w, h]) => toNative(x, y, w, h))
       .map(([x, y, w, h]) => [Math.max(x, crop.x), Math.max(y, crop.y),
         Math.min(x + w, crop.x + crop.width), Math.min(y + h, crop.y + crop.height)])
       .filter(([l, b, r, t]) => l < r && b < t);
@@ -3059,7 +3146,7 @@
       Rect: [left, bottom, right, top],
       QuadPoints: boxes.flatMap(([l, b, r, t]) => [l, t, r, t, l, b, r, b]),
       C: color, CA: 0.35, F: 4,
-      T: PDFHexString.fromText(`${finding.category || "Review"} [accepted]`),
+      T: PDFHexString.fromText(`${finding.category || "Review"} [${finding.status || "pending"}]`),
       Contents: PDFHexString.fromText(comment),
     });
     page.node.addAnnot(doc.context.register(annotation));
@@ -3306,6 +3393,7 @@
       const pos = String(fd.get("pos") || "").trim().replace(/\s+/g, " ");
       if (pos) rule.pos = pos;
       try { new RegExp(rule.pattern, rule.flags); } catch (err) { alert("Invalid regex: " + err.message); return; }
+      if (hasReDoSRisk(rule.pattern) && !confirm("Warning: this pattern may be slow on long texts (potential ReDoS risk).\nContinue saving?")) return;
       const posErr = posConditionError(rule.pos);
       if (posErr) { alert(posErr); return; }
       if (r.id === "team-spelling") saveSpellUserWords(String(fd.get("spellWords") || "").split(/\r?\n/));
@@ -3320,6 +3408,11 @@
   //
   function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
   function on(id, ev, handler) { const el = document.getElementById(id); if (el) el.addEventListener(ev, handler); }
+  function hasReDoSRisk(pattern) {
+    if (/\([^)]*[+*][^)]*\)[+*{]/.test(pattern)) return true;
+    if (/\([^)]*\|[^)]*\)[+*]{2,}/.test(pattern)) return true;
+    return false;
+  }
   function formatBytes(bytes) {
     if (!bytes && bytes !== 0) return "—";
     const units = ["B", "KB", "MB", "GB"]; let i = 0, n = bytes;
@@ -3333,6 +3426,18 @@
   }
 
   on("self-check-btn", "click", () => runSelfCheck(false));
+  on("workspace-export-backup-btn", "click", () => exportWorkspacesBackup());
+  on("workspace-import-backup-btn", "click", () => {
+    const fi = document.getElementById("workspace-backup-file");
+    if (fi) fi.click();
+  });
+  (function () {
+    const fi = document.getElementById("workspace-backup-file");
+    if (fi) fi.addEventListener("change", (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) { importWorkspacesBackup(f); fi.value = ""; }
+    });
+  })();
 
   if (typeof location !== "undefined" && location.protocol === "file:") {
     const _showFileBanner = () => {
