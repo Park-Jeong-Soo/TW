@@ -227,6 +227,7 @@
   const RULES_EDIT_20261007T164042_KEY = "tw-demo-rules-edit-20261007t164042";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
+  const UI_TERMS_KEY_PREFIX = "tw-demo-uiterms-v1:";
 
   // 2.5 cm margin (top and bottom) excluded from review — headers/footers.
   const MARGIN_CM = 2.5;
@@ -2439,6 +2440,7 @@
     }).filter(Boolean);
 
     const findings = [];
+    const uiTerms = loadUiTerms(viewerState.workspaceId);
     for (let p = 1; p <= pdf.numPages; p++) {
       if (p === 1 || p % 10 === 0 || p === pdf.numPages) {
         setText("review-status", `Reviewing page ${p} / ${pdf.numPages}…`);
@@ -2467,7 +2469,7 @@
 
         if (tableHeaderRule && headerItems.has(item) && !isExcludedTitleItem(item)) {
           const suggestion = titleCaseText(item.str);
-          if (suggestion !== item.str) findings.push({
+          if (suggestion !== item.str && hasNonUiTermDiff(item.str, suggestion, uiTerms)) findings.push({
             id: newId(), page: p, ruleId: tableHeaderRule.id, ruleName: tableHeaderRule.name,
             category: tableHeaderRule.category, severity: tableHeaderRule.severity,
             text: item.str, context: item.str, suggestion, bbox, status: "pending",
@@ -2476,7 +2478,7 @@
         }
         if (titleRule && isTitleText(item, content.items, tableItems, labelPrefixes)) {
           const suggestion = titleCaseSuggestion(item.str);
-          if (suggestion !== item.str) findings.push({
+          if (suggestion !== item.str && hasNonUiTermDiff(item.str, suggestion, uiTerms)) findings.push({
             id: newId(), page: p, ruleId: titleRule.id, ruleName: titleRule.name,
             category: titleRule.category, severity: titleRule.severity,
             text: item.str, context: item.str, suggestion, bbox, status: "pending",
@@ -3206,6 +3208,7 @@
       }
     }
 
+    saveUiTerms(canonicalForms, viewerState.workspaceId);
     if (canonicalForms.size === 0) return [];
 
     // Phase 2: Scan body text for case mismatches
@@ -3503,6 +3506,32 @@
   //
   function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
   function on(id, ev, handler) { const el = document.getElementById(id); if (el) el.addEventListener(ev, handler); }
+  function uiTermsKey(wsId) {
+    return UI_TERMS_KEY_PREFIX + (wsId || "global");
+  }
+  function saveUiTerms(canonicalForms, wsId) {
+    try {
+      localStorage.setItem(uiTermsKey(wsId), JSON.stringify(Object.fromEntries(canonicalForms)));
+    } catch (err) { console.warn("[demo][ocr] saveUiTerms failed", err); }
+  }
+  function loadUiTerms(wsId) {
+    try {
+      const raw = wsId
+        ? (localStorage.getItem(uiTermsKey(wsId)) || localStorage.getItem(uiTermsKey("global")))
+        : localStorage.getItem(uiTermsKey("global"));
+      return raw ? new Map(Object.entries(JSON.parse(raw))) : new Map();
+    } catch { return new Map(); }
+  }
+  function hasNonUiTermDiff(original, suggestion, uiTerms) {
+    if (!uiTerms.size) return true;
+    const origToks = original.match(/[A-Za-z][A-Za-z0-9_\-]*/g) || [];
+    const suggToks = suggestion.match(/[A-Za-z][A-Za-z0-9_\-]*/g) || [];
+    if (origToks.length !== suggToks.length) return true;
+    for (let i = 0; i < origToks.length; i++) {
+      if (origToks[i] !== suggToks[i] && !uiTerms.has(origToks[i].toLowerCase())) return true;
+    }
+    return false;
+  }
   function hasReDoSRisk(pattern) {
     if (/\([^)]*[+*][^)]*\)[+*{]/.test(pattern)) return true;
     if (/\([^)]*\|[^)]*\)[+*]{2,}/.test(pattern)) return true;
