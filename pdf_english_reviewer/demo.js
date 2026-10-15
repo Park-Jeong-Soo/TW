@@ -179,6 +179,7 @@
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`,
   ];
   const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+  const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js";
 
   // Vale server (review_server.py). Override before this script loads:
   //   <script>window.VALE_API_URL = "http://my-host:5001/api/vale";</script>
@@ -777,6 +778,14 @@
     return Object.assign(base, extra || {});
   }
   ensurePdfjs().catch((err) => console.warn("[demo] PDF.js preload failed:", err));
+
+  let _ocrWorker = null;
+  async function ensureOcrWorker() {
+    if (_ocrWorker) return _ocrWorker;
+    if (!window.Tesseract) await loadScript(TESSERACT_URL);
+    _ocrWorker = await window.Tesseract.createWorker('eng', 1);
+    return _ocrWorker;
+  }
 
   let pdfLibReady = null;
   async function ensurePdfLib() {
@@ -3154,6 +3163,92 @@
   }
 
   //
+  // ─── UI Parameter OCR Check ────────────────────────────────────────────
+  //
+  async function pageHasRasterImages(pdfPage) {
+    try {
+      const ops = await pdfPage.getOperatorList();
+      const imgOps = new Set([
+        window.pdfjsLib.OPS.paintImageXObject,
+        window.pdfjsLib.OPS.paintInlineImageXObject,
+        window.pdfjsLib.OPS.paintImageMaskXObject,
+      ]);
+      return ops.fnArray.some((fn) => imgOps.has(fn));
+    } catch { return false; }
+  }
+  async function runImageOcrCheckOnPdf(pdf, onProgress) {
+    await ensurePdfjs();
+    const worker = await ensureOcrWorker();
+
+    // Phase 1: OCR pages with raster images → collect canonical token forms
+    const canonicalForms = new Map(); // lowercase → canonical string from image
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const pdfPage = await pdf.getPage(p);
+      if (!await pageHasRasterImages(pdfPage)) continue;
+      onProgress && onProgress({ page: p, total: pdf.numPages });
+
+      const viewport = pdfPage.getViewport({ scale: 2.0 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+      let words = [];
+      try { ({ data: { words } } = await worker.recognize(canvas)); }
+      catch (err) { console.warn('[demo][ocr] p.' + p, err); continue; }
+
+      for (const w of words) {
+        if ((w.confidence || 0) < 70) continue;
+        const tok = w.text.replace(/[^a-zA-Z0-9_\-]/g, '');
+        if (tok.length < 3 || !/[A-Z]/.test(tok)) continue;
+        const lc = tok.toLowerCase();
+        if (!canonicalForms.has(lc)) canonicalForms.set(lc, tok);
+      }
+    }
+
+    if (canonicalForms.size === 0) return [];
+
+    // Phase 2: Scan body text for case mismatches
+    const findings = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const pdfPage = await pdf.getPage(p);
+      const textContent = await pdfPage.getTextContent();
+
+      for (const item of textContent.items) {
+        const str = item.str || '';
+        if (!str.trim()) continue;
+        const tokenRe = /[a-zA-Z][a-zA-Z0-9_\-]*/g;
+        let m;
+        while ((m = tokenRe.exec(str)) !== null) {
+          const tok = m[0];
+          if (tok.length < 3) continue;
+          const lc = tok.toLowerCase();
+          const canonical = canonicalForms.get(lc);
+          if (!canonical || tok === canonical) continue;
+
+          const [, , , scaleY, tx, ty] = item.transform;
+          const itemW = item.width || 10;
+          const itemH = Math.abs(scaleY) || 10;
+          const strLen = str.length || 1;
+          const tokX = tx + (m.index / strLen) * itemW;
+          const tokW = Math.max((tok.length / strLen) * itemW, 4);
+
+          findings.push({
+            id: newId(), page: p,
+            ruleId: 'param-case-ocr', ruleName: 'UI Parameter Case (OCR)',
+            category: 'Consistency', severity: 'warning',
+            text: tok, suggestion: canonical, context: str,
+            bbox: [tokX, ty, tokW, itemH],
+            bboxes: [[tokX, ty, tokW, itemH]],
+            status: 'pending',
+          });
+        }
+      }
+    }
+    return findings;
+  }
+
+  //
   // ─── Team Manual Standard tab → Rule editor ───────────────────────────
   //
   window.loadTeamStandardRules = renderRuleEditor;
@@ -3425,6 +3520,32 @@
     }[c]));
   }
 
+  on("run-ocr-btn", "click", async () => {
+    if (!viewerState.pdf) return alert("Open a PDF document first.");
+    const btn = document.getElementById("run-ocr-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Initializing OCR…"; }
+    try {
+      const newFindings = await runImageOcrCheckOnPdf(viewerState.pdf, ({ page, total }) => {
+        if (btn) btn.textContent = `OCR p.${page}/${total}…`;
+      });
+      viewerState.findings = assignOrdinals([
+        ...viewerState.findings.filter((f) => f.ruleId !== 'param-case-ocr'),
+        ...newFindings,
+      ]);
+      saveReviewDecisions();
+      renderIssuesPanel();
+      renderCurrentPages();
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = newFindings.length > 0
+          ? `UI Param Check (${newFindings.length})`
+          : "Check UI Parameters";
+      }
+    } catch (err) {
+      alert("OCR check failed: " + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = "Check UI Parameters"; }
+    }
+  });
   on("self-check-btn", "click", () => runSelfCheck(false));
   on("workspace-export-backup-btn", "click", () => exportWorkspacesBackup());
   on("workspace-import-backup-btn", "click", () => {

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*; object-src 'none'; base-uri 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:* https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDF English Reviewer</title>
   <link rel="icon" href="data:," />
@@ -113,7 +113,7 @@
           <button class="primary wide" id="run-full-review-btn" disabled>Run Full Review</button>
           <button class="secondary wide" id="run-part-review-btn" disabled>Run Custom Review</button>
           <p class="part-review-note">Custom Review runs only the selected external engines, internal standards, and external publishing standards.</p>
-          <button class="secondary wide" id="run-ocr-btn">OCR current page</button>
+          <button class="secondary wide" id="run-ocr-btn">Check UI Parameters</button>
           <button class="secondary wide" id="self-check-btn">Run self-check</button>
           <div class="review-progress-panel hidden" id="review-progress-panel" aria-live="polite">
             <div class="review-progress-heading">
@@ -538,6 +538,6 @@
   <script src="./page_layout.js?v=2"></script>
   <script src="./app.js?v=17"></script>
   <script src="./vendor/wink-bundle.min.js?v=1"></script>
-  <script src="./demo.js?v=22"></script>
+  <script src="./demo.js?v=23"></script>
 </body>
 </html>
