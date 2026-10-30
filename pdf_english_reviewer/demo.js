@@ -226,6 +226,7 @@
   const RULES_EDIT_20261007T180000_KEY = "tw-demo-rules-edit-20261007t180000";
   const RULES_EDIT_20261007T164042_KEY = "tw-demo-rules-edit-20261007t164042";
   const RULES_SI_NIST811_KEY = "tw-demo-rules-si-nist811-v20";
+  const RULES_SEMI_SM_V9_KEY = "tw-demo-rules-semi-sm-v9-v20";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
   const UI_TERMS_KEY_PREFIX = "tw-demo-uiterms-v1:";
@@ -552,6 +553,118 @@
       name: "NIST SP 811 Sec. 10.5.3 — No comma for digit grouping in SI documents [CMOS CONFLICT: chicago-87 adds commas]",
       pattern: "\\b[1-9]\\d{0,2}(?:,\\d{3})+\\b", flags: "g",
       replacement: "(NIST SP 811 Sec. 10.5.3: use thin spaces, not commas, for digit grouping — conflicts with CMOS chicago-87)", severity: "minor", enabled: false },
+    // ── SEMI Standards Style Manual Version 9 (July 2022) ───────────────────
+    // §4-6 Modal verbs — "must" as mandatory requirement (disabled: too broad for general docs)
+    { id: "chicago-115-semi-must-as-shall", category: "grammar",
+      name: "SEMI Style Manual §4-6 — Use \"shall\" not \"must\" for mandatory requirements",
+      pattern: "\\bmust\\b", flags: "gi",
+      replacement: "(SEMI §4-6: use \"shall\" for requirements; \"must\" only for unavoidable consequences)",
+      severity: "minor", enabled: false },
+    // §4-6 — "may require/need" is conditional, not optional; rewrite with shall/should
+    { id: "chicago-116-semi-may-conditional", category: "grammar",
+      name: "SEMI Style Manual §4-6 — Do not use \"may\" for conditional requirements (\"may require\", \"may need\")",
+      pattern: "\\bmay\\s+(?:require|need|necessitate)\\b", flags: "gi",
+      replacement: "(SEMI §4-6: \"may\" = optional only — rewrite as \"shall\" or \"should\")",
+      severity: "minor", enabled: true },
+    // §4-6 — "X is to Y" as implied imperative (disabled: broad pattern, high FP risk)
+    { id: "chicago-117-semi-implied-imperative", category: "grammar",
+      name: "SEMI Style Manual §4-6 — Do not use \"is to\" as implied imperative; use \"shall\"",
+      pattern: "\\b(\\w+)\\s+is\\s+to\\s+(?:be\\s+)?(\\w+)", flags: "g",
+      replacement: "(SEMI §4-6: replace \"[subject] is to [verb]\" with \"[subject] shall [verb]\")",
+      severity: "minor", enabled: false },
+    // App.5 — Restricted biased terms (must replace)
+    { id: "chicago-118-semi-blacklist", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"blacklist\" with bias-free alternative (blocklist, denylist)",
+      pattern: "\\b[Bb]lacklist(?:ed|ing|s)?\\b", flags: "g",
+      replacement: "(SEMI App.5: use blocklist, denylist, or droplist)",
+      severity: "minor", enabled: true },
+    { id: "chicago-119-semi-whitelist", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"whitelist\" with bias-free alternative (allowlist, accesslist)",
+      pattern: "\\b[Ww]hitelist(?:ed|ing|s)?\\b", flags: "g",
+      replacement: "(SEMI App.5: use allowlist, accesslist, or permitlist)",
+      severity: "minor", enabled: true },
+    { id: "chicago-120-semi-master-tech", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"master\" (device/process role) with bias-free alternative",
+      pattern: "\\b[Mm]aster\\s+(?:device|node|clock|controller|board|unit|process|server|copy|branch|record|key|signal|port|chip|bus)\\b", flags: "g",
+      replacement: "(SEMI App.5: use primary, main, leader, or active)",
+      severity: "minor", enabled: true },
+    { id: "chicago-121-semi-slave-tech", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"slave\" (device/process role) with bias-free alternative",
+      pattern: "\\b[Ss]lave\\s+(?:device|node|clock|controller|board|unit|process|server|copy|branch|record|port|chip|bus)\\b|\\b[Mm]aster[\\s\\/\\-][Ss]lave\\b", flags: "g",
+      replacement: "(SEMI App.5: use secondary, replica, follower, or standby)",
+      severity: "minor", enabled: true },
+    // App.5 — Biased terms to avoid (recommended replacements)
+    { id: "chicago-122-semi-sanity-check", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"sanity check/test\" with \"confidence check\"",
+      pattern: "\\b[Ss]anity[\\s\\-](?:check|test)\\b", flags: "g",
+      replacement: "confidence check", severity: "minor", enabled: true },
+    { id: "chicago-123-semi-man-hours", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"man-hours\" with \"person-hours\" or \"labor-hours\"",
+      pattern: "\\b[Mm]an-hours?\\b", flags: "g",
+      replacement: "person-hours", severity: "minor", enabled: true },
+    { id: "chicago-124-semi-manpower", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Replace \"manpower\" with \"workforce\", \"personnel\", or \"staff\"",
+      pattern: "\\b[Mm]anpower\\b", flags: "g",
+      replacement: "(SEMI App.5: use workforce, personnel, staff, or human resources)",
+      severity: "minor", enabled: true },
+    // abort/kill/terminate for processes (disabled: high FP in general technical docs)
+    { id: "chicago-125-semi-abort-kill", category: "hyphenation_terminology",
+      name: "SEMI Style Manual App.5 — Prefer \"halt\"/\"stop\" over \"abort\"/\"kill\"/\"terminate\" for processes",
+      pattern: "\\b(?:[Aa]bort|[Kk]ill|[Tt]erminate)\\s+(?:the\\s+)?(?:process|task|job|operation|thread|program|execution|run|sequence|cycle)\\b", flags: "g",
+      replacement: "(SEMI App.5: prefer halt, stop, end, or cease for processes)",
+      severity: "minor", enabled: false },
+    // App.4 — Preferred spellings
+    { id: "chicago-126-semi-cleanroom", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"cleanroom\" (not \"clean room\")",
+      pattern: "\\b([Cc])lean [Rr]oom\\b", flags: "g",
+      replacement: "$1leanroom", severity: "minor", enabled: true },
+    { id: "chicago-127-semi-barcode", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"barcode\" (not \"bar code\")",
+      pattern: "\\b([Bb])ar [Cc]ode\\b", flags: "g",
+      replacement: "$1arcode", severity: "minor", enabled: true },
+    // Broad patterns capture compound forms (millilitre → milliliter, centimetre → centimeter, etc.)
+    { id: "chicago-128-semi-litre", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"liter\" not \"litre\" (also millilitre, microlitre, etc.)",
+      pattern: "\\b(\\w*[Ll])itre(s?)\\b", flags: "g",
+      replacement: "$1iter$2", severity: "minor", enabled: true },
+    { id: "chicago-129-semi-metre", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"meter\" not \"metre\" (also centimetre, kilometre, etc.)",
+      pattern: "\\b(\\w*[Mm])etre(s?)\\b", flags: "g",
+      replacement: "$1eter$2", severity: "minor", enabled: true },
+    { id: "chicago-130-semi-nonvolatile", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"nonvolatile\" (not \"non-volatile\")",
+      pattern: "\\b([Nn])on-[Vv]olatile\\b", flags: "g",
+      replacement: "$1onvolatile", severity: "minor", enabled: true },
+    { id: "chicago-131-semi-sulfur", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"sulfur\" (not \"sulphur\")",
+      pattern: "\\b([Ss])ulphur\\b", flags: "g",
+      replacement: "$1ulfur", severity: "minor", enabled: true },
+    // disc → disk (disabled: "disc" is valid in many non-semiconductor contexts)
+    { id: "chicago-132-semi-disc-disk", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling in semiconductor context: \"disk\" (not \"disc\")",
+      pattern: "\\b([Dd])isc\\b", flags: "g",
+      replacement: "(SEMI App.4: in semiconductor context, prefer \"$1isk\")",
+      severity: "minor", enabled: false },
+    // Case-sensitive lowercase only: avoids flagging "Gage" as a proper name
+    { id: "chicago-133-semi-gage-gauge", category: "spelling",
+      name: "SEMI Style Manual App.4 — Preferred spelling: \"gauge\" (not \"gage\")",
+      pattern: "\\bgage\\b", flags: "g",
+      replacement: "gauge", severity: "minor", enabled: true },
+    // §6-9 Mathematical operators
+    { id: "chicago-134-semi-multiply-asterisk", category: "numbers_abbreviations",
+      name: "SEMI Style Manual §6-9 — Use × (multiplication symbol), not * (asterisk), for multiplication",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)\\b", flags: "g",
+      replacement: "(SEMI §6-9: use × for multiplication — $1 × $2)",
+      severity: "minor", enabled: true },
+    { id: "chicago-135-semi-plusminus", category: "numbers_abbreviations",
+      name: "SEMI Style Manual §6-9 — Use ± (plus-over-minus symbol), not +/-",
+      pattern: "\\+\\/\\-", flags: "g",
+      replacement: "±", severity: "minor", enabled: true },
+    { id: "chicago-136-semi-e-notation", category: "numbers_abbreviations",
+      name: "SEMI Style Manual §6-9 — Use proper power of 10 (5 × 10¹⁴), not E notation (5E14)",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)[Ee]([+\\-]?\\d+)\\b", flags: "g",
+      replacement: "(SEMI §6-9: use $1 × 10^$2 instead of E notation)",
+      severity: "minor", enabled: true },
   ];
   // Style-guide rules that need part-of-speech checks.
   const STYLE_RULES = [
@@ -820,6 +933,7 @@
   const CMOS17_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:7[6-9]|8[0-7])-/.test(rule.id));
   const CMOS17_V2_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:8[8-9]|9[0-6])-/.test(rule.id));
   const SI_NIST811_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:9[7-9]|10\d|11[0-4])-/.test(rule.id));
+  const SEMI_SM_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:11[5-9]|12\d|13[0-6])-/.test(rule.id));
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -1225,6 +1339,12 @@
         rules.push(...SI_NIST811_RULES.filter((rule) => !existingIds.has(rule.id)));
         saveRules(rules);
         localStorage.setItem(RULES_SI_NIST811_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_SEMI_SM_V9_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...SEMI_SM_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_SEMI_SM_V9_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1991,6 +2111,29 @@
     { category: "numbers_abbreviations", ruleId: "chicago-109-si-normality-molarity", flag: "molarity", wrong: "The molarity of the stock solution is 2.0.", right: "The amount-of-substance concentration of the stock solution is 2.0 mol/L.", noFixCheck: true },
     { category: "numbers_abbreviations", ruleId: "chicago-111-si-unit-range", flag: "1 MHz-10 MHz", wrong: "The sweep covers 1 MHz-10 MHz.", right: "The sweep covers 1 MHz to 10 MHz." },
     { category: "numbers_abbreviations", ruleId: "chicago-112-si-value-unit-hyphen", flag: "25-kg", wrong: "The 25-kg payload was loaded onto the platform.", right: "The 25 kg payload was loaded onto the platform." },
+    // ── SEMI Style Manual V9 ──────────────────────────────────────────────
+    { category: "grammar", ruleId: "chicago-115-semi-must-as-shall", flag: "must", wrong: "The controller must provide a status report every 5 s.", right: "The controller shall provide a status report every 5 s.", noFixCheck: true },
+    { category: "grammar", ruleId: "chicago-116-semi-may-conditional", flag: "may require", wrong: "The system may require calibration before each measurement.", right: "The system shall require calibration before each measurement.", noFixCheck: true },
+    { category: "grammar", ruleId: "chicago-117-semi-implied-imperative", flag: "is to provide", wrong: "The supplier is to provide a data sheet for each lot.", right: "The supplier shall provide a data sheet for each lot.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-118-semi-blacklist", flag: "blacklist", wrong: "Add the domain to the blacklist to block incoming traffic.", right: "Add the domain to the blocklist to block incoming traffic.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-119-semi-whitelist", flag: "whitelist", wrong: "Add the certificate to the whitelist to permit connections.", right: "Add the certificate to the allowlist to permit connections.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-120-semi-master-tech", flag: "master controller", wrong: "The master controller sends timing signals to all axes.", right: "The primary controller sends timing signals to all axes.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-121-semi-slave-tech", flag: "slave device", wrong: "Each slave device receives commands from the main controller.", right: "Each secondary device receives commands from the main controller.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-122-semi-sanity-check", flag: "sanity check", wrong: "Perform a sanity check on the measurement results before logging.", right: "Perform a confidence check on the measurement results before logging." },
+    { category: "hyphenation_terminology", ruleId: "chicago-123-semi-man-hours", flag: "man-hours", wrong: "The installation process requires 40 man-hours of labor.", right: "The installation process requires 40 person-hours of labor." },
+    { category: "hyphenation_terminology", ruleId: "chicago-124-semi-manpower", flag: "manpower", wrong: "Additional manpower is needed for the scheduled maintenance.", right: "Additional personnel are needed for the scheduled maintenance.", noFixCheck: true },
+    { category: "hyphenation_terminology", ruleId: "chicago-125-semi-abort-kill", flag: "abort the process", wrong: "Press STOP to abort the process if a fault is detected.", right: "Press STOP to halt the process if a fault is detected.", noFixCheck: true },
+    { category: "spelling", ruleId: "chicago-126-semi-cleanroom", flag: "clean room", wrong: "All wafer processing takes place in a clean room environment.", right: "All wafer processing takes place in a cleanroom environment." },
+    { category: "spelling", ruleId: "chicago-127-semi-barcode", flag: "bar code", wrong: "Scan the bar code on the cassette before loading the system.", right: "Scan the barcode on the cassette before loading the system." },
+    { category: "spelling", ruleId: "chicago-128-semi-litre", flag: "litres", wrong: "The rinse tank holds 2.5 litres of deionized water.", right: "The rinse tank holds 2.5 liters of deionized water." },
+    { category: "spelling", ruleId: "chicago-129-semi-metre", flag: "metres", wrong: "The conveyor belt moves at 0.5 metres per second.", right: "The conveyor belt moves at 0.5 meters per second." },
+    { category: "spelling", ruleId: "chicago-130-semi-nonvolatile", flag: "non-volatile", wrong: "Settings are stored in non-volatile memory on the controller.", right: "Settings are stored in nonvolatile memory on the controller." },
+    { category: "spelling", ruleId: "chicago-131-semi-sulfur", flag: "sulphur", wrong: "The scrubber removes sulphur compounds from the exhaust stream.", right: "The scrubber removes sulfur compounds from the exhaust stream." },
+    { category: "spelling", ruleId: "chicago-132-semi-disc-disk", flag: "disc", wrong: "Replace the optical disc drive in the service bay.", right: "Replace the optical disk drive in the service bay.", noFixCheck: true },
+    { category: "spelling", ruleId: "chicago-133-semi-gage-gauge", flag: "gage", wrong: "The pressure gage shows 150 kPa at the inlet port.", right: "The pressure gauge shows 150 kPa at the inlet port." },
+    { category: "numbers_abbreviations", ruleId: "chicago-134-semi-multiply-asterisk", flag: "5 * 3", wrong: "The sample area is 5 * 3 mm at full magnification.", right: "The sample area is 5 × 3 mm at full magnification.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-135-semi-plusminus", flag: "+/-", wrong: "The flatness tolerance is +/- 0.5 µm across the wafer.", right: "The flatness tolerance is ± 0.5 µm across the wafer." },
+    { category: "numbers_abbreviations", ruleId: "chicago-136-semi-e-notation", flag: "5E14", wrong: "The carrier concentration measured at 5E14 atoms per cm2.", right: "The carrier concentration measured at 5 × 10^14 atoms per cm2.", noFixCheck: true },
     // Google Developer Docs Style (errata-ai/Google port)
     { category: "numbers_abbreviations", ruleId: "style-slang", flag: "ymmv", wrong: "In short, ymmv on older units.", right: "In short, results can vary on older units.", noFixCheck: true },
     { category: "numbers_abbreviations", ruleId: "style-date-day-month", flag: "31 July 2016", wrong: "Firmware 2.1 shipped on 31 July 2016.", right: "Firmware 2.1 shipped on July 31, 2016." },
