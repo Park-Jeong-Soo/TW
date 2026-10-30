@@ -225,6 +225,7 @@
   const RULES_EDIT_20261007T140724_KEY = "tw-demo-rules-edit-20261007t140724";
   const RULES_EDIT_20261007T180000_KEY = "tw-demo-rules-edit-20261007t180000";
   const RULES_EDIT_20261007T164042_KEY = "tw-demo-rules-edit-20261007t164042";
+  const RULES_SI_NIST811_KEY = "tw-demo-rules-si-nist811-v20";
   const IDB_NAME = "tw-demo-pdf-store";
   const IDB_STORE = "pdfs";
   const UI_TERMS_KEY_PREFIX = "tw-demo-uiterms-v1:";
@@ -463,6 +464,94 @@
     { id: "chicago-96-double-negative",  category: "grammar", name: "Chicago 5.243 — Double negative construction (heuristic)",
       pattern: "\\b(don't|doesn't|didn't|won't|wouldn't|can't|couldn't|isn't|aren't)\\b[^.!?]{0,60}\\b(nothing|nobody|nowhere|no one|never)\\b",
       flags: "gi", replacement: "(double negative — rewrite)", severity: "major", enabled: false },
+    // ── NIST SP 811 (SI units) ────────────────────────────────────────────
+    // Sec. 6.1.8 — Informal unit abbreviations
+    { id: "chicago-97-si-unit-abbrev-sec", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 6.1.8 — Use s, not sec, for seconds",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+sec\\b", flags: "g",
+      replacement: "$1 s", severity: "minor", enabled: true },
+    { id: "chicago-98-si-unit-abbrev-amps", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 6.1.8 — Use A, not amps or amp, for amperes",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+amps?\\b", flags: "g",
+      replacement: "$1 A", severity: "minor", enabled: true },
+    { id: "chicago-99-si-unit-abbrev-hrs", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 6.1.8 — Use h, not hrs or hr, for hours",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+hrs?\\b", flags: "g",
+      replacement: "$1 h", severity: "minor", enabled: true },
+    { id: "chicago-100-si-unit-abbrev-mins", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 6.1.8 — Use min, not mins, for minutes",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+mins\\b", flags: "g",
+      replacement: "$1 min", severity: "minor", enabled: true },
+    // Sec. 7.10.3 — No ppm/ppb
+    { id: "chicago-101-si-ppm-ppb", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 7.10.3 — Do not use ppm or ppb; use SI ratio notation",
+      pattern: "\\b(ppm|ppb)\\b", flags: "gi",
+      replacement: "(use SI notation, e.g. µg/g for ppm — NIST SP 811 Sec. 7.10.3)", severity: "minor", enabled: true },
+    // Sec. 7.10.2 — No qualifier after %
+    { id: "chicago-102-si-percent-qualifier", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 7.10.2 — Do not attach qualifiers such as (by weight) to %",
+      pattern: "%\\s*\\((?:m\\/m|by\\s+weight|by\\s+volume|[Vv]\\/[Vv]|mol\\/mol|by\\s+mass)\\)", flags: "gi",
+      replacement: "%", severity: "minor", enabled: true },
+    // Sec. 9.1 — SI unit names are lowercase when spelled out
+    { id: "chicago-103-si-unit-names-lower", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 9.1 — SI unit names are lowercase (kelvin, newton, pascal…)",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+(Kelvin|Newtons?|Pascals?|Joules?|Watts?|Coulombs?|Volts?|Ohms?|Farads?|Hertz|Siemens|Becquerels?|Sieverts?|Candelas?)\\b", flags: "g",
+      replacement: "(NIST SP 811 Sec. 9.1: unit name should be lowercase — use $1 kelvin / newton / etc.)", severity: "minor", enabled: true },
+    // Sec. 9.3 — No hyphen between SI prefix and unit name
+    { id: "chicago-104-si-prefix-hyphen", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 9.3 — No hyphen between SI prefix and unit name (milligram, not milli-gram)",
+      pattern: "\\b(milli|kilo|mega|giga|micro|nano|pico|femto|tera|hecto|deca|deci|centi)-(gram|meter|pascal|newton|volt|ampere|hertz|joule|watt|farad|ohm|siemens|liter|kelvin|second|mole)(s?)\\b", flags: "gi",
+      replacement: "$1$2$3", severity: "minor", enabled: true },
+    // Sec. 9.5 — Use "per" not solidus when spelling out unit names
+    { id: "chicago-105-si-unit-per", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 9.5 — Use \"per\" not a solidus when spelling out unit names",
+      pattern: "\\b(ampere|joule|watt|coulomb|newton|pascal|volt|ohm|farad|henry|siemens|kelvin|kilogram|gram|meter|second|mole|candela|liter|hertz|radian|steradian)s?\\/(second|meter|kilogram|gram|mole|candela|volt|ampere|kelvin|second)s?\\b", flags: "gi",
+      replacement: "$1 per $2", severity: "minor", enabled: true },
+    // Sec. 5.3.1 — No CGS units
+    { id: "chicago-106-si-cgs-units", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 5.3.1 — Do not use CGS units (erg, dyne, poise, gauss, oersted, maxwell)",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+(?:erg|dyne|poise|gauss|oersted|maxwell)s?\\b", flags: "gi",
+      replacement: "(use SI unit — NIST SP 811 Sec. 5.3.1: J for erg, N for dyne, Pa·s for poise, T for gauss)", severity: "minor", enabled: true },
+    // Sec. 5.3.2 — No Torr/atm/kgf
+    { id: "chicago-107-si-deprecated-units", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 5.3.2 — Do not use Torr, atm, or kgf; use Pa or N instead",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+(?:[Tt]orr|atm|kgf)\\b", flags: "g",
+      replacement: "(use SI unit — NIST SP 811 Sec. 5.3.2: Pa for Torr/atm, N for kgf)", severity: "minor", enabled: true },
+    // Sec. 8.4 — "relative atomic mass" not "atomic weight"
+    { id: "chicago-108-si-atomic-weight", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 8.4 — Use \"relative atomic mass\" not \"atomic weight\"; \"relative molecular mass\" not \"molecular weight\"",
+      pattern: "\\b[Aa]tomic weight\\b|\\b[Mm]olecular weight\\b", flags: "g",
+      replacement: "(NIST SP 811 Sec. 8.4: use \"relative atomic mass\" or \"relative molecular mass\")", severity: "minor", enabled: true },
+    // Sec. 8.6.5/8.6.8 — No normality/molarity/molal
+    { id: "chicago-109-si-normality-molarity", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 8.6.5 — Avoid normality, molarity, molal; use amount-of-substance concentration (mol/L)",
+      pattern: "\\b(?:[Nn]ormality|[Mm]olarity|[Mm]olality|[Mm]olal)\\b", flags: "g",
+      replacement: "(NIST SP 811 Sec. 8.6.5/8.6.8: use amount-of-substance concentration (mol/L) or molality (mol/kg))", severity: "minor", enabled: true },
+    // Sec. 8.3 — "mass" not "weight" when referencing kg/g quantities (disabled; high false-positive risk)
+    { id: "chicago-110-si-weight-mass", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 8.3 — Use \"mass\" not \"weight\" for quantities in kg/g (weight is a force in SI)",
+      pattern: "\\b([Ww])eight\\s+(is|was)\\s+(\\d+(?:\\.\\d+)?)\\s+(kg|g|mg)\\b", flags: "g",
+      replacement: "(NIST SP 811 Sec. 8.3: use \"mass\" — weight is force in N, not mass in kg)", severity: "minor", enabled: false },
+    // Sec. 7.7 — Use "to" not dash in quantity ranges (backreference \2 ensures same unit on both sides)
+    { id: "chicago-111-si-unit-range", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 7.7 — Use \"to\" not a dash in quantity ranges (1 MHz to 10 MHz)",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)\\s+(GHz|MHz|kHz|MPa|kPa|kW|km|um|μm|mV|mA|ms|us|μs|mg|mm|nm|cm|Hz|Pa|°C|kg|kV|V|A|W|K|g|ns|m|s)\\s*[-\\u2013]\\s*(\\d+(?:\\.\\d+)?)\\s+\\2\\b", flags: "g",
+      replacement: "$1 $2 to $3 $2", severity: "minor", enabled: true },
+    // Sec. 7.2 — No hyphen between numerical value and unit symbol
+    { id: "chicago-112-si-value-unit-hyphen", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 7.2 — No hyphen between numerical value and unit symbol (25 kg, not 25-kg)",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)-(GHz|MHz|kHz|MPa|kPa|kW|km|um|μm|mV|mA|ms|us|μs|mg|mm|nm|cm|Hz|Pa|°C|kg|kV|V|A|W|K|g|ns|m|s)\\b", flags: "g",
+      replacement: "$1 $2", severity: "minor", enabled: true },
+    // Sec. 7.10.2 — Space before % (disabled: conflicts with chicago-50-percent-space)
+    { id: "chicago-113-si-percent-space", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 7.10.2 — Space required before % (10 %) [CMOS CONFLICT: chicago-50 removes the space]",
+      pattern: "\\b(\\d+(?:\\.\\d+)?)%(?![-\\u2013]\\d)", flags: "g",
+      replacement: "(NIST SP 811 Sec. 7.10.2: add a space — $1 % — conflicts with CMOS chicago-50)", severity: "minor", enabled: false },
+    // Sec. 10.5.3 — No comma for digit grouping (disabled: conflicts with chicago-87-thousands-comma)
+    { id: "chicago-114-si-digit-grouping", category: "numbers_abbreviations",
+      name: "NIST SP 811 Sec. 10.5.3 — No comma for digit grouping in SI documents [CMOS CONFLICT: chicago-87 adds commas]",
+      pattern: "\\b[1-9]\\d{0,2}(?:,\\d{3})+\\b", flags: "g",
+      replacement: "(NIST SP 811 Sec. 10.5.3: use thin spaces, not commas, for digit grouping — conflicts with CMOS chicago-87)", severity: "minor", enabled: false },
   ];
   // Style-guide rules that need part-of-speech checks.
   const STYLE_RULES = [
@@ -730,6 +819,7 @@
   const EXPANDED_2026_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:5[6-9]|6\d|7[0-5])-/.test(rule.id));
   const CMOS17_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:7[6-9]|8[0-7])-/.test(rule.id));
   const CMOS17_V2_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:8[8-9]|9[0-6])-/.test(rule.id));
+  const SI_NIST811_RULES = CHICAGO_RULES.filter((rule) => /^chicago-(?:9[7-9]|10\d|11[0-4])-/.test(rule.id));
 
   //
   // ─── PDF.js loader ─────────────────────────────────────────────────────
@@ -1129,6 +1219,12 @@
         }
         saveRules(rules);
         localStorage.setItem(RULES_EDIT_20261007T164042_KEY, "done");
+      }
+      if (localStorage.getItem(RULES_SI_NIST811_KEY) !== "done") {
+        const existingIds = new Set(rules.map((rule) => rule.id));
+        rules.push(...SI_NIST811_RULES.filter((rule) => !existingIds.has(rule.id)));
+        saveRules(rules);
+        localStorage.setItem(RULES_SI_NIST811_KEY, "done");
       }
       const titleRuleDefault = TEAM_RULES.find((rule) => rule.id === "team-title-case");
       const titleRules = rules.filter((rule) => rule.id === "team-title-case");
@@ -1879,6 +1975,22 @@
     { category: "numbers_abbreviations", ruleId: "chicago-91-et-al-period", flag: "et al", wrong: "Kim et al reported the same drift.", right: "Kim et al. reported the same drift." },
     { category: "numbers_abbreviations", ruleId: "chicago-94-vs-period", flag: "vs", wrong: "Plot the height vs time for each line.", right: "Plot the height vs. time for each line." },
     { category: "numbers_abbreviations", ruleId: "chicago-95-author-date-comma", flag: "(Kim, 2020)", wrong: "The method follows (Kim, 2020) closely.", right: "The method follows (Kim 2020) closely." },
+    // ── NIST SP 811 (SI units) ────────────────────────────────────────────
+    { category: "numbers_abbreviations", ruleId: "chicago-97-si-unit-abbrev-sec", flag: "30 sec", wrong: "The pulse lasts 30 sec at full power.", right: "The pulse lasts 30 s at full power." },
+    { category: "numbers_abbreviations", ruleId: "chicago-98-si-unit-abbrev-amps", flag: "5 amps", wrong: "The circuit draws 5 amps at peak load.", right: "The circuit draws 5 A at peak load." },
+    { category: "numbers_abbreviations", ruleId: "chicago-99-si-unit-abbrev-hrs", flag: "2 hrs", wrong: "The test runs for 2 hrs before shutdown.", right: "The test runs for 2 h before shutdown." },
+    { category: "numbers_abbreviations", ruleId: "chicago-100-si-unit-abbrev-mins", flag: "10 mins", wrong: "Allow 10 mins for the sensor to stabilize.", right: "Allow 10 min for the sensor to stabilize." },
+    { category: "numbers_abbreviations", ruleId: "chicago-101-si-ppm-ppb", flag: "ppm", wrong: "The contamination level is 50 ppm by volume.", right: "The contamination level is 50 µg/g by volume.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-102-si-percent-qualifier", flag: "%(by weight)", wrong: "The solution is 10%(by weight) sodium chloride.", right: "The solution is 10% sodium chloride." },
+    { category: "numbers_abbreviations", ruleId: "chicago-103-si-unit-names-lower", flag: "300 Kelvin", wrong: "The substrate is kept at 300 Kelvin during deposition.", right: "The substrate is kept at 300 kelvin during deposition.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-104-si-prefix-hyphen", flag: "milli-gram", wrong: "Add 5 milli-grams of the reagent.", right: "Add 5 milligrams of the reagent." },
+    { category: "numbers_abbreviations", ruleId: "chicago-105-si-unit-per", flag: "joule/second", wrong: "Power is measured in joule/second.", right: "Power is measured in joule per second." },
+    { category: "numbers_abbreviations", ruleId: "chicago-106-si-cgs-units", flag: "dyne", wrong: "The force is 200 dynes in the old report.", right: "The force is 200 N in the old report.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-107-si-deprecated-units", flag: "atm", wrong: "The chamber pressure was set to 1.5 atm.", right: "The chamber pressure was set to 152 kPa.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-108-si-atomic-weight", flag: "atomic weight", wrong: "The atomic weight of carbon is 12.011.", right: "The relative atomic mass of carbon is 12.011.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-109-si-normality-molarity", flag: "molarity", wrong: "The molarity of the stock solution is 2.0.", right: "The amount-of-substance concentration of the stock solution is 2.0 mol/L.", noFixCheck: true },
+    { category: "numbers_abbreviations", ruleId: "chicago-111-si-unit-range", flag: "1 MHz-10 MHz", wrong: "The sweep covers 1 MHz-10 MHz.", right: "The sweep covers 1 MHz to 10 MHz." },
+    { category: "numbers_abbreviations", ruleId: "chicago-112-si-value-unit-hyphen", flag: "25-kg", wrong: "The 25-kg payload was loaded onto the platform.", right: "The 25 kg payload was loaded onto the platform." },
     // Google Developer Docs Style (errata-ai/Google port)
     { category: "numbers_abbreviations", ruleId: "style-slang", flag: "ymmv", wrong: "In short, ymmv on older units.", right: "In short, results can vary on older units.", noFixCheck: true },
     { category: "numbers_abbreviations", ruleId: "style-date-day-month", flag: "31 July 2016", wrong: "Firmware 2.1 shipped on 31 July 2016.", right: "Firmware 2.1 shipped on July 31, 2016." },
